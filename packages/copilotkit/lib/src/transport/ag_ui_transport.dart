@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_transport.dart';
@@ -70,15 +71,38 @@ class AgUiTransport implements AgentTransport {
     return controller.stream;
   }
 
-  // coverage:ignore-start
+  /// Calls the runtime's stop route so the run also ends on the server.
+  ///
+  /// Throws an [http.ClientException] when the runtime rejects the request.
   @override
   Future<void> stop({
     required String agentId,
     required String threadId,
     required String runId,
     Map<String, String> headers = const {},
-  }) => throw UnimplementedError();
-  // coverage:ignore-end
+  }) async {
+    final url = Uri.parse(
+      '$_baseUrl/agent/${Uri.encodeComponent(agentId)}'
+      '/stop/${Uri.encodeComponent(threadId)}',
+    );
+    final httpClient = _httpClientFactory();
+    try {
+      final request = http.Request('POST', url)
+        ..headers.addAll({...headers, 'Content-Type': 'application/json'})
+        ..body = jsonEncode({'runId': runId});
+      final response = await http.Response.fromStream(
+        await httpClient.send(request),
+      );
+      if (response.statusCode >= 400) {
+        throw http.ClientException(
+          'Stop failed with status ${response.statusCode}: ${response.body}',
+          url,
+        );
+      }
+    } finally {
+      httpClient.close();
+    }
+  }
 
   @override
   Future<void> close() async {

@@ -219,12 +219,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Make `agent.stop()` / `client.stopAgent(agent)` close the underlying connection, not just stop listening: each run gets its own `http.Client`, closed on stop. The message list stays consistent: the partial assistant message is kept, and no tool call is left half-open in `executing`. Note any `ag_ui` patch needed and open an upstream issue if one applies.
 
 **Acceptance criteria:**
-- [ ] After `stop()`, `isRunning` is false and no further events are applied
-- [ ] A test with a never-ending stubbed event stream and a mocked `http.Client` shows the client was closed
-- [ ] Running `run()` again after a stop works
+- [x] After `stop()`, `isRunning` is false and no further events are applied
+- [x] A test with a never-ending stubbed event stream and a mocked `http.Client` shows the client was closed
+- [x] Running `run()` again after a stop works
 
 **Verification:**
-- [ ] `fvm dart test test/stop_test.dart`
+- [x] `fvm dart test test/stop_test.dart`
 - [ ] Manual: stop mid-reply on the device; runtime logs show the request closed
 
 **Dependencies:** A5

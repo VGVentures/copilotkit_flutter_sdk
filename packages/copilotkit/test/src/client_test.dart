@@ -225,6 +225,23 @@ void main() {
         expect(agent.snapshot.error, same(failure));
       });
 
+      test('reports a transport that throws synchronously', () async {
+        final failure = StateError('bad transport');
+        when(
+          () => transport.run(
+            agentId: any(named: 'agentId'),
+            input: any(named: 'input'),
+            headers: any(named: 'headers'),
+          ),
+        ).thenThrow(failure);
+        final agent = client.agent('default');
+
+        await expectLater(client.runAgent(agent), completes);
+
+        expect(errors.single.$1, same(failure));
+        expect(agent.isRunning, isFalse);
+      });
+
       test('reports a stream that ends before the run finishes', () async {
         final agent = client.agent('default');
         stubRun(

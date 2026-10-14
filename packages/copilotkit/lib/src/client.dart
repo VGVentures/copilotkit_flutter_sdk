@@ -86,35 +86,65 @@ class CopilotKitClient {
       context: const [],
       forwardedProps: properties,
     );
-    final run = _ActiveRun();
+    final Stream<BaseEvent> events;
+    try {
+      events = _transport.run(
+        agentId: agent.agentId,
+        input: input,
+        headers: requestHeaders,
+      );
+    } on Object catch (error, stackTrace) {
+      _fail(agent, error, stackTrace);
+      return;
+    }
+    final run = _ActiveRun(runId: input.runId, headers: requestHeaders);
     _activeRuns[agent] = run;
-    run.subscription = _transport
-        .run(agentId: agent.agentId, input: input, headers: requestHeaders)
-        .listen(
-          agent._apply,
-          onError: (Object error, StackTrace stackTrace) {
-            _fail(agent, error, stackTrace);
-            run.done.complete();
-          },
-          onDone: () {
-            if (agent.isRunning) {
-              _fail(
-                agent,
-                StateError('The connection closed before the run finished.'),
-                StackTrace.current,
-              );
-            }
-            run.done.complete();
-          },
-          cancelOnError: true,
-        );
+    run.subscription = events.listen(
+      agent._apply,
+      onError: (Object error, StackTrace stackTrace) {
+        _fail(agent, error, stackTrace);
+        run.done.complete();
+      },
+      onDone: () {
+        if (agent.isRunning) {
+          _fail(
+            agent,
+            StateError('The connection closed before the run finished.'),
+            StackTrace.current,
+          );
+        }
+        run.done.complete();
+      },
+      cancelOnError: true,
+    );
     await run.done.future;
-    _activeRuns.remove(agent);
+    if (identical(_activeRuns[agent], run)) _activeRuns.remove(agent);
   }
 
   /// Stops the current run of [agent], closing its connection.
+  ///
+  /// The partial reply is kept and no further events are applied. The
+  /// runtime is also asked to stop the run; if that fails the error goes to
+  /// [onError]. Does nothing if [agent] is not running.
+  Future<void> stopAgent(CopilotAgent agent) async {
+    final run = _activeRuns.remove(agent);
+    if (run == null) return;
+    await run.subscription.cancel();
+    agent._update(agent.snapshot.copyWith(isRunning: false));
+    run.done.complete();
+    try {
+      await _transport.stop(
+        agentId: agent.agentId,
+        threadId: agent.threadId,
+        runId: run.runId,
+        headers: run.headers,
+      );
+    } on Object catch (error, stackTrace) {
+      onError?.call(error, stackTrace);
+    }
+  }
+
   // coverage:ignore-start
-  Future<void> stopAgent(CopilotAgent agent) => throw UnimplementedError();
 
   /// Makes [tool] available to the agent on every run.
   ///
@@ -150,6 +180,10 @@ class CopilotKitClient {
 }
 
 class _ActiveRun {
+  new({required this.runId, required this.headers});
+
+  final String runId;
+  final Map<String, String> headers;
   // Cancelled on error (cancelOnError), on dispose and by stopAgent.
   // ignore: cancel_subscriptions
   late StreamSubscription<BaseEvent> subscription;

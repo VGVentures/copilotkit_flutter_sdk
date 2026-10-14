@@ -65,7 +65,7 @@ class CopilotAgent {
   /// Stops the current run, if any.
   ///
   /// Same as `CopilotKitClient.stopAgent(this)`.
-  Future<void> stop() => _client.stopAgent(this); // coverage:ignore-line
+  Future<void> stop() => _client.stopAgent(this);
 
   void _apply(BaseEvent event) {
     _events.add(event);

@@ -201,5 +201,57 @@ void main() {
 
       verify(() => httpClient.close()).called(1);
     });
+
+    group('stop', () {
+      test('posts the run id to the stop route with headers', () async {
+        stubResponse(
+          http.StreamedResponse(
+            Stream.value(utf8.encode('{"stopped":true}')),
+            200,
+          ),
+        );
+
+        await transport.stop(
+          agentId: 'my agent',
+          threadId: 'thread 1',
+          runId: 'run-1',
+          headers: {'Authorization': 'Bearer token'},
+        );
+
+        final request =
+            verify(() => httpClient.send(captureAny())).captured.single
+                as http.Request;
+        expect(request.method, 'POST');
+        expect(
+          request.url.path,
+          '/api/copilotkit/agent/my%20agent/stop/thread%201',
+        );
+        expect(request.headers['Authorization'], 'Bearer token');
+        expect(request.headers['Content-Type'], startsWith('application/json'));
+        expect(jsonDecode(request.body), {'runId': 'run-1'});
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws when the runtime rejects the stop', () async {
+        stubResponse(
+          http.StreamedResponse(
+            Stream.value(utf8.encode('{"error":"Agent not found"}')),
+            404,
+          ),
+        );
+
+        await expectLater(
+          transport.stop(agentId: 'missing', threadId: 't', runId: 'r'),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('404'),
+            ),
+          ),
+        );
+        verify(() => httpClient.close()).called(1);
+      });
+    });
   });
 }
