@@ -6,3 +6,5 @@ library;
 export 'package:copilotkit/copilotkit.dart';
 
 export 'src/copilot_kit.dart';
+export 'src/copilot_tool.dart';
+export 'src/tool_renderer.dart';

@@ -353,12 +353,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** `CopilotTool(tool:, builder:, child:)` registers the tool on mount, unregisters it on dispose, and adds its builder to a `ToolRenderer` registry keyed by tool name, with a `*` fallback. Chat rows for tool calls look up the builder and call `builder(context, ToolCallView)`. Keys come from the tool call id, so widgets keep their state through rebuilds and scrolling.
 
 **Acceptance criteria:**
-- [ ] Widget tests with a mocked agent emitting `ToolCallView`s through `inProgress` → `executing` → `complete` show the builder output for each status
-- [ ] Disposing `CopilotTool` calls the unregister handle (verified on `_MockCopilotKitClient`)
-- [ ] Scrolling the tool row off-screen and back keeps its state (widget test)
+- [x] Widget tests with a mocked agent emitting `ToolCallView`s through `inProgress` → `executing` → `complete` show the builder output for each status
+- [x] Disposing `CopilotTool` calls the unregister handle (verified on `_MockCopilotKitClient`)
+- [x] Scrolling the tool row off-screen and back keeps its state (widget test)
 
 **Verification:**
-- [ ] `cd packages/copilotkit_flutter && very_good test --coverage`
+- [x] `cd packages/copilotkit_flutter && very_good test --coverage`
 - [ ] Manual (after A7): a sample weather-style tool renders on device against the local runtime
 
 **Dependencies:** B4, B5; A7 for real registration (tests mock the client until then)
