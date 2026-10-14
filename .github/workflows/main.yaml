@@ -54,6 +54,7 @@ jobs:
       working_directory: packages/copilotkit
       flutter_version_file: .fvmrc
       min_coverage: 100
+      coverage_excludes: '**/*.g.dart'
       run_bloc_lint: false
 
   copilotkit_flutter:
@@ -75,13 +76,10 @@ jobs:
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
 
-  example_codegen:
+  codegen:
     needs: changes
-    if: ${{ needs.changes.outputs.example == 'true' }}
+    if: ${{ needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.example == 'true' }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: example
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@v7
@@ -95,10 +93,15 @@ jobs:
       - name: 📦 Install Dependencies
         run: flutter pub get
 
-      - name: 🏗️ Generate Code
+      - name: 🏗️ Generate Code (copilotkit)
+        working-directory: packages/copilotkit
+        run: dart run build_runner build
+
+      - name: 🏗️ Generate Code (example)
+        working-directory: example
         run: dart run build_runner build
 
       - name: 🔍 Check Generated Code Is Up To Date
         run: |
-          git status --porcelain -- .
-          test -z "$(git status --porcelain -- .)"
+          git status --porcelain
+          test -z "$(git status --porcelain)"

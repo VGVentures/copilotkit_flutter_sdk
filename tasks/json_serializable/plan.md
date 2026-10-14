@@ -44,7 +44,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 - [ ] Human review
 
 ### Phase 2: Core package
-- [ ] Task 3: Codegen setup in `packages/copilotkit`
+- [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff.
 - [ ] Task 4: Typed stop request/response in `AgUiTransport`
 
 ### Checkpoint: Core codegen

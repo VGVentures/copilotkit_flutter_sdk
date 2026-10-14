@@ -68,12 +68,12 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 **Description:** Repeat Task 1's setup for the core package: `json_annotation` as a runtime dependency, `build_runner` + `json_serializable` as dev dependencies, `build.yaml`, analysis exclude, and CI `coverage_excludes` plus the stale-output check for the `copilotkit` job. Confirm that core still runs with `fvm dart test`, with no Flutter dependency.
 
 **Acceptance criteria:**
-- [ ] Core resolves and `fvm dart test` passes without Flutter
-- [ ] `fvm dart doc --dry-run` has no new warnings
-- [ ] CI coverage excludes `*.g.dart` for `copilotkit`
+- [x] Core resolves and `fvm dart test` passes without Flutter
+- [x] `fvm dart doc --dry-run` has no new warnings
+- [x] CI coverage excludes `*.g.dart` for `copilotkit`
 
 **Verification:**
-- [ ] `cd packages/copilotkit && fvm dart run build_runner build && fvm dart test`
+- [x] `cd packages/copilotkit && fvm dart run build_runner build && fvm dart test`
 
 **Dependencies:** Checkpoint: Example
 
