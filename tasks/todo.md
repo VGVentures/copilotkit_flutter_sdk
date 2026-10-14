@@ -138,9 +138,9 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Implement the pure `AgentEventReducer`, starting with lifecycle (`RunStarted`, `RunFinished`, `RunError`, `StepStarted/Finished`) and text (`TextMessageStart/Content/End`, `TextMessageChunk`). `isRunning`, `messages` and the last assistant message's growing text are all derived through it.
 
 **Acceptance criteria:**
-- [ ] Replaying `text_stream.jsonl` yields one assistant message whose text grows on every `Content` event
-- [ ] `isRunning` is true between `RunStarted` and `RunFinished`/`RunError`
-- [ ] Reducer is pure (no I/O, no clocks); unknown events return the snapshot unchanged
+- [ ] Replaying `text_stream.jsonl` yields one assistant message whose text grows on every `Content` event (covered with hand-built events in `reducer_text_test.dart`; fixture replay added with A2)
+- [x] `isRunning` is true between `RunStarted` and `RunFinished`/`RunError`
+- [x] Reducer is pure (no I/O, no clocks); unknown events return the snapshot unchanged
 
 **Verification:**
 - [ ] `cd packages/copilotkit && fvm dart test test/reducer_text_test.dart`
