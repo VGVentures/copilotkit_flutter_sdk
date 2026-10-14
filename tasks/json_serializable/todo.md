@@ -5,7 +5,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 **Every task (implicit in each Verification list):**
 - [ ] `very_good test --coverage --exclude-coverage '**/*.g.dart'` passes in each touched package (100% target)
 - [ ] `fvm flutter analyze` 0 issues; `fvm dart format --set-exit-if-changed .` clean
-- [ ] `fvm dart run build_runner build --delete-conflicting-outputs` in the touched package leaves `git diff` empty
+- [ ] `fvm dart run build_runner build` in the touched package leaves `git diff` empty
 
 ---
 
@@ -16,13 +16,13 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 **Description:** Add `json_annotation` (dependency) and `build_runner` + `json_serializable` (dev dependencies) to `example/pubspec.yaml` and confirm the workspace still resolves with Flutter 3.47.0 / Dart 3.13 and `flutter_test`'s pins. Add `example/build.yaml` with the shared options, exclude `**/*.g.dart` from analysis, and add `coverage_excludes` plus a "generated code is up to date" step to the `example` CI job. Generate one model to prove that the generator handles the repo's constructor syntax. If the spike fails, write down the blocker in the plan and stop.
 
 **Acceptance criteria:**
-- [ ] `fvm flutter pub get` at the root resolves; `fvm dart run build_runner build` in `example/` produces a `.g.dart` file
-- [ ] Constructor syntax decision recorded in the plan (new `const new(...)` works, or classic syntax in model files)
-- [ ] CI excludes `*.g.dart` from coverage and fails when generated output is stale
+- [x] `fvm flutter pub get` at the root resolves; `fvm dart run build_runner build` in `example/` produces a `.g.dart` file
+- [x] Constructor syntax decision recorded in the plan (new `const new(...)` works, or classic syntax in model files)
+- [x] CI excludes `*.g.dart` from coverage and fails when generated output is stale
 
 **Verification:**
-- [ ] `fvm flutter pub get && cd example && fvm dart run build_runner build --delete-conflicting-outputs`
-- [ ] `fvm flutter analyze` clean, with generated files excluded
+- [x] `fvm flutter pub get && cd example && fvm dart run build_runner build`
+- [x] `fvm flutter analyze` clean, with generated files excluded
 
 **Dependencies:** None
 
@@ -73,7 +73,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 - [ ] CI coverage excludes `*.g.dart` for `copilotkit`
 
 **Verification:**
-- [ ] `cd packages/copilotkit && fvm dart run build_runner build --delete-conflicting-outputs && fvm dart test`
+- [ ] `cd packages/copilotkit && fvm dart run build_runner build && fvm dart test`
 
 **Dependencies:** Checkpoint: Example
 

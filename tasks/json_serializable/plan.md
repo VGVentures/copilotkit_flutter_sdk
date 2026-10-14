@@ -25,7 +25,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 - **Generated `*.g.dart` files are committed.** This is VGV convention: CI and new engineers don't need a `build_runner` step to analyze or test, and the demo device setup (I3 onboarding target under 15 min) stays unchanged. CI checks that the committed output is up to date.
 - **Package-level `build.yaml`** with shared options (`explicit_to_json: true`, `include_if_null: false`, `checked: true`, `disallow_unrecognized_keys: false`) so models stay small and consistent.
 - **Generated code is excluded from analysis and coverage** (`analyzer.exclude: '**/*.g.dart'`; `coverage_excludes: '**/*.g.dart'` in `very_good_workflows`, `--exclude-coverage '**/*.g.dart'` locally). Models are still covered by round-trip tests on their hand-written parts.
-- **Models are plain immutable classes** (`@JsonSerializable()` + `factory .fromJson` / `toJson`), using the repo's Dart 3.13 constructor syntax if the generator supports it (verified in Task 1), otherwise classic constructors in model files only.
+- **Models are plain immutable classes** (`@JsonSerializable()` + `factory .fromJson` / `toJson`), using the repo's Dart 3.13 constructor syntax. Verified in Task 1: `json_serializable` 6.14.1 generates correct code for `const new({required this.x})` and for private named params (`new({required this._x})`), so model files need no exception.
 - **`ack` for schemas, `json_serializable` for models.** Ack replaces `JsonSchema` only, without `ack_generator`; models stay on `json_serializable`, so there is one codegen tool. `ack` is a runtime dependency of core, with no codegen involved.
 - **`FrontendTool.parameters` becomes an Ack `ObjectSchema`** (tool params are always an object). `client.dart` sends `parameters.toJsonSchema()`. Core re-exports the Ack types apps need (`Ack`, `AckSchema`, `ObjectSchema`) so `package:copilotkit_flutter` stays the only import. `JsonSchema` is deleted outright, with no deprecation, because nothing is published and the contract isn't frozen yet.
 - **Wire-format difference accepted:** Ack emits `additionalProperties: false` on objects and `anyOf: [T, {type: null}]` for nullable fields (checked with a probe on 1.7.0). OpenAI, Anthropic and Gemini tool calling accept both, and `additionalProperties: false` is required for OpenAI strict mode anyway.
@@ -34,7 +34,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 ## Task List
 
 ### Phase 1: Example app
-- [ ] Task 1: Toolchain spike + codegen setup in `example/` (high risk, first)
+- [x] Task 1: Toolchain spike + codegen setup in `example/` (high risk, first). Resolved Oct 14: `json_annotation` 4.12.0, `json_serializable` 6.14.1, `build_runner` 2.16.1 resolve in the workspace with Flutter 3.47.0. `build_runner` 2.16 removed `--delete-conflicting-outputs` (ignored with a warning), so commands omit it. CI runs a separate `example_codegen` job (the reusable VGV workflow has no codegen step).
 - [ ] Task 2: Typed weather demo models
 
 ### Checkpoint: Example

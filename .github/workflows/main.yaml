@@ -73,3 +73,32 @@ jobs:
       working_directory: example
       flutter_version_file: .fvmrc
       min_coverage: 100
+      coverage_excludes: '**/*.g.dart'
+
+  example_codegen:
+    needs: changes
+    if: ${{ needs.changes.outputs.example == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: example
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🏗️ Generate Code
+        run: dart run build_runner build
+
+      - name: 🔍 Check Generated Code Is Up To Date
+        run: |
+          git status --porcelain -- .
+          test -z "$(git status --porcelain -- .)"
