@@ -160,13 +160,13 @@ Independent of Phases 1–2; can run first or in parallel. Land before the A3 co
 **Description:** Update the remaining callers to Ack: `copilot_tool_test.dart` in the Flutter package, plus `weather_demo.dart` and its test in the example app. Update the docs that show `JsonSchema`: the snippet in `docs/requirements.md`, and the A3 contract notes and A3 task text in `tasks/plan.md` / `tasks/todo.md` (as a recorded contract change, not a rewrite of history). Ask engineer B for sign-off on the contract change.
 
 **Acceptance criteria:**
-- [ ] `rg JsonSchema` finds no Dart code outside Ack imports, and no stale docs
+- [x] `rg JsonSchema` finds no Dart code outside Ack imports, and no stale docs
 - [ ] The weather tool behaves the same: the model calls it and the card renders (widget tests plus a simulator check)
 - [ ] The A3 contract notes record the change, and engineer B has signed off
 
 **Verification:**
-- [ ] `very_good test --coverage --recursive` (all packages at 100%)
-- [ ] `fvm flutter analyze` and `fvm dart format --set-exit-if-changed .` clean
+- [x] `very_good test --coverage --recursive` (all packages at 100%)
+- [x] `fvm flutter analyze` and `fvm dart format --set-exit-if-changed .` clean
 - [ ] Manual: "What's the weather in Lima?" on a simulator against the local runtime
 
 **Dependencies:** Task 6. If Task 2 has already landed, rebase `weather_demo.dart` on it.

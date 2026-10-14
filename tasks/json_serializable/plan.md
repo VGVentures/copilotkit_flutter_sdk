@@ -61,7 +61,7 @@ Independent of Phases 1–2 (no codegen). It can run first or in parallel, and *
   - **Mapping note:** Ack fields are required unless `.optional()`, the inverse of `JsonSchema.object` (optional unless listed in `required`). `JsonSchema.object({'city': ...})` without `required` becomes `Ack.object({'city': Ack.string().optional()})`.
   - **Pending:** a live tool call against the local runtime (no runtime running and no model key in this session).
 - [x] Task 6: Swap `FrontendTool.parameters` to Ack in core. The Dart callers from Task 7 changed in the same commit so every commit compiles. `client.dart` fills in `"properties": {}` when Ack leaves it out (see Task 5).
-- [ ] Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`
+- [x] Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`. The code moved in Task 6's commit. Docs record the change in the A3 notes without rewriting history. **Pending:** engineer B's sign-off and a simulator check.
 
 ### Checkpoint: Complete
 - [ ] `rg JsonSchema --type dart` finds nothing outside Ack imports

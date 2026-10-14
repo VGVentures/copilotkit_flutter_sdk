@@ -265,7 +265,7 @@ CopilotTool(
   tool: FrontendTool(
     name: 'showWeather',
     description: 'Show the weather for a city',
-    parameters: JsonSchema.object({'city': JsonSchema.string()}, required: ['city']),
+    parameters: Ack.object({'city': Ack.string()}),
     handler: (args, {signal}) async => jsonEncode(await weather.lookup(args['city'] as String)),
   ),
   builder: (context, call) => switch (call.status) {

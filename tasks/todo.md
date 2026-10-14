@@ -113,6 +113,8 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Description:** Write the public surface of `core` as it will look when frozen: `CopilotKitClient`, `CopilotAgent`, `FrontendTool`, `JsonSchema`, `ToolCallView`, `ToolCallStatus`, `AgentContextEntry`, `AgentTransport`, and `AgentSnapshot`. Every type and member gets a doc comment, and method bodies are `UnimplementedError` until later tasks fill them in. `CopilotAgent` exposes synchronous getters plus `Stream<AgentSnapshot> changes`, and neither it nor `CopilotKitClient` is `final`, so both can be mocked. Write the API sketch from the requirements as a compiling snippet under `example/`.
 
+**Contract change (Oct 14):** `JsonSchema` is replaced by Ack's `ObjectSchema` for `FrontendTool.parameters`. See the A3 contract notes in `tasks/plan.md`.
+
 **Acceptance criteria:**
 - [x] The API sketch compiles against the skeleton, with the stream + bloc decision applied (core half in `packages/copilotkit/example/main.dart`; the widget half is the example app itself)
 - [x] Every public member has a doc comment; `fvm flutter analyze` is clean
