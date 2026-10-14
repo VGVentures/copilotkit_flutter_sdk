@@ -130,6 +130,57 @@ void main() {
       expect(agent.messages.single.content, 'Hal');
     });
 
+    group('while the headers are being built', () {
+      late Completer<Map<String, String>> headers;
+
+      setUp(() {
+        headers = Completer();
+        client = CopilotKitClient(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          headers: () => headers.future,
+          onError: (error, _) => errors.add(error),
+          transport: transport,
+        );
+        agent = client.agent('default');
+      });
+
+      void verifyNoRequest() {
+        verifyNever(
+          () => transport.run(
+            agentId: any(named: 'agentId'),
+            input: any(named: 'input'),
+            headers: any(named: 'headers'),
+          ),
+        );
+      }
+
+      test('stop sends no request', () async {
+        run = agent.run();
+        await pumpEventQueue();
+
+        await agent.stop();
+        headers.complete({});
+        await run;
+
+        verifyNoRequest();
+        expect(agent.isRunning, isFalse);
+        expect(errors, isEmpty);
+      });
+
+      test('dispose sends no request', () async {
+        when(() => transport.close()).thenAnswer((_) async {});
+        run = agent.run();
+        await pumpEventQueue();
+
+        await client.dispose();
+        headers.complete({});
+        await run;
+
+        verifyNoRequest();
+        expect(errors, isEmpty);
+      });
+    });
+
     test('does nothing when the agent is not running', () async {
       await agent.stop();
 

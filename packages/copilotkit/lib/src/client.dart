@@ -135,6 +135,8 @@ class CopilotKitClient {
         forwardedProps: properties,
       );
       requestHeaders = await headers?.call() ?? const {};
+      // Stopped or disposed while the headers were being built.
+      if (turn.stopped) return false;
       events = _transport.run(
         agentId: agent.agentId,
         input: input,
