@@ -1,0 +1,103 @@
+import 'dart:async';
+
+import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent_transport.dart';
+import 'package:http/http.dart' as http;
+
+/// [AgentTransport] over a Copilot Runtime v2 using `ag_ui`'s SSE client.
+///
+/// Every run gets its own [http.Client], closed when the run ends or its
+/// subscription is cancelled, so cancelling really closes the connection
+/// (`ag_ui`'s own cancel only stops listening).
+class AgUiTransport implements AgentTransport {
+  /// Creates a transport for the runtime at [runtimeUrl].
+  ///
+  /// [httpClientFactory] creates the per-run client; defaults to
+  /// [http.Client.new].
+  new({required Uri runtimeUrl, http.Client Function()? httpClientFactory})
+    : _baseUrl = runtimeUrl.toString().replaceFirst(RegExp(r'/+$'), ''),
+      _httpClientFactory = httpClientFactory ?? http.Client.new;
+
+  final String _baseUrl;
+  final http.Client Function() _httpClientFactory;
+  final Set<http.Client> _activeClients = {};
+
+  @override
+  Stream<BaseEvent> run({
+    required String agentId,
+    required RunAgentInput input,
+    Map<String, String> headers = const {},
+  }) {
+    final httpClient = _httpClientFactory();
+    _activeClients.add(httpClient);
+    final client = AgUiClient(
+      config: AgUiClientConfig(baseUrl: _baseUrl, defaultHeaders: headers),
+      httpClient: httpClient,
+    );
+
+    void release() {
+      if (_activeClients.remove(httpClient)) httpClient.close();
+    }
+
+    StreamSubscription<BaseEvent>? subscription;
+    late final StreamController<BaseEvent> controller;
+    controller = StreamController<BaseEvent>(
+      onListen: () {
+        subscription = client
+            .runAgent(
+              'agent/${Uri.encodeComponent(agentId)}/run',
+              _simpleInput(input),
+            )
+            .listen(
+              controller.add,
+              onError: controller.addError,
+              onDone: () {
+                release();
+                unawaited(controller.close());
+              },
+            );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () {
+        // Closing the client aborts the socket, which ends the inner stream.
+        // Don't wait for ag_ui's cancel: it only completes once the body
+        // stream ends, and stop must not block on the network.
+        release();
+        unawaited(subscription?.cancel());
+      },
+    );
+    return controller.stream;
+  }
+
+  // coverage:ignore-start
+  @override
+  Future<void> stop({
+    required String agentId,
+    required String threadId,
+    required String runId,
+    Map<String, String> headers = const {},
+  }) => throw UnimplementedError();
+  // coverage:ignore-end
+
+  @override
+  Future<void> close() async {
+    for (final client in _activeClients) {
+      client.close();
+    }
+    _activeClients.clear();
+  }
+}
+
+SimpleRunAgentInput _simpleInput(RunAgentInput input) {
+  return SimpleRunAgentInput(
+    threadId: input.threadId,
+    runId: input.runId,
+    parentRunId: input.parentRunId,
+    state: input.state,
+    messages: input.messages,
+    tools: input.tools,
+    context: input.context,
+    forwardedProps: input.forwardedProps,
+  );
+}
