@@ -33,4 +33,25 @@ class AgentSnapshot {
   /// Error that ended the most recent run, or `null`. Cleared when a new run
   /// starts.
   final Object? error;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// Pass `null` for [state] or [error] to clear them.
+  AgentSnapshot copyWith({
+    List<Message>? messages,
+    Object? state = _unset,
+    bool? isRunning,
+    List<ToolCallView>? toolCalls,
+    Object? error = _unset,
+  }) {
+    return AgentSnapshot(
+      messages: messages ?? this.messages,
+      state: identical(state, _unset) ? this.state : state,
+      isRunning: isRunning ?? this.isRunning,
+      toolCalls: toolCalls ?? this.toolCalls,
+      error: identical(error, _unset) ? this.error : error,
+    );
+  }
 }
+
+const Object _unset = Object();

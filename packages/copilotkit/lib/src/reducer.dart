@@ -8,13 +8,16 @@ import 'package:copilotkit/src/agent_snapshot.dart';
 /// emitting when `identical(previous, next)`.
 AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
   return switch (event) {
-    RunStartedEvent() => _copy(snapshot, isRunning: true, error: null),
-    RunFinishedEvent() => _copy(snapshot, isRunning: false),
-    RunErrorEvent() => _copy(snapshot, isRunning: false, error: event),
-    TextMessageStartEvent(:final messageId, :final role, :final name) => _copy(
-      snapshot,
-      messages: [...snapshot.messages, _textMessage(messageId, role, name, '')],
-    ),
+    RunStartedEvent() => snapshot.copyWith(isRunning: true, error: null),
+    RunFinishedEvent() => snapshot.copyWith(isRunning: false),
+    RunErrorEvent() => snapshot.copyWith(isRunning: false, error: event),
+    TextMessageStartEvent(:final messageId, :final role, :final name) =>
+      snapshot.copyWith(
+        messages: [
+          ...snapshot.messages,
+          _textMessage(messageId, role, name, ''),
+        ],
+      ),
     TextMessageContentEvent(:final messageId, :final delta) => _appendText(
       snapshot,
       messageId,
@@ -49,14 +52,12 @@ AgentSnapshot _appendText(
   final messages = snapshot.messages;
   final index = messages.lastIndexWhere((m) => m.id == messageId);
   if (index == -1) {
-    return _copy(
-      snapshot,
+    return snapshot.copyWith(
       messages: [...messages, _textMessage(messageId, role, null, delta)],
     );
   }
   final message = messages[index];
-  return _copy(
-    snapshot,
+  return snapshot.copyWith(
     messages: [
       ...messages.sublist(0, index),
       _withText(message, '${message.content ?? ''}$delta'),
@@ -111,21 +112,4 @@ Message _withText(Message message, String text) {
     ),
     _ => message,
   };
-}
-
-const Object _keep = Object();
-
-AgentSnapshot _copy(
-  AgentSnapshot snapshot, {
-  List<Message>? messages,
-  bool? isRunning,
-  Object? error = _keep,
-}) {
-  return AgentSnapshot(
-    messages: messages ?? snapshot.messages,
-    state: snapshot.state,
-    isRunning: isRunning ?? snapshot.isRunning,
-    toolCalls: snapshot.toolCalls,
-    error: identical(error, _keep) ? snapshot.error : error,
-  );
 }
