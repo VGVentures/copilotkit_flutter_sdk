@@ -521,7 +521,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Render assistant text with a streaming-safe markdown renderer (`gpt_markdown` or `flutter_markdown`). Drop the task if it isn't solid by Oct 24; plain text is acceptable.
 
 **Acceptance criteria:**
-- [ ] Partial markdown (open `**`, unfinished list) renders without flicker or exceptions
+- [x] Partial markdown (open `**`, unfinished list) renders without flicker or exceptions (every prefix of a sample reply is rendered in a widget test; flicker is a device check)
 - [ ] No visible jank compared with plain text
 
 **Verification:**

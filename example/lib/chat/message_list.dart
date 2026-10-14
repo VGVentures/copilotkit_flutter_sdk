@@ -1,6 +1,7 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 
 /// Distance from the end within which the list keeps following new content.
 const _followThreshold = 48.0;
@@ -67,6 +68,9 @@ class _MessageListState extends State<MessageList> {
 }
 
 /// A user (right) or assistant (left) text bubble.
+///
+/// Assistant text is rendered as markdown; the renderer tolerates the
+/// unfinished markdown of a reply that is still streaming.
 class MessageBubble extends StatelessWidget {
   const new({required this.message, super.key});
 
@@ -89,12 +93,15 @@ class MessageBubble extends StatelessWidget {
             color: isUser ? colors.primary : colors.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(18),
           ),
-          child: Text(
-            message.content ?? '',
-            style: TextStyle(
-              color: isUser ? colors.onPrimary : colors.onSurface,
-            ),
-          ),
+          child: isUser
+              ? Text(
+                  message.content ?? '',
+                  style: TextStyle(color: colors.onPrimary),
+                )
+              : GptMarkdown(
+                  message.content ?? '',
+                  style: TextStyle(color: colors.onSurface),
+                ),
         ),
       ),
     );

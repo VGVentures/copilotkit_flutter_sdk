@@ -6,6 +6,7 @@ import 'package:example/chat/message_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:gpt_markdown/gpt_markdown.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotChatBloc extends MockBloc<CopilotChatEvent, CopilotChatState>
@@ -55,13 +56,15 @@ void main() {
 
       await pump(tester);
 
-      expect(find.text('Hi'), findsOneWidget);
-      expect(find.text('Hello!'), findsOneWidget);
+      final userText = find.text('Hi');
+      final assistantText = find.text('Hello!', findRichText: true);
+      expect(userText, findsOneWidget);
+      expect(assistantText, findsOneWidget);
       final user = tester.widget<Align>(
-        find.ancestor(of: find.text('Hi'), matching: find.byType(Align)),
+        find.ancestor(of: userText, matching: find.byType(Align)),
       );
       final assistant = tester.widget<Align>(
-        find.ancestor(of: find.text('Hello!'), matching: find.byType(Align)),
+        find.ancestor(of: assistantText, matching: find.byType(Align)),
       );
       expect(user.alignment, Alignment.centerRight);
       expect(assistant.alignment, Alignment.centerLeft);
@@ -82,7 +85,35 @@ void main() {
       for (final text in ['Hel', 'Hello']) {
         states.add(_withRows([_assistant('a1', text)]));
         await tester.pumpAndSettle();
-        expect(find.text(text), findsOneWidget);
+        expect(find.text(text, findRichText: true), findsOneWidget);
+      }
+    });
+
+    testWidgets('renders assistant markdown', (tester) async {
+      when(() => bloc.state).thenReturn(
+        CopilotChatState(rows: [_assistant('a1', 'It is **sunny**')]),
+      );
+
+      await pump(tester);
+
+      expect(find.byType(GptMarkdown), findsOneWidget);
+      expect(find.text('It is sunny', findRichText: true), findsOneWidget);
+    });
+
+    testWidgets('renders every prefix of streamed markdown', (tester) async {
+      const reply =
+          '## Forecast\n\n**Lima** is *sunny* today:\n\n'
+          '- High: `21°C`\n- Low: 15°C\n\n```\nno rain\n```\n'
+          '1. Bring [sunscreen](https://example.com)\n';
+      final states = StreamController<CopilotChatState>();
+      addTearDown(states.close);
+      whenListen(bloc, states.stream, initialState: _withRows([]));
+      await pump(tester);
+
+      for (var i = 1; i <= reply.length; i++) {
+        states.add(_withRows([_assistant('a1', reply.substring(0, i))]));
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: 'prefix $i');
       }
     });
 
