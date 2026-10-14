@@ -127,6 +127,26 @@ void main() {
       expect(request.url.path, '/api/copilotkit/agent/default/run');
     });
 
+    test('skips events it cannot decode and keeps streaming', () async {
+      stubResponse(
+        _sse(
+          Stream.fromIterable([
+            _event({'type': 'RUN_STARTED', 'threadId': 't', 'runId': 'r'}),
+            _event({'type': 'SOMETHING_NEW', 'payload': 1}),
+            _event({'type': 'TEXT_MESSAGE_START'}),
+            utf8.encode('data: {not json\n\n'),
+            _event({'type': 'RUN_FINISHED', 'threadId': 't', 'runId': 'r'}),
+          ]),
+        ),
+      );
+
+      final events = await transport
+          .run(agentId: 'default', input: _input)
+          .toList();
+
+      expect(events, [isA<RunStartedEvent>(), isA<RunFinishedEvent>()]);
+    });
+
     test('emits an error when the runtime rejects the request', () async {
       stubResponse(
         http.StreamedResponse(

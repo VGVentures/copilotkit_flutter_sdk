@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_transport.dart';
@@ -51,7 +52,19 @@ class AgUiTransport implements AgentTransport {
             )
             .listen(
               controller.add,
-              onError: controller.addError,
+              onError: (Object error, StackTrace stackTrace) {
+                // ag_ui reports each event it can't decode (unknown types,
+                // missing fields, bad JSON) and keeps streaming. Skip them so
+                // newer runtimes never break a run.
+                if (_isDecodeError(error)) {
+                  developer.log(
+                    'Skipped undecodable AG-UI event: $error',
+                    name: 'copilotkit',
+                  );
+                  return;
+                }
+                controller.addError(error, stackTrace);
+              },
               onDone: () {
                 release();
                 unawaited(controller.close());
@@ -125,3 +138,6 @@ SimpleRunAgentInput _simpleInput(RunAgentInput input) {
     forwardedProps: input.forwardedProps,
   );
 }
+
+bool _isDecodeError(Object error) =>
+    error is DecodingError || error is AGUIValidationError;
