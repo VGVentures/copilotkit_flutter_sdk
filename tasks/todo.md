@@ -309,12 +309,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Write a pure Dart `parsePartialJson(String)` that turns a streamed, incomplete JSON object prefix into the best-effort `Map<String, Object?>`. It closes open strings, arrays and objects, and drops dangling keys. It never throws; on garbage it returns the last good result or `{}`.
 
 **Acceptance criteria:**
-- [ ] Every prefix of the args in `frontend_tool_call.jsonl` parses without throwing
-- [ ] Complete JSON gives the same result as `jsonDecode`
-- [ ] Covers nested objects, arrays, escaped quotes, numbers cut mid-digit, and `true`/`null` cut mid-literal
+- [ ] Every prefix of the args in `frontend_tool_call.jsonl` parses without throwing (covered on a hand-written args string; fixture run added with A2)
+- [x] Complete JSON gives the same result as `jsonDecode`
+- [x] Covers nested objects, arrays, escaped quotes, numbers cut mid-digit, and `true`/`null` cut mid-literal
 
 **Verification:**
-- [ ] `fvm dart test test/partial_json_test.dart`
+- [x] `fvm dart test test/partial_json_test.dart`
 
 **Dependencies:** T0, A2
 
