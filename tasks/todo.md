@@ -43,7 +43,7 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 **Description:** Read `@copilotkit/runtime/v2` and `@ag-ui/client` `HttpAgent` source to work out the HTTP contract: run URL per agent, request body (`RunAgentInput`), required headers, and the info endpoint. Write the findings into `tasks/plan.md` (Open Questions → answers). Prove it with a Dart CLI in `core/tool/round_trip.dart` that uses `ag_ui` to post a `RunAgentInput` and prints every event from `RunStarted` to `RunFinished`. Then run the same call from the example app on a physical device.
 
 **Acceptance criteria:**
-- [ ] Contract findings recorded (endpoint, body, headers, info endpoint, open gaps for the CopilotKit call)
+- [x] Contract findings recorded (endpoint, body, headers, info endpoint, open gaps for the CopilotKit call)
 - [ ] CLI prints a full `RunStarted` … `RunFinished` sequence against the local runtime
 - [ ] Same round trip succeeds from a physical iOS **and** Android device on LAN (manual, done by the team)
 

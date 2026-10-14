@@ -120,6 +120,25 @@ P2-1 HITL + interrupts · P2-2 two-way state · P2-3 prebuilt UI · P2-4 suggest
 
 - **pub.dev publisher and post-launch maintainer:** still to agree with CopilotKit before Phase 2.
 - **Demo scenario** (leadership, by Oct 16): it drives B10 and the tool/context used in I1.
-- **Runtime contract** (CopilotKit call): per-agent run URL, info endpoint, auth headers, `useSingleEndpoint`. A1 records the answers in this file.
+- **Runtime contract** (CopilotKit call): per-agent run URL, info endpoint, auth headers, `useSingleEndpoint`. A1 records the answers in this file. Mostly answered from source, see below; the remaining items are for the call.
 - **Hosting** (CopilotKit): who hosts the Oct 29–30 runtime, and which model.
 - **HITL on stage?** If CopilotKit wants it, it becomes a P1 task on top of A7. Otherwise it stays P2-1.
+
+## Runtime v2 contract (A1 findings)
+
+Read from `@copilotkit/runtime` 1.79.0 (`dist/v2/runtime/core/fetch-router`, `handlers/*`) and verified against `example/tool/start_runtime.sh` with `packages/copilotkit/tool/round_trip.dart`. `runtimeUrl` is the base path (`…/api/copilotkit`), multi-route mode (the default for `createCopilotNodeListener`).
+
+| Route | Method | Body | Response |
+| --- | --- | --- | --- |
+| `{runtimeUrl}/info` | GET | none | JSON: `version`, `agents` map (`name`, `description`, `className`, `capabilities`), `mode: "sse"`, `threadEndpoints`, `suggestions`, flags |
+| `{runtimeUrl}/agent/{agentId}/run` | POST | plain AG-UI `RunAgentInput` JSON (`threadId`, `runId`, `state`, `messages`, `tools`, `context`, `forwardedProps`) | `text/event-stream` of AG-UI events (`data: {json}`), with SSE keep-alives |
+| `{runtimeUrl}/agent/{agentId}/connect` | POST | `RunAgentInput` (uses `threadId`) | SSE replay of the thread (threads, P2) |
+| `{runtimeUrl}/agent/{agentId}/stop/{threadId}` | POST | `{}` or `{"runId": "…"}` | JSON `{stopped, interrupt?}`; stops the run server-side |
+| `{runtimeUrl}/agent/{agentId}/suggest`, `/threads/*`, `/transcribe` | various | | P2 |
+
+- **`ag_ui` fits as is:** `AgUiClient(config: AgUiClientConfig(baseUrl: runtimeUrl)).runAgent('agent/$id/run', input)` posts the right body and decodes the stream. The `RUN_STARTED` event echoes `input` and `protocolVersion`, and decodes fine.
+- **Errors:** model and provider failures arrive in-stream as `RUN_ERROR` (HTTP 200). An unknown agent or a broken request returns HTTP 4xx/5xx JSON before the stream starts.
+- **Stop (A6):** closing the socket only stops the client from reading. To end the run on the server, also `POST …/stop/{threadId}` with `{"runId"}`. The runtime then reports `RUN_ERROR` with code `STOPPED`.
+- **Headers / auth:** the OSS runtime does no auth itself. Request headers are forwarded to the agent (minus a deny list of proxy and platform headers), and apps add auth through runtime hooks or middleware. `x-copilotcloud-public-api-key` is Copilot Cloud only.
+- **`useSingleEndpoint`:** only for runtimes mounted with `mode: "single-route"`, where a single POST to `runtimeUrl` carries a `{ method, params, body }` envelope. Multi-route servers reject it, so it stays deferred.
+- **Open for the CopilotKit call:** whether the hosted runtime runs multi-route; whether it expects auth headers; whether `connect` / `threads` are stable for P2.
