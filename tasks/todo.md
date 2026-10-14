@@ -398,12 +398,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** `CopilotChatBloc` (in `flutter`) takes a `CopilotAgent`, subscribes to `agent.changes`, and emits `CopilotChatState`: visible messages, tool-call rows, `isRunning` and the last error. It also handles `ChatMessageSent` (which calls `addMessage` then `run`) and `ChatStopRequested` (which calls `stop`). In `example/`, a custom, branded message list built with `BlocBuilder` renders user and assistant bubbles and tool rows, streams text as it arrives, and auto-scrolls while streaming unless the user has scrolled up.
 
 **Acceptance criteria:**
-- [ ] `bloc_test` cases with a mocked agent cover snapshot → state mapping, send, stop, error, and subscription cancel on `close`
-- [ ] Widget tests: a mocked bloc emitting growing text renders each step; tool rows render inline via B6
+- [x] `bloc_test` cases with a mocked agent cover snapshot → state mapping, send, stop, error, and subscription cancel on `close`
+- [x] Widget tests: a mocked bloc emitting growing text renders each step; tool rows render inline via B6
 - [ ] On device against the local runtime (after A5), text streams token by token at phone widths without visible jank (`--profile`)
 
 **Verification:**
-- [ ] `very_good test --coverage` in `flutter` and `example`
+- [x] `very_good test --coverage` in `flutter` and `example`
 
 **Dependencies:** B5, B6
 
