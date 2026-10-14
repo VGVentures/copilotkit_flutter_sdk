@@ -104,13 +104,7 @@ class CopilotKitClient {
         for (final (call, tool) in pending) {
           final result = await _runHandler(tool, call, turn);
           if (turn.stopped) return;
-          agent._reduce(
-            ToolCallResultEvent(
-              messageId: _randomId(),
-              toolCallId: call.id,
-              content: result,
-            ),
-          );
+          _addToolResult(agent, call, result);
         }
       }
     } finally {
@@ -312,15 +306,19 @@ class CopilotKitClient {
     for (final call in agent.toolCalls) {
       if (call.status != ToolCallStatus.complete &&
           (where?.call(call) ?? true)) {
-        agent._reduce(
-          ToolCallResultEvent(
-            messageId: _randomId(),
-            toolCallId: call.id,
-            content: content,
-          ),
-        );
+        _addToolResult(agent, call, content);
       }
     }
+  }
+
+  void _addToolResult(CopilotAgent agent, ToolCallView call, String content) {
+    agent._reduce(
+      ToolCallResultEvent(
+        messageId: _randomId(),
+        toolCallId: call.id,
+        content: content,
+      ),
+    );
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
