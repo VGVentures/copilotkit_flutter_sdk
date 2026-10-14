@@ -17,10 +17,8 @@ const _schemaListKeys = {'anyOf', 'oneOf', 'allOf'};
 Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
   for (final MapEntry(:key, :value) in schema.entries)
     key: switch (value) {
-      final Map<String, Object?> properties when key == 'properties' => {
-        for (final MapEntry(:key, :value) in properties.entries)
-          key: _subschema(value),
-      },
+      final Map<String, Object?> properties when key == 'properties' =>
+        properties.map((name, schema) => MapEntry(name, _subschema(schema))),
       _ when _schemaKeys.contains(key) => _subschema(value),
       final List<Object?> schemas when _schemaListKeys.contains(key) => [
         for (final item in schemas) _subschema(item),
