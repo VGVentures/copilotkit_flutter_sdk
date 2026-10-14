@@ -214,7 +214,7 @@ void main() {
     });
 
     test(
-      'turns handler errors into an error result and reports them',
+      'turns handler errors into a generic result and reports them',
       () async {
         final failure = Exception('no network');
         client.registerTool(
@@ -228,7 +228,7 @@ void main() {
 
         expect(errors, [same(failure)]);
         final toolMessage = sentInputs().last.messages.last as ToolMessage;
-        expect(toolMessage.content, 'Error: $failure');
+        expect(toolMessage.content, 'Tool failed.');
         expect(agent.toolCalls.single.status, ToolCallStatus.complete);
       },
     );

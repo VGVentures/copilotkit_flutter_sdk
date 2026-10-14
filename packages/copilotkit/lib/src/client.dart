@@ -27,6 +27,10 @@ const _cancelledResult = 'Tool call cancelled.';
 /// Result sent to the agent for a tool call left open by a failed run.
 const _failedResult = 'Tool call failed: the run ended early.';
 
+/// Result sent to the agent when a handler throws. The error itself goes to
+/// `onError` only, so exception details never reach the model.
+const _handlerErrorResult = 'Tool failed.';
+
 /// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
@@ -199,7 +203,7 @@ class CopilotKitClient {
       return await tool.handler(call.args, signal: signal);
     } on Object catch (error, stackTrace) {
       onError?.call(error, stackTrace);
-      return 'Error: $error';
+      return _handlerErrorResult;
     } finally {
       turn.signal = null;
     }

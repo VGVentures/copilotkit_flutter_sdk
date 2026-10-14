@@ -3,7 +3,9 @@ import 'dart:async';
 /// Handles a frontend tool call on the device.
 ///
 /// Receives the decoded tool [args] and a [signal] that is cancelled when the
-/// run is stopped. Returns the result string sent back to the agent.
+/// run is stopped. Returns the result string sent back to the agent. If it
+/// throws, the agent gets a generic failure result and the error goes to
+/// `CopilotKitClient.onError`.
 typedef FrontendToolHandler = Future<String> Function(
   Map<String, Object?> args, {
   required CancellationSignal signal,
