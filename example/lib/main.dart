@@ -1,4 +1,5 @@
 import 'package:example/app/app.dart';
 import 'package:flutter/widgets.dart';
 
-void main() => runApp(const App());
+void main() =>
+    runApp(const App(runtimeUrl: String.fromEnvironment('RUNTIME_URL')));

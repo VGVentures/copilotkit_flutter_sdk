@@ -456,7 +456,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Acceptance criteria:**
 - [ ] All four demo steps from the Product section work on a physical iOS and Android device
 - [ ] Stop and a dropped network both leave the app usable
-- [ ] Bootstrap and the error screen are covered by widget tests
+- [x] Bootstrap and the error screen are covered by widget tests
 
 **Verification:**
 - [ ] Manual: `fvm flutter run --dart-define=RUNTIME_URL=http://<lan-ip>:<port>/api/copilotkit` on both devices
