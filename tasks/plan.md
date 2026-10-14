@@ -48,7 +48,7 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 ## Task List
 
 ### Phase 1a: Foundation and contract (Oct 14–16)
-- [ ] T0: Workspace scaffold (shared)
+- [x] T0: Workspace scaffold (shared)
 - [ ] B3: CI with coverage reporting
 - [ ] A1: Runtime v2 contract research + P1-1 round trip on device
 - [ ] B1: Local quickstart runtime script (`example/tool/`)

@@ -1,0 +1,32 @@
+# FVM Version Cache
+.fvm/
+
+# Dart / Flutter
+.dart_tool/
+build/
+coverage/
+.flutter-plugins
+.flutter-plugins-dependencies
+.test_optimizer.dart
+
+# Node (local runtime under example/tool/)
+node_modules/
+
+# Secrets: model keys come from shell environment variables, never files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.keystore
+key.properties
+service-account*.json
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
+.vscode/*

@@ -19,13 +19,13 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 **Description:** `git init` with `origin` set to `git@github.com:VeryGoodOpenSource/copilotkit_flutter_sdk.git`, then set up the monorepo: root pub workspace, `.fvmrc`, `core` (pure Dart, `ag_ui: 0.3.0` pinned exactly, `http`, `meta`; dev: `test`, `mocktail`), `flutter` (depends on core and `flutter_bloc`; dev: `bloc_test`, `mocktail`), `example/` Flutter app (iOS + Android), and `very_good_analysis` in every package. Add a `.gitignore` that keeps `.env` and keys out of git.
 
 **Acceptance criteria:**
-- [ ] `fvm dart pub get` at the root resolves all three packages
-- [ ] `fvm flutter analyze` reports zero issues across the workspace
-- [ ] `core` has no Flutter dependency (`fvm dart test` runs without Flutter)
+- [x] `fvm dart pub get` at the root resolves all three packages
+- [x] `fvm flutter analyze` reports zero issues across the workspace
+- [x] `core` has no Flutter dependency (`fvm dart test` runs without Flutter)
 
 **Verification:**
-- [ ] `fvm dart pub get && fvm flutter analyze`
-- [ ] `very_good test --coverage` passes in all three packages (placeholder code + tests)
+- [x] `fvm dart pub get && fvm flutter analyze`
+- [x] `very_good test --coverage` passes in all three packages (placeholder code + tests)
 - [ ] `cd example && fvm flutter run` launches a blank app on a simulator
 
 **Dependencies:** None
