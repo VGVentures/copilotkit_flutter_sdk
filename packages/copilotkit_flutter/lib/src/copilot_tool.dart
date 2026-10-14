@@ -10,18 +10,19 @@ import 'package:flutter/widgets.dart';
 /// dispose. If [builder] is set, calls to the tool render with it in
 /// [child] (see `ToolCallWidget`).
 /// {@endtemplate}
-class CopilotTool extends StatefulWidget {
-  /// {@macro copilot_tool}
-  const new({required this.tool, required this.child, this.builder, super.key});
-
+class const CopilotTool({
   /// The tool to register.
-  final FrontendTool tool;
-
-  /// Builds the widget for each call to [tool], if set.
-  final ToolCallWidgetBuilder? builder;
+  required final FrontendTool tool,
 
   /// The subtree where [builder] applies.
-  final Widget child;
+  required final Widget child,
+
+  /// Builds the widget for each call to [tool], if set.
+  final ToolCallWidgetBuilder? builder,
+  super.key,
+}) extends StatefulWidget {
+  /// {@macro copilot_tool}
+  this;
 
   @override
   State<CopilotTool> createState() => _CopilotToolState();

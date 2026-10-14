@@ -43,35 +43,31 @@ const _handlerErrorResult = 'Tool failed.';
 /// Owns the agents, the registered frontend tools and the context entries,
 /// and attaches the tools and context to every run.
 /// {@endtemplate}
-class CopilotKitClient {
+class CopilotKitClient({
+  /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
+  required final Uri runtimeUrl,
+
+  /// Builds the headers sent with each run, e.g. for auth.
+  final HeadersBuilder? headers,
+
+  /// Sent with every run as `RunAgentInput.forwardedProps`.
+  final Map<String, Object?> properties = const {},
+
+  /// Called with errors instead of throwing them.
+  final CopilotErrorHandler? onError,
+  AgentTransport? transport,
+}) {
   /// {@macro copilot_kit_client}
   ///
   /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
-  new({
-    required this.runtimeUrl,
-    this.headers,
-    this.properties = const {},
-    this.onError,
-    AgentTransport? transport,
-  }) : _transport = transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
+  this;
 
-  final AgentTransport _transport;
+  final AgentTransport _transport =
+      transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
   final Map<String, CopilotAgent> _agents = {};
   final Map<String, FrontendTool> _tools = {};
   final List<_ContextEntry> _context = [];
   final Map<CopilotAgent, _Turn> _turns = {};
-
-  /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
-  final Uri runtimeUrl;
-
-  /// Builds the headers sent with each run, e.g. for auth.
-  final HeadersBuilder? headers;
-
-  /// Sent with every run as `RunAgentInput.forwardedProps`.
-  final Map<String, Object?> properties;
-
-  /// Called with errors instead of throwing them.
-  final CopilotErrorHandler? onError;
 
   /// Returns the agent with [agentId], creating it on first use.
   CopilotAgent agent(String agentId) => _agents.putIfAbsent(
@@ -328,17 +324,11 @@ class CopilotKitClient {
   }
 }
 
-class _ContextEntry implements AgentContextEntry {
-  new(this._client, this.description, this.value);
-
-  final CopilotKitClient _client;
-
-  @override
-  final String description;
-
-  @override
-  Object? value;
-
+class _ContextEntry(
+  final CopilotKitClient _client,
+  @override final String description,
+  @override var Object? value,
+) implements AgentContextEntry {
   @override
   void update(Object? value) => this.value = value;
 
@@ -354,12 +344,10 @@ class _Turn {
 }
 
 /// One streamed request to the runtime.
-class _StreamRun {
-  new({required this.runId, required this.headers});
-
-  final String runId;
-  final Map<String, String> headers;
-
+class _StreamRun({
+  required final String runId,
+  required final Map<String, String> headers,
+}) {
   // Cancelled on error (cancelOnError), on stop and on dispose.
   // ignore: cancel_subscriptions
   late StreamSubscription<BaseEvent> subscription;

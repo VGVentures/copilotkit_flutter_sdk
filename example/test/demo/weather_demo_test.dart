@@ -235,9 +235,7 @@ void main() {
 }
 
 /// Renders a showWeather call inside the demo's tool scope.
-class ToolCallWidgetProbe extends StatelessWidget {
-  const new({super.key});
-
+class const ToolCallWidgetProbe({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ToolCallWidget(

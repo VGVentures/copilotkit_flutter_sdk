@@ -4,9 +4,18 @@ part of 'copilot_chat_bloc.dart';
 /// What a chat UI shows: ordered [rows], whether the agent [isRunning] and
 /// the [error] that ended the last run.
 /// {@endtemplate}
-final class CopilotChatState extends Equatable {
+final class const CopilotChatState({
+  /// Rows to render, oldest first.
+  final List<ChatRow> rows = const [],
+
+  /// Whether the agent is running; show stop instead of send.
+  final bool isRunning = false,
+
+  /// Error that ended the last run, or `null`.
+  final Object? error,
+}) extends Equatable {
   /// {@macro copilot_chat_state}
-  const new({this.rows = const [], this.isRunning = false, this.error});
+  this;
 
   /// Builds the state shown for [snapshot].
   ///
@@ -31,15 +40,6 @@ final class CopilotChatState extends Equatable {
     );
   }
 
-  /// Rows to render, oldest first.
-  final List<ChatRow> rows;
-
-  /// Whether the agent is running; show stop instead of send.
-  final bool isRunning;
-
-  /// Error that ended the last run, or `null`.
-  final Object? error;
-
   @override
   List<Object?> get props => [rows, isRunning, error];
 }
@@ -52,12 +52,12 @@ sealed class ChatRow extends Equatable {
 /// {@template chat_message_row}
 /// A user or assistant text [message].
 /// {@endtemplate}
-final class ChatMessageRow extends ChatRow {
-  /// {@macro chat_message_row}
-  const new(this.message);
-
+final class const ChatMessageRow(
   /// The message to show; its `content` is the text.
-  final Message message;
+  final Message message,
+) extends ChatRow {
+  /// {@macro chat_message_row}
+  this;
 
   @override
   List<Object?> get props => [message];
@@ -66,12 +66,12 @@ final class ChatMessageRow extends ChatRow {
 /// {@template chat_tool_call_row}
 /// A tool [call]; render it with `ToolCallWidget`.
 /// {@endtemplate}
-final class ChatToolCallRow extends ChatRow {
-  /// {@macro chat_tool_call_row}
-  const new(this.call);
-
+final class const ChatToolCallRow(
   /// The tool call to show.
-  final ToolCallView call;
+  final ToolCallView call,
+) extends ChatRow {
+  /// {@macro chat_tool_call_row}
+  this;
 
   @override
   List<Object?> get props => [call];

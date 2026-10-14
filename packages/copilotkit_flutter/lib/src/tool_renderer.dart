@@ -15,23 +15,19 @@ typedef ToolCallWidgetBuilder = Widget Function(
 /// for tools the agent runs elsewhere (backend tools); `CopilotTool` does the
 /// same for frontend tools.
 /// {@endtemplate}
-class ToolRenderer extends StatelessWidget {
-  /// {@macro tool_renderer}
-  const new({
-    required this.name,
-    required this.builder,
-    required this.child,
-    super.key,
-  });
-
+class const ToolRenderer({
   /// Name of the tool, or `'*'` for the fallback.
-  final String name;
+  required final String name,
 
   /// Builds the widget for each call to [name].
-  final ToolCallWidgetBuilder builder;
+  required final ToolCallWidgetBuilder builder,
 
   /// The subtree where [builder] applies.
-  final Widget child;
+  required final Widget child,
+  super.key,
+}) extends StatelessWidget {
+  /// {@macro tool_renderer}
+  this;
 
   @override
   Widget build(BuildContext context) {
@@ -72,11 +68,10 @@ class _ToolCallWidgetState extends State<ToolCallWidget>
   }
 }
 
-class _ToolBuilders extends InheritedWidget {
-  const new({required this.builders, required super.child});
-
-  final Map<String, ToolCallWidgetBuilder> builders;
-
+class const _ToolBuilders({
+  required final Map<String, ToolCallWidgetBuilder> builders,
+  required super.child,
+}) extends InheritedWidget {
   static Map<String, ToolCallWidgetBuilder>? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_ToolBuilders>()?.builders;
 

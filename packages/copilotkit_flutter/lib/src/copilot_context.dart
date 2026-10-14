@@ -9,23 +9,19 @@ import 'package:flutter/widgets.dart';
 /// it when [value] changes and removes it on dispose. [value] must be
 /// JSON-encodable.
 /// {@endtemplate}
-class CopilotContext extends StatefulWidget {
-  /// {@macro copilot_context}
-  const new({
-    required this.description,
-    required this.value,
-    required this.child,
-    super.key,
-  });
-
+class const CopilotContext({
   /// Tells the agent what [value] is.
-  final String description;
+  required final String description,
 
   /// The data shared with the agent.
-  final Object? value;
+  required final Object? value,
 
   /// The subtree below this widget.
-  final Widget child;
+  required final Widget child,
+  super.key,
+}) extends StatefulWidget {
+  /// {@macro copilot_context}
+  this;
 
   @override
   State<CopilotContext> createState() => _CopilotContextState();
