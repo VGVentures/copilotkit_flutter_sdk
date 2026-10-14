@@ -421,11 +421,11 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Acceptance criteria:**
 - [ ] Send → reply streams; stop mid-stream → list stays consistent, composer re-enabled
-- [ ] Empty input can't be sent
+- [x] Empty input can't be sent
 - [ ] Keyboard never covers the composer on iOS or Android
 
 **Verification:**
-- [ ] `cd example && very_good test --coverage` (widget tests with a `MockBloc`)
+- [x] `cd example && very_good test --coverage` (widget tests with a `MockBloc`)
 - [ ] Manual on both platforms against the local runtime
 
 **Dependencies:** B8
