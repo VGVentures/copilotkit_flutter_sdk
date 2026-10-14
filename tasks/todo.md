@@ -383,7 +383,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 - [x] `cd packages/copilotkit_flutter && very_good test --coverage`
 - [ ] Manual (after A8): the agent answers from the context on device
 
-**Dependencies:** B5, A8 for real behaviour (tests mock until then)
+**Dependencies:** B5, A8 for real behavior (tests mock until then)
 
 **Files likely touched:** `flutter/lib/src/copilot_context.dart`, `flutter/test/src/copilot_context_test.dart`
 
