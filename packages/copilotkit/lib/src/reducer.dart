@@ -47,7 +47,7 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
       snapshot,
       toolCallId,
       (view) => view.status == ToolCallStatus.inProgress
-          ? _withStatus(view, ToolCallStatus.executing)
+          ? _copyView(view, status: ToolCallStatus.executing)
           : view,
     ),
     ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
@@ -153,13 +153,7 @@ AgentSnapshot _appendToolArgs(
   return _updateToolCall(
     snapshot.copyWith(messages: messages),
     toolCallId,
-    (view) => ToolCallView(
-      id: view.id,
-      name: view.name,
-      status: view.status,
-      args: args,
-      result: view.result,
-    ),
+    (view) => _copyView(view, args: args),
   );
 }
 
@@ -196,13 +190,7 @@ AgentSnapshot _completeToolCall(
       ],
     ),
     toolCallId,
-    (view) => ToolCallView(
-      id: view.id,
-      name: view.name,
-      status: ToolCallStatus.complete,
-      args: view.args,
-      result: content,
-    ),
+    (view) => _copyView(view, status: ToolCallStatus.complete, result: content),
   );
 }
 
@@ -216,7 +204,7 @@ AgentSnapshot _finishToolArgs(AgentSnapshot snapshot) {
     toolCalls: [
       for (final view in snapshot.toolCalls)
         if (view.status == ToolCallStatus.inProgress)
-          _withStatus(view, ToolCallStatus.executing)
+          _copyView(view, status: ToolCallStatus.executing)
         else
           view,
     ],
@@ -242,13 +230,22 @@ AgentSnapshot _updateToolCall(
   );
 }
 
-ToolCallView _withStatus(ToolCallView view, ToolCallStatus status) {
+/// Returns [view] with the given fields replaced.
+///
+/// Private on purpose: a public `ToolCallView.copyWith` would change the
+/// frozen A3 contract.
+ToolCallView _copyView(
+  ToolCallView view, {
+  ToolCallStatus? status,
+  Map<String, Object?>? args,
+  String? result,
+}) {
   return ToolCallView(
     id: view.id,
     name: view.name,
-    status: status,
-    args: view.args,
-    result: view.result,
+    status: status ?? view.status,
+    args: args ?? view.args,
+    result: result ?? view.result,
   );
 }
 
