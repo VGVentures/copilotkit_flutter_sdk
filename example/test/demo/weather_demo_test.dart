@@ -52,6 +52,17 @@ void main() {
       expect(forecast['city'], 'Unknown');
     });
 
+    test('rejects a city that is not a string', () async {
+      await expectLater(
+        lookUpWeather(
+          {'city': 42},
+          signal: CancellationSignal(),
+          delay: Duration.zero,
+        ),
+        throwsA(anything),
+      );
+    });
+
     test('reports a cancelled lookup', () async {
       final result = await lookUpWeather(
         {'city': 'Lima'},
@@ -100,6 +111,35 @@ void main() {
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
 
+    testWidgets('names no city while the lookup runs without one', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        const ToolCallView(
+          id: 'c1',
+          name: 'showWeather',
+          status: ToolCallStatus.executing,
+        ),
+      );
+
+      expect(find.text('Checking the city…'), findsOneWidget);
+    });
+
+    testWidgets('names no city when the city is not a string', (tester) async {
+      await pump(
+        tester,
+        const ToolCallView(
+          id: 'c1',
+          name: 'showWeather',
+          status: ToolCallStatus.executing,
+          args: {'city': 42},
+        ),
+      );
+
+      expect(find.text('Checking the city…'), findsOneWidget);
+    });
+
     testWidgets('shows the forecast when complete', (tester) async {
       await pump(
         tester,
@@ -128,6 +168,41 @@ void main() {
       );
 
       expect(find.text('Tool call cancelled.'), findsOneWidget);
+    });
+
+    for (final result in [
+      '[1, 2]',
+      '{"city":"Lima"}',
+      '{"city":"Lima","temperatureC":"warm","condition":"Sunny"}',
+    ]) {
+      testWidgets('shows a malformed forecast as text: $result', (
+        tester,
+      ) async {
+        await pump(
+          tester,
+          ToolCallView(
+            id: 'c1',
+            name: 'showWeather',
+            status: ToolCallStatus.complete,
+            result: result,
+          ),
+        );
+
+        expect(find.text(result), findsOneWidget);
+      });
+    }
+
+    testWidgets('shows an empty text without a result', (tester) async {
+      await pump(
+        tester,
+        const ToolCallView(
+          id: 'c1',
+          name: 'showWeather',
+          status: ToolCallStatus.complete,
+        ),
+      );
+
+      expect(find.text(''), findsOneWidget);
     });
   });
 

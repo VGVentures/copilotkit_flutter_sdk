@@ -37,12 +37,12 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 **Description:** Replace the map handling in `example/lib/demo/weather_demo.dart` with `@JsonSerializable` models: `WeatherArgs` (`city`) to decode tool args, and `Forecast` (`city`, `temperatureC`, `condition`) for the handler result and `WeatherCard`. Keep the behaviour the same: a missing city still gives `'Unknown'`, and a result that can't be decoded still renders as raw text. First write tests for the malformed cases against the current code (red/green), then switch to the models.
 
 **Acceptance criteria:**
-- [ ] No `as` casts or manual `jsonDecode` map lookups left in `weather_demo.dart`
-- [ ] Missing or wrong-typed args and malformed results behave as before (tests)
-- [ ] `Forecast` round-trips (`fromJson(toJson(x)) == x` or a field-level check)
+- [x] No `as` casts or manual `jsonDecode` map lookups left in `weather_demo.dart`
+- [x] Missing or wrong-typed args and malformed results behave as before (tests)
+- [x] `Forecast` round-trips (`fromJson(toJson(x)) == x` or a field-level check)
 
 **Verification:**
-- [ ] `cd example && very_good test --coverage --exclude-coverage '**/*.g.dart'`
+- [x] `cd example && very_good test --coverage --exclude-coverage '**/*.g.dart'`
 - [ ] Manual: on a simulator against the local runtime, "What's the weather in Lima?" renders the card as before
 
 **Dependencies:** Task 1

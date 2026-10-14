@@ -6,6 +6,8 @@
 import 'dart:convert';
 
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
+import 'package:example/demo/models/forecast.dart';
+import 'package:example/demo/models/weather_args.dart';
 import 'package:flutter/material.dart';
 
 /// Placeholder user shared with the agent as context.
@@ -16,7 +18,7 @@ const _conditions = ['Sunny', 'Cloudy', 'Rainy', 'Windy', 'Foggy'];
 /// Placeholder tool handler: a fake, offline forecast for `args['city']`.
 ///
 /// Deterministic per city so demos are repeatable. Waits [delay] so the
-/// executing state is visible.
+/// executing state is visible. Throws when [args] don't match [WeatherArgs].
 Future<String> lookUpWeather(
   Map<String, Object?> args, {
   required CancellationSignal signal,
@@ -24,13 +26,14 @@ Future<String> lookUpWeather(
 }) async {
   await Future<void>.delayed(delay);
   if (signal.isCancelled) return 'Cancelled';
-  final city = args['city'] as String? ?? 'Unknown';
+  final city = WeatherArgs.fromJson(args).city ?? 'Unknown';
   final seed = city.codeUnits.fold(0, (sum, unit) => sum + unit);
-  return jsonEncode({
-    'city': city,
-    'temperatureC': 12 + seed % 18,
-    'condition': _conditions[seed % _conditions.length],
-  });
+  final forecast = Forecast(
+    city: city,
+    temperatureC: 12 + seed % 18,
+    condition: _conditions[seed % _conditions.length],
+  );
+  return jsonEncode(forecast);
 }
 
 /// Placeholder demo: registers the `showWeather` tool and the current user
@@ -73,7 +76,7 @@ class WeatherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final city = call.args['city'] as String?;
+    final city = WeatherArgs.tryParse(call.args)?.city;
     final content = switch (call.status) {
       ToolCallStatus.inProgress => const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -102,23 +105,14 @@ class WeatherCard extends StatelessWidget {
   }
 
   Widget _forecast(String? result, TextTheme textTheme) {
-    final forecast = _decode(result);
+    final forecast = Forecast.tryParse(result);
     if (forecast == null) return Text(result ?? '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('${forecast['city']}', style: textTheme.titleMedium),
-        Text('${forecast['temperatureC']}°C · ${forecast['condition']}'),
+        Text(forecast.city, style: textTheme.titleMedium),
+        Text('${forecast.temperatureC}°C · ${forecast.condition}'),
       ],
     );
-  }
-
-  static Map<String, Object?>? _decode(String? result) {
-    try {
-      final decoded = jsonDecode(result ?? '');
-      return decoded is Map<String, Object?> ? decoded : null;
-    } on FormatException {
-      return null;
-    }
   }
 }
