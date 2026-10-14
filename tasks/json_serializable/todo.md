@@ -34,7 +34,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 
 ## Task 2: Typed weather demo models
 
-**Description:** Replace the map handling in `example/lib/demo/weather_demo.dart` with `@JsonSerializable` models: `WeatherArgs` (`city`) to decode tool args, and `Forecast` (`city`, `temperatureC`, `condition`) for the handler result and `WeatherCard`. Keep the behaviour the same: a missing city still gives `'Unknown'`, and a result that can't be decoded still renders as raw text. First write tests for the malformed cases against the current code (red/green), then switch to the models.
+**Description:** Replace the map handling in `example/lib/demo/weather_demo.dart` with `@JsonSerializable` models: `WeatherArgs` (`city`) to decode tool args, and `Forecast` (`city`, `temperatureC`, `condition`) for the handler result and `WeatherCard`. Keep the behavior the same: a missing city still gives `'Unknown'`, and a result that can't be decoded still renders as raw text. First write tests for the malformed cases against the current code (red/green), then switch to the models.
 
 **Acceptance criteria:**
 - [x] No `as` casts or manual `jsonDecode` map lookups left in `weather_demo.dart`
@@ -86,7 +86,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 
 ## Task 4: Typed stop request/response in `AgUiTransport`
 
-**Description:** Add internal (not exported) `StopRequest` (`runId`) and `StopResponse` (`stopped`, `interrupt?`) models and use them in `AgUiTransport.stop()` in place of `jsonEncode({'runId': runId})`. Whether the response is parsed and surfaced depends on Open Question 4; by default only the request is typed and the response stays ignored, so behaviour is unchanged.
+**Description:** Add internal (not exported) `StopRequest` (`runId`) and `StopResponse` (`stopped`, `interrupt?`) models and use them in `AgUiTransport.stop()` in place of `jsonEncode({'runId': runId})`. Whether the response is parsed and surfaced depends on Open Question 4; by default only the request is typed and the response stays ignored, so behavior is unchanged.
 
 **Acceptance criteria:**
 - [x] The request body sent to `/agent/{id}/stop/{threadId}` is byte-for-byte equivalent JSON (existing transport tests still pass)
