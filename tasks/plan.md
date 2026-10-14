@@ -26,6 +26,7 @@ Confirmed Oct 14.
 - **Partial-JSON parser** is pure Dart in core (`partial_json.dart`). B owns it because the generative UI work needs it first.
 - **Testing bar: aim for 100% line coverage in every package (`copilotkit`, `copilotkit_flutter`, `example`) on every PR.** 100% is preferred, but a PR can skip it if needed, with the reason noted in the PR description.
   - CI (`very_good_workflows`) reports coverage on every PR without blocking. Tests, `very_good_analysis` with zero issues, and `dart format` do block.
+  - **Superseded:** CI now requires 100% coverage in every package and runs a spell check; skips are no longer possible. See `README.md` (Development).
   - Core uses unit tests with fixtures and `mocktail`.
   - Flutter uses `bloc_test` for blocs and widget tests for widgets.
   - Example uses widget tests for screens and demo widgets.
@@ -51,7 +52,7 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 
 ### Phase 1a: Foundation and contract (Oct 14–16)
 - [x] T0: Workspace scaffold (shared). Pending: launch on a simulator (iOS and Android builds pass).
-- [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin).
+- [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin). Since replaced by a hard 100% coverage gate plus spell check and Dependabot.
 - [ ] A1: Runtime v2 contract research + P1-1 round trip on device. Contract recorded below; the `RUN_FINISHED` round trip needs a model key; device run is manual.
 - [x] B1: Local quickstart runtime script (`example/tool/`)
 - [ ] A2: Record AG-UI fixtures. Blocked on a model key.

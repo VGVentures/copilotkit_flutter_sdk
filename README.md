@@ -103,8 +103,8 @@ Planning documents live in `docs/requirements.md` and `tasks/`.
 ## Development
 
 Run these commands from the repository root unless noted. CI runs the same
-checks on every pull request: tests, formatting, and analysis block merges, and
-coverage is reported.
+checks on every pull request: tests, formatting, analysis, 100% line coverage in
+every package, and spelling all block merges.
 
 - Analyze the whole workspace:
 
@@ -122,7 +122,13 @@ coverage is reported.
   [Very Good CLI](https://cli.vgv.dev)):
 
   ```sh
-  very_good test --coverage --recursive
+  very_good test --coverage --min-coverage 100 --recursive
+  ```
+
+- Check spelling (add project terms to `.github/.cspell/project_words.txt`):
+
+  ```sh
+  npx cspell --config .github/cspell.json '**/*.{md,dart,yml,yaml}'
   ```
 
 - Probe the runtime contract from the command line:
