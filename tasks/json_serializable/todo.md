@@ -118,12 +118,12 @@ Independent of Phases 1–2; can run first or in parallel. Land before the A3 co
 **Description:** Add `ack: ^1.7.0` to `packages/copilotkit/pubspec.yaml` and confirm the workspace resolves. Rebuild every schema in the repo today (the weather tool, the core `example/main.dart` tool, and the test schemas) with Ack in a scratch test, and diff `toJsonSchema()` against `JsonSchema.toJson()`. Then send the Ack version of the weather tool through `tool/round_trip.dart` (or the example app) to the local runtime and confirm the model still calls it with valid args. Record the differences and the result in the plan.
 
 **Acceptance criteria:**
-- [ ] `fvm flutter pub get` resolves with `ack` in core; core still runs under `fvm dart test` without Flutter
-- [ ] The diff of each schema is recorded; only the expected differences appear (`additionalProperties: false`, `anyOf` nullables, key order)
-- [ ] A real tool call succeeds against the local runtime with the Ack-generated schema (needs a model key; otherwise marked pending)
+- [x] `fvm flutter pub get` resolves with `ack` in core; core still runs under `fvm dart test` without Flutter
+- [x] The diff of each schema is recorded; only the expected differences appear (`additionalProperties: false`, `anyOf` nullables, key order)
+- [ ] A real tool call succeeds against the local runtime with the Ack-generated schema (needs a model key; otherwise marked pending) **Pending**
 
 **Verification:**
-- [ ] `cd packages/copilotkit && fvm dart test` (scratch comparison test, deleted or turned into Task 6's golden test)
+- [x] `cd packages/copilotkit && fvm dart test` (scratch comparison test, deleted or turned into Task 6's golden test)
 - [ ] Manual: round trip with a tool against the local runtime
 
 **Dependencies:** None

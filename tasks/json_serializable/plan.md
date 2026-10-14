@@ -53,7 +53,13 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 
 ### Phase 3: Replace `JsonSchema` with `ack`
 Independent of Phases 1–2 (no codegen). It can run first or in parallel, and **should land before the A3 contract freeze (Oct 16)** so the breaking change goes in with engineer B's sign-off rather than after the freeze.
-- [ ] Task 5: Ack spike + wire-format comparison
+- [x] Task 5: Ack spike + wire-format comparison. `ack` 1.7.0 resolves in the workspace and core still runs under `fvm dart test`. Diff of every schema in the repo (old `JsonSchema.toJson()` → `toJsonSchema()`):
+  - Every object gains `"additionalProperties": false` (expected).
+  - Key order differs inside arrays (`items` before `description`); the content is the same.
+  - Nullable fields become `anyOf: [T, {type: null}]` (expected). Nothing in the repo uses them today.
+  - **Unexpected:** an empty `Ack.object({})` emits `{"type":"object","additionalProperties":false}` with **no `properties` key**. Some providers (OpenAI strict mode at least) reject object schemas without `properties`, so Task 6 has `client.dart` add `"properties": {}` when it's missing.
+  - **Mapping note:** Ack fields are required unless `.optional()`, the inverse of `JsonSchema.object` (optional unless listed in `required`). `JsonSchema.object({'city': ...})` without `required` becomes `Ack.object({'city': Ack.string().optional()})`.
+  - **Pending:** a live tool call against the local runtime (no runtime running and no model key in this session).
 - [ ] Task 6: Swap `FrontendTool.parameters` to Ack in core
 - [ ] Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`
 
