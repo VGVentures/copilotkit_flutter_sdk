@@ -13,7 +13,7 @@ class _MockAgentContextEntry extends Mock implements AgentContextEntry;
 FrontendTool _fallbackTool() => FrontendTool(
   name: 'x',
   description: 'x',
-  parameters: JsonSchema.object({}),
+  parameters: Ack.object({}),
   handler: (args, {required signal}) async => '',
 );
 
@@ -226,7 +226,7 @@ void main() {
           verify(() => client.registerTool(captureAny())).captured.single
               as FrontendTool;
       expect(tool.name, 'showWeather');
-      expect(tool.parameters.toJson()['required'], ['city']);
+      expect(tool.parameters.toJsonSchema()['required'], ['city']);
       verify(() => client.addContext('Current user', demoUser)).called(1);
       expect(find.text('Checking Lima…'), findsOneWidget);
     });

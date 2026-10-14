@@ -60,10 +60,9 @@ class WeatherDemo extends StatelessWidget {
 final _showWeather = FrontendTool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: JsonSchema.object(
-    {'city': JsonSchema.string(description: 'City name, e.g. Lima')},
-    required: ['city'],
-  ),
+  parameters: Ack.object({
+    'city': Ack.string().describe('City name, e.g. Lima'),
+  }),
   handler: lookUpWeather,
 );
 

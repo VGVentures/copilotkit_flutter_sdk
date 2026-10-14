@@ -139,13 +139,13 @@ Independent of Phases 1–2; can run first or in parallel. Land before the A3 co
 **Description:** Change `FrontendTool.parameters` from `JsonSchema` to Ack's `ObjectSchema`, send `parameters.toJsonSchema()` from `client.dart` when building `RunAgentInput.tools`, delete `JsonSchema` and its tests, and re-export the Ack types apps need from `lib/copilotkit.dart`. Update the core `example/main.dart` and `tool_loop_test.dart`. Add a golden test that pins the JSON sent for a representative tool, so changes in Ack's output show up on upgrade.
 
 **Acceptance criteria:**
-- [ ] `JsonSchema` no longer exists in core; `FrontendTool(parameters: Ack.object({...}))` compiles from `package:copilotkit/copilotkit.dart` alone
-- [ ] The outgoing `RunAgentInput.tools[].parameters` equals the Ack JSON Schema (golden test on the captured request)
-- [ ] Every public member still has a doc comment; `fvm dart doc --dry-run` has no unresolved references
+- [x] `JsonSchema` no longer exists in core; `FrontendTool(parameters: Ack.object({...}))` compiles from `package:copilotkit/copilotkit.dart` alone
+- [x] The outgoing `RunAgentInput.tools[].parameters` equals the Ack JSON Schema (golden test on the captured request)
+- [x] Every public member still has a doc comment; `fvm dart doc --dry-run` has no unresolved references
 
 **Verification:**
-- [ ] `cd packages/copilotkit && very_good test --coverage` (100%)
-- [ ] `fvm flutter analyze` in core and the core example
+- [x] `cd packages/copilotkit && very_good test --coverage` (100%)
+- [x] `fvm flutter analyze` in core and the core example
 
 **Dependencies:** Task 5
 

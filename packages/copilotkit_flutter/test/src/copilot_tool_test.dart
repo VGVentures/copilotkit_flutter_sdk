@@ -8,7 +8,7 @@ class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 FrontendTool _tool(String name) => FrontendTool(
   name: name,
   description: 'A tool',
-  parameters: JsonSchema.object({}),
+  parameters: Ack.object({}),
   handler: (args, {required signal}) async => 'ok',
 );
 

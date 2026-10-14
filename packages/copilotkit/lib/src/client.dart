@@ -135,7 +135,12 @@ class CopilotKitClient {
             Tool(
               name: tool.name,
               description: tool.description,
-              parameters: tool.parameters.toJson(),
+              // Ack omits `properties` on an empty object, and some
+              // providers reject object schemas without it.
+              parameters: {
+                'properties': <String, Object?>{},
+                ...tool.parameters.toJsonSchema(),
+              },
             ),
         ],
         context: [

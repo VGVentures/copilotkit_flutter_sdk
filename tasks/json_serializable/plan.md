@@ -60,7 +60,7 @@ Independent of Phases 1–2 (no codegen). It can run first or in parallel, and *
   - **Unexpected:** an empty `Ack.object({})` emits `{"type":"object","additionalProperties":false}` with **no `properties` key**. Some providers (OpenAI strict mode at least) reject object schemas without `properties`, so Task 6 has `client.dart` add `"properties": {}` when it's missing.
   - **Mapping note:** Ack fields are required unless `.optional()`, the inverse of `JsonSchema.object` (optional unless listed in `required`). `JsonSchema.object({'city': ...})` without `required` becomes `Ack.object({'city': Ack.string().optional()})`.
   - **Pending:** a live tool call against the local runtime (no runtime running and no model key in this session).
-- [ ] Task 6: Swap `FrontendTool.parameters` to Ack in core
+- [x] Task 6: Swap `FrontendTool.parameters` to Ack in core. The Dart callers from Task 7 changed in the same commit so every commit compiles. `client.dart` fills in `"properties": {}` when Ack leaves it out (see Task 5).
 - [ ] Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`
 
 ### Checkpoint: Complete

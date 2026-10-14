@@ -20,10 +20,7 @@ Future<void> main() async {
     FrontendTool(
       name: 'showWeather',
       description: 'Show the weather for a city',
-      parameters: JsonSchema.object(
-        {'city': JsonSchema.string()},
-        required: ['city'],
-      ),
+      parameters: Ack.object({'city': Ack.string()}),
       handler: (args, {required signal}) async =>
           jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
     ),
