@@ -68,11 +68,8 @@ jobs:
       - name: 🎯 Check copilotkit Has No Flutter Dependency
         working-directory: packages/copilotkit
         run: |
-          if grep -rn "package:flutter" lib bin 2>/dev/null; then
-            echo "copilotkit must not depend on Flutter"
-            exit 1
-          fi
-          if grep -nE "^\s+(flutter|flutter_test):" pubspec.yaml; then
+          if grep -rn "package:flutter" lib bin 2>/dev/null ||
+            grep -nE "^\s+(flutter|flutter_test):" pubspec.yaml; then
             echo "copilotkit must not depend on Flutter"
             exit 1
           fi
