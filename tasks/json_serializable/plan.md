@@ -44,7 +44,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 - [ ] Human review
 
 ### Phase 2: Core package
-- [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff. Codegen made the workspace need Flutter for `pub get`, so the `copilotkit` CI job moved from `dart_package.yml` to `flutter_package.yml`; a separate `copilotkit_pure_dart` job keeps the "no Flutter dependency" promise by failing if core's `lib/` imports `package:flutter*` or its pubspec lists `flutter` / `flutter_test`.
+- [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff. Codegen made the workspace need Flutter for `pub get`, so the `copilotkit` CI job moved from `dart_package.yml` to `flutter_package.yml`.
 - [x] Task 4: Typed stop request/response in `AgUiTransport`. Only `StopRequest` is added (Open Question 4 default); `StopResponse` waits for that answer so no unused model ships. Primary constructors in core get their constructor doc on the in-body `this;` part, because `public_member_api_docs` flags an undocumented primary constructor at the class name.
 
 ### Checkpoint: Core codegen

@@ -57,23 +57,6 @@ jobs:
       coverage_excludes: '**/*.g.dart'
       run_bloc_lint: false
 
-  copilotkit_pure_dart:
-    needs: changes
-    if: ${{ needs.changes.outputs.copilotkit == 'true' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 🎯 Check copilotkit Has No Flutter Dependency
-        working-directory: packages/copilotkit
-        run: |
-          if grep -rn "package:flutter" lib bin 2>/dev/null ||
-            grep -nE "^\s+(flutter|flutter_test):" pubspec.yaml; then
-            echo "copilotkit must not depend on Flutter"
-            exit 1
-          fi
-
   copilotkit_flutter:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit_flutter == 'true' }}

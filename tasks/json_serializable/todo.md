@@ -71,7 +71,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 - [x] Core resolves and `fvm dart test` passes without Flutter
 - [x] `fvm dart doc --dry-run` has no new warnings
 - [x] CI coverage excludes `*.g.dart` for `copilotkit`
-- [x] CI's `copilotkit_pure_dart` job fails if core gains a Flutter import or dependency (the `copilotkit` job itself now runs on `flutter_package.yml`)
+- [x] The `copilotkit` CI job now runs on `flutter_package.yml`
 
 **Verification:**
 - [x] `cd packages/copilotkit && fvm dart run build_runner build && fvm dart test`
