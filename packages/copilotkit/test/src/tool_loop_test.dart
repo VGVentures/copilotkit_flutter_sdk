@@ -286,6 +286,54 @@ void main() {
       expect(sentInputs(), hasLength(1));
     });
 
+    group('a failed run closes open calls', () {
+      void expectClosedAsFailed() {
+        final view = agent.toolCalls.single;
+        expect(view.status, ToolCallStatus.complete);
+        expect(view.result, 'Tool call failed: the run ended early.');
+        final message = agent.messages.whereType<ToolMessage>().single;
+        expect(message.toolCallId, 'c1');
+        expect(message.content, view.result);
+      }
+
+      test('when the connection drops after the call ended', () async {
+        client.registerTool(weatherTool((_, {required signal}) async => ''));
+        runs.add(
+          Stream.fromIterable(_toolCallRun(agent.threadId)..removeLast()),
+        );
+
+        await agent.run();
+
+        expect(sentInputs(), hasLength(1));
+        expectClosedAsFailed();
+      });
+
+      test('when the runtime reports an error mid-args', () async {
+        runs.add(
+          Stream.fromIterable([
+            ..._toolCallRun(agent.threadId).take(3),
+            const RunErrorEvent(message: 'model error'),
+          ]),
+        );
+
+        await agent.run();
+
+        expectClosedAsFailed();
+      });
+
+      test('so the next run sends a valid conversation', () async {
+        runs
+          ..add(Stream.fromIterable(_toolCallRun(agent.threadId)..removeLast()))
+          ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        await agent.run();
+
+        await agent.run();
+
+        final messages = sentInputs().last.messages;
+        expect(messages.last, isA<ToolMessage>());
+      });
+    });
+
     group('stop', () {
       test('while the handler runs cancels its signal and does not run '
           'again', () async {

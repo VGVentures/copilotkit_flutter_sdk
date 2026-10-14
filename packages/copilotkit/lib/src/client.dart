@@ -24,6 +24,9 @@ typedef CopilotErrorHandler = void Function(
 /// Result sent to the agent for a tool call cut short by a stop.
 const _cancelledResult = 'Tool call cancelled.';
 
+/// Result sent to the agent for a tool call left open by a failed run.
+const _failedResult = 'Tool call failed: the run ended early.';
+
 /// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
@@ -71,7 +74,9 @@ class CopilotKitClient {
   /// When the agent calls registered frontend tools, their handlers run and
   /// the agent runs again with the results, until it stops calling them.
   /// Completes when that whole turn ends. Errors go to [onError] instead of
-  /// being thrown. Does nothing if [agent] is already running.
+  /// being thrown. When a run fails, tool calls without a result are closed
+  /// as failed so the next run sends a valid conversation. Does nothing if
+  /// [agent] is already running.
   Future<void> runAgent(CopilotAgent agent) async {
     if (agent.isRunning || _turns.containsKey(agent)) return;
     final turn = _Turn();
@@ -165,7 +170,10 @@ class CopilotKitClient {
     );
     await run.done.future;
     turn.run = null;
-    return !turn.stopped && agent.snapshot.error == null;
+    if (turn.stopped) return false;
+    if (agent.snapshot.error == null) return true;
+    _closeOpenToolCalls(agent, _failedResult);
+    return false;
   }
 
   /// Executing calls to registered tools that have no result yet, with the
@@ -212,17 +220,7 @@ class CopilotKitClient {
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    for (final call in agent.toolCalls) {
-      if (call.status != ToolCallStatus.complete) {
-        agent._reduce(
-          ToolCallResultEvent(
-            messageId: _randomId(),
-            toolCallId: call.id,
-            content: _cancelledResult,
-          ),
-        );
-      }
-    }
+    _closeOpenToolCalls(agent, _cancelledResult);
     agent._update(agent.snapshot.copyWith(isRunning: false));
     if (run == null) return;
     run.done.complete();
@@ -278,6 +276,22 @@ class CopilotKitClient {
       await agent._close();
     }
     await _transport.close();
+  }
+
+  /// Gives every tool call without a result the result [content], so the
+  /// conversation stays valid for the next run.
+  void _closeOpenToolCalls(CopilotAgent agent, String content) {
+    for (final call in agent.toolCalls) {
+      if (call.status != ToolCallStatus.complete) {
+        agent._reduce(
+          ToolCallResultEvent(
+            messageId: _randomId(),
+            toolCallId: call.id,
+            content: content,
+          ),
+        );
+      }
+    }
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
