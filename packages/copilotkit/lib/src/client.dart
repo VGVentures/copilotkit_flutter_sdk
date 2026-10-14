@@ -20,6 +20,9 @@ typedef CopilotErrorHandler = void Function(
   StackTrace stackTrace,
 );
 
+/// Result sent to the agent for a tool call cut short by a stop.
+const _cancelledResult = 'Tool call cancelled.';
+
 /// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
@@ -40,7 +43,8 @@ class CopilotKitClient {
 
   final AgentTransport _transport;
   final Map<String, CopilotAgent> _agents = {};
-  final Map<CopilotAgent, _ActiveRun> _activeRuns = {};
+  final Map<String, FrontendTool> _tools = {};
+  final Map<CopilotAgent, _Turn> _turns = {};
 
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
   final Uri runtimeUrl;
@@ -62,32 +66,61 @@ class CopilotKitClient {
 
   /// Runs [agent] with all registered tools and context entries.
   ///
-  /// Completes when the run ends, including any follow-up runs triggered by
-  /// frontend tools. Errors go to [onError] instead of being thrown. Does
-  /// nothing if [agent] is already running.
+  /// When the agent calls registered frontend tools, their handlers run and
+  /// the agent runs again with the results, until it stops calling them.
+  /// Completes when that whole turn ends. Errors go to [onError] instead of
+  /// being thrown. Does nothing if [agent] is already running.
   Future<void> runAgent(CopilotAgent agent) async {
-    if (agent.isRunning) return;
+    if (agent.isRunning || _turns.containsKey(agent)) return;
+    final turn = _Turn();
+    _turns[agent] = turn;
+    try {
+      while (await _runOnce(agent, turn)) {
+        final pending = _pendingToolCalls(agent);
+        if (pending.isEmpty) return;
+        agent._update(agent.snapshot.copyWith(isRunning: true));
+        for (final (call, tool) in pending) {
+          final result = await _runHandler(tool, call, turn);
+          if (turn.stopped) return;
+          agent._reduce(
+            ToolCallResultEvent(
+              messageId: _randomId(),
+              toolCallId: call.id,
+              content: result,
+            ),
+          );
+        }
+      }
+    } finally {
+      if (identical(_turns[agent], turn)) _turns.remove(agent);
+    }
+  }
+
+  /// Streams one run of [agent]. Returns whether it finished successfully
+  /// and wasn't stopped.
+  Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
     agent._update(agent.snapshot.copyWith(isRunning: true, error: null));
 
     final Map<String, String> requestHeaders;
-    try {
-      requestHeaders = await headers?.call() ?? const {};
-    } on Object catch (error, stackTrace) {
-      _fail(agent, error, stackTrace);
-      return;
-    }
-
+    final Stream<BaseEvent> events;
     final input = RunAgentInput(
       threadId: agent.threadId,
       runId: _randomId(),
       state: agent.state,
       messages: agent.messages,
-      tools: const [],
+      tools: [
+        for (final tool in _tools.values)
+          Tool(
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.parameters.toJson(),
+          ),
+      ],
       context: const [],
       forwardedProps: properties,
     );
-    final Stream<BaseEvent> events;
     try {
+      requestHeaders = await headers?.call() ?? const {};
       events = _transport.run(
         agentId: agent.agentId,
         input: input,
@@ -95,10 +128,11 @@ class CopilotKitClient {
       );
     } on Object catch (error, stackTrace) {
       _fail(agent, error, stackTrace);
-      return;
+      return false;
     }
-    final run = _ActiveRun(runId: input.runId, headers: requestHeaders);
-    _activeRuns[agent] = run;
+
+    final run = _StreamRun(runId: input.runId, headers: requestHeaders);
+    turn.run = run;
     run.subscription = events.listen(
       agent._apply,
       onError: (Object error, StackTrace stackTrace) {
@@ -118,19 +152,67 @@ class CopilotKitClient {
       cancelOnError: true,
     );
     await run.done.future;
-    if (identical(_activeRuns[agent], run)) _activeRuns.remove(agent);
+    turn.run = null;
+    return !turn.stopped && agent.snapshot.error == null;
+  }
+
+  /// Executing calls to registered tools that have no result yet, with the
+  /// tool that handles each.
+  List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
+    for (final call in agent.toolCalls)
+      if ((call.status, _tools[call.name]) case (
+        ToolCallStatus.executing,
+        final tool?,
+      ))
+        (call, tool),
+  ];
+
+  Future<String> _runHandler(
+    FrontendTool tool,
+    ToolCallView call,
+    _Turn turn,
+  ) async {
+    final signal = turn.signal = CancellationSignal();
+    try {
+      return await tool.handler(call.args, signal: signal);
+    } on Object catch (error, stackTrace) {
+      onError?.call(error, stackTrace);
+      return 'Error: $error';
+    } finally {
+      turn.signal = null;
+    }
   }
 
   /// Stops the current run of [agent], closing its connection.
   ///
-  /// The partial reply is kept and no further events are applied. The
-  /// runtime is also asked to stop the run; if that fails the error goes to
-  /// [onError]. Does nothing if [agent] is not running.
+  /// The partial reply is kept and no further events are applied. Running
+  /// tool handlers get their signal cancelled, and any tool call without a
+  /// result is closed as cancelled so the conversation stays valid. If a
+  /// stream was open, the runtime is also asked to stop the run; if that
+  /// fails the error goes to [onError]. Does nothing if [agent] is not
+  /// running.
   Future<void> stopAgent(CopilotAgent agent) async {
-    final run = _activeRuns.remove(agent);
-    if (run == null) return;
-    await run.subscription.cancel();
+    final turn = _turns.remove(agent);
+    if (turn == null) return;
+    turn
+      ..stopped = true
+      ..signal?.cancel();
+    final run = turn.run;
+    if (run != null) await run.subscription.cancel();
+
+    for (final call in agent.toolCalls) {
+      if (call.status != ToolCallStatus.complete) {
+        agent._reduce(
+          ToolCallResultEvent(
+            messageId: _randomId(),
+            toolCallId: call.id,
+            content: _cancelledResult,
+          ),
+        );
+      }
+    }
     agent._update(agent.snapshot.copyWith(isRunning: false));
+    if (run == null) return;
     run.done.complete();
     try {
       await _transport.stop(
@@ -144,16 +226,21 @@ class CopilotKitClient {
     }
   }
 
-  // coverage:ignore-start
-
   /// Makes [tool] available to the agent on every run.
   ///
-  /// Returns a function that unregisters the tool.
-  void Function() registerTool(FrontendTool tool) => throw UnimplementedError();
+  /// A tool with the same name replaces the previous one. Returns a function
+  /// that unregisters [tool]; it does nothing once [tool] was replaced.
+  void Function() registerTool(FrontendTool tool) {
+    _tools[tool.name] = tool;
+    return () {
+      if (identical(_tools[tool.name], tool)) _tools.remove(tool.name);
+    };
+  }
 
   /// Shares [value] with the agent, described by [description].
   ///
   /// Use the returned entry to update or remove it.
+  // coverage:ignore-start
   AgentContextEntry addContext(String description, Object? value) =>
       throw UnimplementedError();
   // coverage:ignore-end
@@ -162,11 +249,16 @@ class CopilotKitClient {
   ///
   /// The client and its agents can't be used afterwards.
   Future<void> dispose() async {
-    for (final run in _activeRuns.values) {
+    for (final turn in _turns.values) {
+      turn
+        ..stopped = true
+        ..signal?.cancel();
+      final run = turn.run;
+      if (run == null) continue;
       await run.subscription.cancel();
-      if (!run.done.isCompleted) run.done.complete();
+      run.done.complete();
     }
-    _activeRuns.clear();
+    _turns.clear();
     for (final agent in _agents.values) {
       await agent._close();
     }
@@ -179,12 +271,21 @@ class CopilotKitClient {
   }
 }
 
-class _ActiveRun {
+/// One `runAgent` call: stream runs plus the tool handlers between them.
+class _Turn {
+  bool stopped = false;
+  _StreamRun? run;
+  CancellationSignal? signal;
+}
+
+/// One streamed request to the runtime.
+class _StreamRun {
   new({required this.runId, required this.headers});
 
   final String runId;
   final Map<String, String> headers;
-  // Cancelled on error (cancelOnError), on dispose and by stopAgent.
+
+  // Cancelled on error (cancelOnError), on stop and on dispose.
   // ignore: cancel_subscriptions
   late StreamSubscription<BaseEvent> subscription;
   final done = Completer<void>();

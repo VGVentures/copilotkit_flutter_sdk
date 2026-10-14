@@ -67,10 +67,15 @@ class CopilotAgent {
   /// Same as `CopilotKitClient.stopAgent(this)`.
   Future<void> stop() => _client.stopAgent(this);
 
+  /// Applies an event received from the runtime.
   void _apply(BaseEvent event) {
     _events.add(event);
-    _update(reduceAgentEvent(_snapshot, event));
+    _reduce(event);
   }
+
+  /// Applies an event produced locally (e.g. a tool result), without
+  /// emitting it on [events].
+  void _reduce(BaseEvent event) => _update(reduceAgentEvent(_snapshot, event));
 
   void _update(AgentSnapshot next) {
     if (identical(next, _snapshot)) return;

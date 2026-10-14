@@ -242,12 +242,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Add `client.registerTool(FrontendTool)`, which returns an unregister handle, and send the registered tools as JSON Schema in `RunAgentInput.tools`. Reduce `ToolCallStart/Args/End/Result` (and `Chunk`) into `ToolCallView`s with status `inProgress` → `executing` → `complete`, using B4's parser for partial args. On `ToolCallEnd` for a frontend tool: run the handler with a cancellation signal, append a `ToolMessage` with the result, and re-run the agent in the same turn. Handler exceptions become an error result string and are reported to `onError`.
 
 **Acceptance criteria:**
-- [ ] Replaying `frontend_tool_call.jsonl` with a stub handler yields a `ToolMessage` and triggers exactly one follow-up run
-- [ ] `ToolCallView.status` moves through all three states; `result` is set on `complete`
-- [ ] `stop()` during `executing` cancels the handler's signal and doesn't re-run
+- [ ] Replaying `frontend_tool_call.jsonl` with a stub handler yields a `ToolMessage` and triggers exactly one follow-up run (covered with hand-built events in `tool_loop_test.dart`; fixture replay added with A2)
+- [x] `ToolCallView.status` moves through all three states; `result` is set on `complete`
+- [x] `stop()` during `executing` cancels the handler's signal and doesn't re-run
 
 **Verification:**
-- [ ] `fvm dart test test/tool_loop_test.dart`
+- [x] `fvm dart test test/tool_loop_test.dart`
 - [ ] Manual: against the local runtime, a demo tool runs on device and the agent continues
 
 **Dependencies:** A5, A6; B4 for partial args (use `{}` until it lands)
