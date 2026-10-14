@@ -331,12 +331,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Write the `CopilotKit` widget that provides a `CopilotKitClient` to the tree. `CopilotKit.of(context)` returns the client, and `client.agent(id)` returns the core `CopilotAgent`. The widget disposes the client when it is removed if it created it, and leaves an injected client alone.
 
 **Acceptance criteria:**
-- [ ] Widget tests with a `_MockCopilotKitClient` cover `of`, the missing-ancestor error, and the dispose/ownership rules
-- [ ] `CopilotKit.of` throws a clear error when no ancestor exists
-- [ ] Rebuilding the widget doesn't create a second client
+- [x] Widget tests with a `_MockCopilotKitClient` cover `of`, the missing-ancestor error, and the dispose/ownership rules
+- [x] `CopilotKit.of` throws a clear error when no ancestor exists
+- [x] Rebuilding the widget doesn't create a second client
 
 **Verification:**
-- [ ] `cd packages/copilotkit_flutter && very_good test --coverage`
+- [x] `cd packages/copilotkit_flutter && very_good test --coverage`
 
 **Dependencies:** A3, B3
 
