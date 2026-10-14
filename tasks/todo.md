@@ -113,6 +113,8 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Description:** Write the public surface of `core` as it will look when frozen: `CopilotKitClient`, `CopilotAgent`, `FrontendTool`, `JsonSchema`, `ToolCallView`, `ToolCallStatus`, `AgentContextEntry`, `AgentTransport`, and `AgentSnapshot`. Every type and member gets a doc comment, and method bodies are `UnimplementedError` until later tasks fill them in. `CopilotAgent` exposes synchronous getters plus `Stream<AgentSnapshot> changes`, and neither it nor `CopilotKitClient` is `final`, so both can be mocked. Write the API sketch from the requirements as a compiling snippet under `example/`.
 
+**Contract change (Oct 14):** `JsonSchema` is replaced by Ack's `ObjectSchema` for `FrontendTool.parameters`. See the A3 contract notes in `tasks/plan.md`.
+
 **Acceptance criteria:**
 - [x] The API sketch compiles against the skeleton, with the stream + bloc decision applied (core half in `packages/copilotkit/example/main.dart`; the widget half is the example app itself)
 - [x] Every public member has a doc comment; `fvm flutter analyze` is clean
@@ -160,6 +162,8 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Add GitHub Actions with `very_good_workflows`: `dart_package.yml` for `core` and `flutter_package.yml` for `flutter` and `example`. Each runs tests with coverage, format and analyze checks, with path filters so a package only runs when it (or core) changes. The target is 100% coverage; it is reported on every PR but doesn't block the merge. Add the semantic PR title check (Conventional Commits). Turn on branch protection that requires tests, format, analyze and PR title on `main`.
 
 **Update:** coverage is now a hard 100% gate (`min_coverage: 100`), the custom coverage summary jobs are gone, and a spell check and Dependabot were added. See `README.md` (Development).
+
+**CI change (Oct 14):** core now runs on `flutter_package.yml`, because codegen dev dependencies make the workspace need Flutter for `pub get`. A `codegen` job checks the committed `*.g.dart` files. See `tasks/json_serializable/plan.md`, Task 3.
 
 **Acceptance criteria:**
 - [ ] Every PR shows each touched package's coverage (workflows written in `.github/`; unverified until the first push)

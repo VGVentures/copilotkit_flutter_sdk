@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:ack/ack.dart';
+
 /// Handles a frontend tool call on the device.
 ///
 /// Receives the decoded tool [args] and a [signal] that is cancelled when the
@@ -25,81 +27,17 @@ class const FrontendTool({
   /// Tells the agent what the tool does and when to call it.
   required final String description,
 
-  /// JSON Schema of the arguments the agent must send.
-  required final JsonSchema parameters,
+  /// Schema of the arguments the agent must send, built with [Ack.object].
+  ///
+  /// Sent to the agent as JSON Schema. Fields are required unless marked
+  /// `.optional()`.
+  required final ObjectSchema parameters,
 
   /// Runs the tool when the agent calls it.
   required final FrontendToolHandler handler,
 }) {
   /// {@macro frontend_tool}
   this;
-}
-
-/// {@template json_schema}
-/// A JSON Schema describing tool parameters.
-///
-/// Build one with the named constructors, or wrap an existing schema map with
-/// [JsonSchema.raw].
-/// {@endtemplate}
-class JsonSchema {
-  /// {@macro json_schema}
-  ///
-  /// Wraps an existing JSON Schema [schema] map as is.
-  const new raw(Map<String, Object?> schema) : _schema = schema;
-
-  /// A string value.
-  new string({String? description})
-    : this._typed('string', description: description);
-
-  /// A floating point or integer number.
-  new number({String? description})
-    : this._typed('number', description: description);
-
-  /// An integer number.
-  new integer({String? description})
-    : this._typed('integer', description: description);
-
-  /// A `true` or `false` value.
-  new boolean({String? description})
-    : this._typed('boolean', description: description);
-
-  /// A list whose elements all match [items].
-  new array(JsonSchema items, {String? description})
-    : this._typed(
-        'array',
-        description: description,
-        extra: {'items': items.toJson()},
-      );
-
-  /// An object with the given [properties].
-  ///
-  /// Names in [required] must be keys of [properties].
-  new object(
-    Map<String, JsonSchema> properties, {
-    List<String> required = const [],
-    String? description,
-  }) : this._typed(
-         'object',
-         description: description,
-         extra: {
-           'properties': {
-             for (final entry in properties.entries)
-               entry.key: entry.value.toJson(),
-           },
-           if (required.isNotEmpty) 'required': required,
-         },
-       );
-
-  new _typed(
-    String type, {
-    String? description,
-    Map<String, Object?> extra = const {},
-  }) : _schema = {'type': type, 'description': ?description, ...extra};
-
-  final Map<String, Object?> _schema;
-
-  /// The schema as a JSON-encodable map.
-  Map<String, Object?> toJson() => _schema;
 }
 
 /// Lifecycle of a tool call as seen by the UI.
