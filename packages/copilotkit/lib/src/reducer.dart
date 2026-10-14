@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_snapshot.dart';
+import 'package:copilotkit/src/json_patch.dart';
 import 'package:copilotkit/src/partial_json.dart';
 import 'package:copilotkit/src/tools.dart';
 
@@ -49,8 +50,28 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
     ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
     ToolCallResultEvent(:final messageId, :final toolCallId, :final content) =>
       _completeToolCall(snapshot, messageId, toolCallId, content),
+    StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
+      state: state,
+    ),
+    StateDeltaEvent(:final delta) => _applyStateDelta(snapshot, delta),
+    MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
+      messages: messages,
+    ),
     _ => snapshot,
   };
+}
+
+/// A delta that doesn't apply (e.g. it was computed against a state this
+/// client never saw) is dropped; the next snapshot resyncs the state.
+AgentSnapshot _applyStateDelta(
+  AgentSnapshot snapshot,
+  List<Map<String, Object?>> delta,
+) {
+  try {
+    return snapshot.copyWith(state: applyJsonPatch(snapshot.state, delta));
+  } on FormatException {
+    return snapshot;
+  }
 }
 
 AgentSnapshot _startToolCall(

@@ -287,12 +287,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Make decoding tolerant: unknown or partially-supported events (reasoning, activity, subagent, raw, custom) are parsed and ignored, never thrown. A dropped SSE connection ends the run cleanly, with `isRunning` false and `onError` called once. `RunError` surfaces to `onError`. Apply `StateSnapshot` and `StateDelta` (RFC 6902 via `ag_ui`) and `MessagesSnapshot` to `agent.state` / `messages`, and expose `stateStream`.
 
 **Acceptance criteria:**
-- [ ] `unknown_events.jsonl` replays without error and leaves text intact
-- [ ] `dropped_connection.jsonl` and `run_error.jsonl` end the run with one `onError` call each
-- [ ] `state_snapshot_delta.jsonl` yields the expected final `agent.state`
+- [ ] `unknown_events.jsonl` replays without error and leaves text intact (covered with hand-built events; fixture replay added with A2)
+- [ ] `dropped_connection.jsonl` and `run_error.jsonl` end the run with one `onError` call each (covered with hand-built events; fixture replay added with A2)
+- [ ] `state_snapshot_delta.jsonl` yields the expected final `agent.state` (covered with hand-built events; fixture replay added with A2)
 
 **Verification:**
-- [ ] `fvm dart test test/resilience_test.dart test/state_test.dart`
+- [x] `fvm dart test test/resilience_test.dart test/state_test.dart`
 
 **Dependencies:** A4, A5
 
