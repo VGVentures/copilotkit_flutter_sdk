@@ -234,6 +234,32 @@ void main() {
         expect(snapshot.messages.single.content, '');
       });
 
+      test('a chunk without id never grows a message of another role', () {
+        final user = _replay(const [
+          TextMessageChunkEvent(
+            messageId: 'u1',
+            role: TextMessageRole.user,
+            delta: 'Hi',
+          ),
+        ]);
+
+        expect(
+          reduceAgentEvent(user, const TextMessageChunkEvent(delta: 'x')),
+          same(user),
+        );
+      });
+
+      for (final role in TextMessageRole.values) {
+        test('a chunk without id grows the last ${role.name} message', () {
+          final snapshot = _replay([
+            TextMessageChunkEvent(messageId: 'm1', role: role, delta: 'Hi'),
+            TextMessageChunkEvent(role: role, delta: '!'),
+          ]);
+
+          expect(snapshot.messages.single.content, 'Hi!');
+        });
+      }
+
       test('a chunk without id or prior message is ignored', () {
         const empty = AgentSnapshot();
 

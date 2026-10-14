@@ -249,16 +249,30 @@ ToolCallView _withStatus(ToolCallView view, ToolCallStatus status) {
   );
 }
 
+/// A chunk without [messageId] continues the last message, but only when it
+/// has the chunk's role, so assistant text never lands in a user message.
 AgentSnapshot _appendChunk(
   AgentSnapshot snapshot,
   String? messageId,
   TextMessageRole? role,
   String delta,
 ) {
-  final id = messageId ?? snapshot.messages.lastOrNull?.id;
+  final chunkRole = role ?? TextMessageRole.assistant;
+  final last = snapshot.messages.lastOrNull;
+  final id =
+      messageId ??
+      (last != null && _roleOf(last) == chunkRole ? last.id : null);
   if (id == null) return snapshot;
-  return _appendText(snapshot, id, role ?? TextMessageRole.assistant, delta);
+  return _appendText(snapshot, id, chunkRole, delta);
 }
+
+TextMessageRole? _roleOf(Message message) => switch (message) {
+  AssistantMessage() => TextMessageRole.assistant,
+  UserMessage() => TextMessageRole.user,
+  SystemMessage() => TextMessageRole.system,
+  DeveloperMessage() => TextMessageRole.developer,
+  _ => null,
+};
 
 /// Appends [delta] to message [messageId], creating it with [role] when it
 /// doesn't exist yet.
