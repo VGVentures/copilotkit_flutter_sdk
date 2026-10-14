@@ -13,12 +13,12 @@ sealed class CopilotChatEvent extends Equatable {
 ///
 /// Ignored when [text] is blank or the agent is already running.
 /// {@endtemplate}
-final class ChatMessageSent extends CopilotChatEvent {
-  /// {@macro chat_message_sent}
-  const new(this.text);
-
+final class const ChatMessageSent(
   /// What the user typed.
-  final String text;
+  final String text,
+) extends CopilotChatEvent {
+  /// {@macro chat_message_sent}
+  this;
 
   @override
   List<Object?> get props => [text];
@@ -27,13 +27,10 @@ final class ChatMessageSent extends CopilotChatEvent {
 /// {@template chat_stop_requested}
 /// The user asked to stop the current run.
 /// {@endtemplate}
-final class ChatStopRequested extends CopilotChatEvent {
+final class const ChatStopRequested() extends CopilotChatEvent {
   /// {@macro chat_stop_requested}
-  const new();
+  this;
 }
 
-final class _ChatSnapshotChanged extends CopilotChatEvent {
-  const new(this.snapshot);
-
-  final AgentSnapshot snapshot;
-}
+final class const _ChatSnapshotChanged(final AgentSnapshot snapshot)
+    extends CopilotChatEvent;

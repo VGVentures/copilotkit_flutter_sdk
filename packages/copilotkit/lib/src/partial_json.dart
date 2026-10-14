@@ -32,10 +32,7 @@ final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
 /// Marks a value cut off before any usable content, e.g. `-` or `"\u00`.
 const Object _incomplete = Object();
 
-class _PartialJsonParser {
-  new(this._input);
-
-  final String _input;
+class _PartialJsonParser(final String _input) {
   int _index = 0;
 
   bool get _atEnd => _index >= _input.length;

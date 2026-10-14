@@ -93,11 +93,10 @@ class _CopilotKitState extends State<CopilotKit> {
   }
 }
 
-class _CopilotKitScope extends InheritedWidget {
-  const new({required this.client, required super.child});
-
-  final CopilotKitClient client;
-
+class const _CopilotKitScope({
+  required final CopilotKitClient client,
+  required super.child,
+}) extends InheritedWidget {
   @override
   bool updateShouldNotify(_CopilotKitScope oldWidget) =>
       !identical(client, oldWidget.client);

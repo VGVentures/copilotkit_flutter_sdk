@@ -5,11 +5,8 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
-class _ClientProbe extends StatelessWidget {
-  const new(this.onBuild);
-
-  final void Function(CopilotKitClient client) onBuild;
-
+class const _ClientProbe(final void Function(CopilotKitClient client) onBuild)
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     onBuild(CopilotKit.of(context));

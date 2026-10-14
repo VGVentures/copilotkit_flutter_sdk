@@ -7,25 +7,25 @@ part of 'client.dart';
 /// them through synchronous getters and the [changes] stream. Get one with
 /// `CopilotKitClient.agent`.
 /// {@endtemplate}
-class CopilotAgent {
+class CopilotAgent({
+  /// Id of the agent on the runtime, e.g. `default`.
+  required final String agentId,
+  required final CopilotKitClient _client,
+  String? threadId,
+}) {
   /// {@macro copilot_agent}
   ///
   /// Prefer `CopilotKitClient.agent`, which caches agents by id. A random
   /// [threadId] is generated when none is given.
-  new({required this.agentId, required this._client, String? threadId})
-    : threadId = threadId ?? _randomId();
+  this;
 
-  final CopilotKitClient _client;
   final _changes = StreamController<AgentSnapshot>.broadcast();
   final _stateChanges = StreamController<Object?>.broadcast();
   final _events = StreamController<BaseEvent>.broadcast();
   AgentSnapshot _snapshot = const AgentSnapshot();
 
-  /// Id of the agent on the runtime, e.g. `default`.
-  final String agentId;
-
   /// Id of the conversation thread sent with every run.
-  final String threadId;
+  final String threadId = threadId ?? _randomId();
 
   /// Current state of the agent.
   AgentSnapshot get snapshot => _snapshot;

@@ -3,9 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Text input with a send button that turns into stop while the agent runs.
-class Composer extends StatefulWidget {
-  const new({super.key});
-
+class const Composer({super.key}) extends StatefulWidget {
   @override
   State<Composer> createState() => _ComposerState();
 }

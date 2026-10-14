@@ -18,26 +18,21 @@ typedef FrontendToolHandler = Future<String> Function(
 /// [handler] runs, its result is appended as a tool message, and the agent
 /// continues in the same turn.
 /// {@endtemplate}
-class FrontendTool {
-  /// {@macro frontend_tool}
-  const new({
-    required this.name,
-    required this.description,
-    required this.parameters,
-    required this.handler,
-  });
-
+class const FrontendTool({
   /// Unique tool name the agent calls the tool by.
-  final String name;
+  required final String name,
 
   /// Tells the agent what the tool does and when to call it.
-  final String description;
+  required final String description,
 
   /// JSON Schema of the arguments the agent must send.
-  final JsonSchema parameters;
+  required final JsonSchema parameters,
 
   /// Runs the tool when the agent calls it.
-  final FrontendToolHandler handler;
+  required final FrontendToolHandler handler,
+}) {
+  /// {@macro frontend_tool}
+  this;
 }
 
 /// {@template json_schema}
@@ -123,31 +118,25 @@ enum ToolCallStatus {
 /// {@template tool_call_view}
 /// A tool call made by the agent, shaped for rendering.
 /// {@endtemplate}
-class ToolCallView {
-  /// {@macro tool_call_view}
-  const new({
-    required this.id,
-    required this.name,
-    required this.status,
-    this.args = const {},
-    this.result,
-  });
-
+class const ToolCallView({
   /// Tool call id; stable for the whole call, use it as a widget key.
-  final String id;
+  required final String id,
 
   /// Name of the tool being called.
-  final String name;
+  required final String name,
 
   /// Where the call is in its lifecycle.
-  final ToolCallStatus status;
+  required final ToolCallStatus status,
 
   /// Arguments sent by the agent; partial while [status] is
   /// [ToolCallStatus.inProgress].
-  final Map<String, Object?> args;
+  final Map<String, Object?> args = const {},
 
   /// Result string; set once [status] is [ToolCallStatus.complete].
-  final String? result;
+  final String? result,
+}) {
+  /// {@macro tool_call_view}
+  this;
 }
 
 /// {@template cancellation_signal}
@@ -156,9 +145,9 @@ class ToolCallView {
 /// The client creates one per tool call and cancels it when the run stops.
 /// Handlers check [isCancelled] or await [whenCancelled] to stop early.
 /// {@endtemplate}
-class CancellationSignal {
+class CancellationSignal() {
   /// {@macro cancellation_signal}
-  new();
+  this;
 
   final _cancelled = Completer<void>();
 

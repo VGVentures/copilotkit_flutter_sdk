@@ -13,22 +13,20 @@ part 'copilot_chat_state.dart';
 /// Mirrors `agent.changes` into [CopilotChatState] and turns
 /// [ChatMessageSent] and [ChatStopRequested] into agent calls.
 /// {@endtemplate}
-class CopilotChatBloc extends Bloc<CopilotChatEvent, CopilotChatState> {
+class CopilotChatBloc({required final CopilotAgent _agent})
+    extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// {@macro copilot_chat_bloc}
-  new({required CopilotAgent agent})
-    : _agent = agent,
-      super(CopilotChatState.fromSnapshot(agent.snapshot)) {
+  this : super(CopilotChatState.fromSnapshot(_agent.snapshot)) {
     on<_ChatSnapshotChanged>(
       (event, emit) => emit(CopilotChatState.fromSnapshot(event.snapshot)),
     );
     on<ChatMessageSent>(_onMessageSent);
     on<ChatStopRequested>((_, _) => _agent.stop());
-    _subscription = agent.changes.listen(
+    _subscription = _agent.changes.listen(
       (snapshot) => add(_ChatSnapshotChanged(snapshot)),
     );
   }
 
-  final CopilotAgent _agent;
   late final StreamSubscription<AgentSnapshot> _subscription;
   int _sentCount = 0;
 

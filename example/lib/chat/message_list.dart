@@ -10,9 +10,7 @@ const _followThreshold = 48.0;
 ///
 /// Follows the bottom while text streams in, unless the user has scrolled
 /// up; scrolling back to the bottom resumes following.
-class MessageList extends StatefulWidget {
-  const new({super.key});
-
+class const MessageList({super.key}) extends StatefulWidget {
   @override
   State<MessageList> createState() => _MessageListState();
 }
@@ -71,11 +69,8 @@ class _MessageListState extends State<MessageList> {
 ///
 /// Assistant text is rendered as markdown; the renderer tolerates the
 /// unfinished markdown of a reply that is still streaming.
-class MessageBubble extends StatelessWidget {
-  const new({required this.message, super.key});
-
-  final Message message;
-
+class const MessageBubble({required final Message message, super.key})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;

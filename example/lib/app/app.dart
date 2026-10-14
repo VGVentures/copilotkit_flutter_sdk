@@ -5,12 +5,11 @@ import 'package:example/chat/chat_screen.dart';
 import 'package:example/demo/weather_demo.dart';
 import 'package:flutter/material.dart';
 
-class App extends StatelessWidget {
-  const new({required this.runtimeUrl, super.key});
-
+class const App({
   /// Copilot Runtime URL from `--dart-define=RUNTIME_URL=...`.
-  final String runtimeUrl;
-
+  required final String runtimeUrl,
+  super.key,
+}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final uri = Uri.tryParse(runtimeUrl);
@@ -32,9 +31,7 @@ class App extends StatelessWidget {
   }
 }
 
-class _MissingRuntimeScreen extends StatelessWidget {
-  const new();
-
+class const _MissingRuntimeScreen() extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;

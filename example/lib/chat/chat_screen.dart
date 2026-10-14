@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Chat with the runtime's `default` agent.
-class ChatPage extends StatelessWidget {
-  const new({super.key});
-
+class const ChatPage({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final client = CopilotKit.of(context);
@@ -18,9 +16,7 @@ class ChatPage extends StatelessWidget {
   }
 }
 
-class ChatView extends StatelessWidget {
-  const new({super.key});
-
+class const ChatView({super.key}) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasError = context.select<CopilotChatBloc, bool>(

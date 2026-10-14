@@ -35,11 +35,8 @@ Future<String> lookUpWeather(
 
 /// Placeholder demo: registers the `showWeather` tool and the current user
 /// context around [child].
-class WeatherDemo extends StatelessWidget {
-  const new({required this.child, super.key});
-
-  final Widget child;
-
+class const WeatherDemo({required final Widget child, super.key})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return CopilotContext(
@@ -65,11 +62,8 @@ final _showWeather = FrontendTool(
 );
 
 /// Placeholder generative UI for `showWeather` calls.
-class WeatherCard extends StatelessWidget {
-  const new({required this.call, super.key});
-
-  final ToolCallView call;
-
+class const WeatherCard({required final ToolCallView call, super.key})
+    extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;

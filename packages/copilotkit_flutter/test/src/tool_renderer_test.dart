@@ -20,11 +20,7 @@ ToolCallView _call(
 
 Widget _app(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-class _Counter extends StatefulWidget {
-  const new(this.label);
-
-  final String label;
-
+class const _Counter(final String label) extends StatefulWidget {
   @override
   State<_Counter> createState() => _CounterState();
 }

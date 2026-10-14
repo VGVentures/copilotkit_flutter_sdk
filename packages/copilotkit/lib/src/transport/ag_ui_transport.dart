@@ -11,17 +11,22 @@ import 'package:http/http.dart' as http;
 /// Every run gets its own [http.Client], closed when the run ends or its
 /// subscription is cancelled, so cancelling really closes the connection
 /// (`ag_ui`'s own cancel only stops listening).
-class AgUiTransport implements AgentTransport {
+class AgUiTransport({
+  required Uri runtimeUrl,
+  http.Client Function()? httpClientFactory,
+}) implements AgentTransport {
   /// Creates a transport for the runtime at [runtimeUrl].
   ///
   /// [httpClientFactory] creates the per-run client; defaults to
   /// [http.Client.new].
-  new({required Uri runtimeUrl, http.Client Function()? httpClientFactory})
-    : _baseUrl = runtimeUrl.toString().replaceFirst(RegExp(r'/+$'), ''),
-      _httpClientFactory = httpClientFactory ?? http.Client.new;
+  this;
 
-  final String _baseUrl;
-  final http.Client Function() _httpClientFactory;
+  final String _baseUrl = runtimeUrl.toString().replaceFirst(
+    RegExp(r'/+$'),
+    '',
+  );
+  final http.Client Function() _httpClientFactory =
+      httpClientFactory ?? http.Client.new;
   final Set<http.Client> _activeClients = {};
 
   @override

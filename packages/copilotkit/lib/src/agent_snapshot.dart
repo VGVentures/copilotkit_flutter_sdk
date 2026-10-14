@@ -7,36 +7,30 @@ import 'package:copilotkit/src/tools.dart';
 /// `CopilotAgent.changes` emits a new snapshot every time an event changes
 /// the agent.
 /// {@endtemplate}
-class AgentSnapshot {
-  /// {@macro agent_snapshot}
-  const new({
-    this.messages = const [],
-    this.state,
-    this.isRunning = false,
-    this.toolCalls = const [],
-    this.error,
-  });
-
+class const AgentSnapshot({
   /// Conversation messages, oldest first. The last assistant message grows
   /// while text streams in.
-  final List<Message> messages;
+  final List<Message> messages = const [],
 
   /// Shared agent state (any JSON value), or `null` if the agent sent none.
-  final Object? state;
+  final Object? state,
 
   /// Whether the agent is working: from `run()` until the whole turn ends,
   /// including frontend tool handlers and the runs that follow them.
-  final bool isRunning;
+  final bool isRunning = false,
 
   /// Tool calls made by the agent, in call order.
-  final List<ToolCallView> toolCalls;
+  final List<ToolCallView> toolCalls = const [],
 
   /// Error that ended the most recent run, or `null`. Cleared when a new run
   /// starts.
   ///
   /// A [RunErrorEvent] when the runtime reported the error; otherwise the
   /// transport or client error.
-  final Object? error;
+  final Object? error,
+}) {
+  /// {@macro agent_snapshot}
+  this;
 
   /// Returns a copy with the given fields replaced.
   ///
