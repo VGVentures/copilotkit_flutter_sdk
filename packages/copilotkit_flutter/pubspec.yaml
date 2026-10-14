@@ -10,7 +10,9 @@ environment:
 resolution: workspace
 
 dependencies:
+  bloc: ^9.2.1
   copilotkit: ^0.1.0
+  equatable: ^3.0.0
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1

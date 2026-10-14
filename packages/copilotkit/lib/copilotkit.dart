@@ -10,6 +10,7 @@ export 'package:ag_ui/ag_ui.dart'
         BaseEvent,
         DeveloperMessage,
         EventType,
+        FunctionCall,
         Message,
         RunAgentInput,
         RunErrorEvent,
