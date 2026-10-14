@@ -1,0 +1,120 @@
+name: main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      copilotkit: ${{ steps.filter.outputs.copilotkit }}
+      copilotkit_flutter: ${{ steps.filter.outputs.copilotkit_flutter }}
+      example: ${{ steps.filter.outputs.example }}
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🔍 Detect changed packages
+        uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - .github/workflows/main.yaml
+              - .github/actions/**
+              - .fvmrc
+              - pubspec.yaml
+              - pubspec.lock
+            copilotkit:
+              - *shared
+              - packages/copilotkit/**
+            copilotkit_flutter:
+              - *shared
+              - packages/copilotkit/**
+              - packages/copilotkit_flutter/**
+            example:
+              - *shared
+              - packages/**
+              - example/**
+
+  copilotkit:
+    needs: changes
+    if: ${{ needs.changes.outputs.copilotkit == 'true' }}
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1.21.1
+    with:
+      working_directory: packages/copilotkit
+      dart_sdk: 3.13.0
+      min_coverage: 0
+      run_bloc_lint: false
+      artifact_name: copilotkit-coverage
+      artifact_paths: packages/copilotkit/coverage/lcov.info
+
+  copilotkit_coverage:
+    needs: copilotkit
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 📊 Coverage
+        uses: ./.github/actions/coverage_summary
+        with:
+          package: copilotkit
+          artifact_name: copilotkit-coverage
+
+  copilotkit_flutter:
+    needs: changes
+    if: ${{ needs.changes.outputs.copilotkit_flutter == 'true' }}
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
+    with:
+      working_directory: packages/copilotkit_flutter
+      flutter_version_file: .fvmrc
+      min_coverage: 0
+      artifact_name: copilotkit_flutter-coverage
+      artifact_paths: packages/copilotkit_flutter/coverage/lcov.info
+
+  copilotkit_flutter_coverage:
+    needs: copilotkit_flutter
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 📊 Coverage
+        uses: ./.github/actions/coverage_summary
+        with:
+          package: copilotkit_flutter
+          artifact_name: copilotkit_flutter-coverage
+
+  example:
+    needs: changes
+    if: ${{ needs.changes.outputs.example == 'true' }}
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
+    with:
+      working_directory: example
+      flutter_version_file: .fvmrc
+      min_coverage: 0
+      artifact_name: example-coverage
+      artifact_paths: example/coverage/lcov.info
+
+  example_coverage:
+    needs: example
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 📊 Coverage
+        uses: ./.github/actions/coverage_summary
+        with:
+          package: example
+          artifact_name: example-coverage
