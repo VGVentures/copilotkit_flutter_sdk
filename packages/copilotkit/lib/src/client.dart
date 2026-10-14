@@ -88,9 +88,10 @@ class CopilotKitClient {
   /// so the next run sends a valid conversation. Does nothing if [agent] is
   /// already running.
   Future<void> runAgent(CopilotAgent agent) async {
-    if (agent.isRunning || _turns.containsKey(agent)) return;
+    if (_turns.containsKey(agent)) return;
     final turn = _Turn();
     _turns[agent] = turn;
+    agent._update(agent.snapshot.copyWith(isRunning: true));
     try {
       while (await _runOnce(agent, turn)) {
         final pending = _pendingToolCalls(agent);
@@ -100,7 +101,6 @@ class CopilotKitClient {
           where: (call) => !_tools.containsKey(call.name),
         );
         if (pending.isEmpty) return;
-        agent._update(agent.snapshot.copyWith(isRunning: true));
         for (final (call, tool) in pending) {
           final result = await _runHandler(tool, call, turn);
           if (turn.stopped) return;
@@ -114,14 +114,18 @@ class CopilotKitClient {
         }
       }
     } finally {
-      if (identical(_turns[agent], turn)) _turns.remove(agent);
+      // A stop or dispose already ended the turn otherwise.
+      if (identical(_turns[agent], turn)) {
+        _turns.remove(agent);
+        agent._update(agent.snapshot.copyWith(isRunning: false));
+      }
     }
   }
 
   /// Streams one run of [agent]. Returns whether it finished successfully
   /// and wasn't stopped.
   Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
-    agent._update(agent.snapshot.copyWith(isRunning: true, error: null));
+    agent._update(agent.snapshot.copyWith(error: null));
 
     final RunAgentInput input;
     final Map<String, String> requestHeaders;
@@ -166,6 +170,9 @@ class CopilotKitClient {
     turn.run = run;
     run.subscription = events.listen(
       (event) {
+        if (event is RunFinishedEvent || event is RunErrorEvent) {
+          run.ended = true;
+        }
         agent._apply(event);
         if (event is RunErrorEvent) onError?.call(event, StackTrace.current);
       },
@@ -174,7 +181,7 @@ class CopilotKitClient {
         run.finish();
       },
       onDone: () {
-        if (agent.isRunning) {
+        if (!run.ended) {
           _fail(
             agent,
             StateError('The connection closed before the run finished.'),
@@ -317,7 +324,7 @@ class CopilotKitClient {
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
-    agent._update(agent.snapshot.copyWith(isRunning: false, error: error));
+    agent._update(agent.snapshot.copyWith(error: error));
     onError?.call(error, stackTrace);
   }
 }
@@ -358,6 +365,9 @@ class _StreamRun {
   // ignore: cancel_subscriptions
   late StreamSubscription<BaseEvent> subscription;
   final done = Completer<void>();
+
+  /// Whether the runtime sent `RUN_FINISHED` or `RUN_ERROR`.
+  bool ended = false;
 
   /// Completes [done]; the stream ending and a stop or dispose can race, so
   /// only the first call has an effect.

@@ -139,7 +139,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Acceptance criteria:**
 - [ ] Replaying `text_stream.jsonl` yields one assistant message whose text grows on every `Content` event (covered with hand-built events in `reducer_text_test.dart`; fixture replay added with A2)
-- [x] `isRunning` is true between `RunStarted` and `RunFinished`/`RunError`
+- [x] `isRunning` is true between `RunStarted` and `RunFinished`/`RunError` (now owned by the client for the whole turn, including tool handlers; the reducer no longer toggles it)
 - [x] Reducer is pure (no I/O, no clocks); unknown events return the snapshot unchanged
 
 **Verification:**

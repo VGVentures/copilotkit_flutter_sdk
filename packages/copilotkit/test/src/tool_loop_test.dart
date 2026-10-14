@@ -213,6 +213,39 @@ void main() {
       expect(agent.isRunning, isFalse);
     });
 
+    test('stays running from the first run to the end of the turn', () async {
+      client.registerTool(weatherTool((_, {required signal}) async => 'ok'));
+      runs
+        ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+      final running = <bool>[];
+      agent.changes.listen((snapshot) => running.add(snapshot.isRunning));
+
+      await agent.run();
+      await pumpEventQueue();
+
+      expect(running.last, isFalse);
+      expect(running.sublist(0, running.length - 1), everyElement(isTrue));
+    });
+
+    test('stays running until a failed turn ends', () async {
+      runs.add(
+        Stream.fromIterable([
+          RunStartedEvent(threadId: agent.threadId, runId: 'r1'),
+          const RunErrorEvent(message: 'model error'),
+        ]),
+      );
+      final running = <bool>[];
+      agent.changes.listen((snapshot) => running.add(snapshot.isRunning));
+
+      await agent.run();
+      await pumpEventQueue();
+
+      expect(running.last, isFalse);
+      expect(running.sublist(0, running.length - 1), everyElement(isTrue));
+      expect(errors, hasLength(1));
+    });
+
     test(
       'turns handler errors into a generic result and reports them',
       () async {

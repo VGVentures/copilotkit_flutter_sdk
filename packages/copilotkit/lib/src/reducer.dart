@@ -6,14 +6,17 @@ import 'package:copilotkit/src/tools.dart';
 
 /// Applies [event] to [snapshot] and returns the resulting snapshot.
 ///
+/// Doesn't touch `isRunning`: the client sets it for a whole turn, which
+/// spans several runs and the tool handlers between them.
+///
 /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
 /// don't change the agent return [snapshot] itself, so callers can skip
 /// emitting when `identical(previous, next)`.
 AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
   return switch (event) {
-    RunStartedEvent() => snapshot.copyWith(isRunning: true, error: null),
-    RunFinishedEvent() => _finishToolArgs(snapshot.copyWith(isRunning: false)),
-    RunErrorEvent() => snapshot.copyWith(isRunning: false, error: event),
+    RunStartedEvent() => snapshot.copyWith(error: null),
+    RunFinishedEvent() => _finishToolArgs(snapshot),
+    RunErrorEvent() => snapshot.copyWith(error: event),
     TextMessageStartEvent(:final messageId, :final role, :final name) =>
       snapshot.copyWith(
         messages: [

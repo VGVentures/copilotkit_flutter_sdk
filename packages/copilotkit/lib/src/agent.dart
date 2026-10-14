@@ -36,7 +36,8 @@ class CopilotAgent {
   /// Shared agent state, or `null` if the agent sent none.
   Object? get state => _snapshot.state;
 
-  /// Whether a run is in progress.
+  /// Whether the agent is working: from `run()` until the whole turn ends,
+  /// including frontend tool handlers and the runs that follow them.
   bool get isRunning => _snapshot.isRunning;
 
   /// Tool calls made by the agent, in call order.

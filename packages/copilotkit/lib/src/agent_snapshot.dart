@@ -24,7 +24,8 @@ class AgentSnapshot {
   /// Shared agent state (any JSON value), or `null` if the agent sent none.
   final Object? state;
 
-  /// Whether a run is in progress.
+  /// Whether the agent is working: from `run()` until the whole turn ends,
+  /// including frontend tool handlers and the runs that follow them.
   final bool isRunning;
 
   /// Tool calls made by the agent, in call order.

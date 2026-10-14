@@ -9,8 +9,10 @@ AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
 void main() {
   group('reduceAgentEvent', () {
     group('lifecycle', () {
-      test('RunStarted sets isRunning and clears the previous error', () {
-        const previous = AgentSnapshot(error: 'boom');
+      // The client owns isRunning for the whole turn (runs plus tool
+      // handlers), so lifecycle events never toggle it.
+      test('RunStarted clears the previous error, not isRunning', () {
+        const previous = AgentSnapshot(isRunning: true, error: 'boom');
 
         final snapshot = reduceAgentEvent(
           previous,
@@ -21,25 +23,27 @@ void main() {
         expect(snapshot.error, isNull);
       });
 
-      test('RunFinished clears isRunning', () {
-        final snapshot = _replay([
-          RunStartedEvent(threadId: 't', runId: 'r'),
-          const RunFinishedEvent(threadId: 't', runId: 'r'),
-        ]);
+      test('RunFinished leaves isRunning to the client', () {
+        const running = AgentSnapshot(isRunning: true);
 
-        expect(snapshot.isRunning, isFalse);
-        expect(snapshot.error, isNull);
+        expect(
+          reduceAgentEvent(
+            running,
+            const RunFinishedEvent(threadId: 't', runId: 'r'),
+          ),
+          same(running),
+        );
       });
 
-      test('RunError clears isRunning and keeps the error', () {
+      test('RunError keeps the error and leaves isRunning', () {
         const error = RunErrorEvent(message: 'Bad key', code: 'AUTH');
 
-        final snapshot = _replay([
-          RunStartedEvent(threadId: 't', runId: 'r'),
+        final snapshot = reduceAgentEvent(
+          const AgentSnapshot(isRunning: true),
           error,
-        ]);
+        );
 
-        expect(snapshot.isRunning, isFalse);
+        expect(snapshot.isRunning, isTrue);
         expect(snapshot.error, same(error));
       });
 
