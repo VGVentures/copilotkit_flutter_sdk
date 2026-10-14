@@ -248,7 +248,7 @@ void main() {
         );
         expect(request.headers['Authorization'], 'Bearer token');
         expect(request.headers['Content-Type'], startsWith('application/json'));
-        expect(request.body, '{"runId":"run-1"}');
+        expect(jsonDecode(request.body), {'runId': 'run-1'});
         verify(() => httpClient.close()).called(1);
       });
 

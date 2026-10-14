@@ -60,6 +60,7 @@ class WeatherDemo extends StatelessWidget {
 final _showWeather = FrontendTool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
+  // Keep in sync with WeatherArgs.
   parameters: Ack.object({
     'city': Ack.string().describe('City name, e.g. Lima'),
   }),

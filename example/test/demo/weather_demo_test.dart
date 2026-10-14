@@ -4,6 +4,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/weather_demo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
@@ -59,7 +60,7 @@ void main() {
           signal: CancellationSignal(),
           delay: Duration.zero,
         ),
-        throwsA(anything),
+        throwsA(isA<CheckedFromJsonException>()),
       );
     });
 
