@@ -2,6 +2,7 @@ import 'dart:developer';
 
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/chat/chat_screen.dart';
+import 'package:example/demo/weather_demo.dart';
 import 'package:flutter/material.dart';
 
 class App extends StatelessWidget {
@@ -17,7 +18,9 @@ class App extends StatelessWidget {
     final app = MaterialApp(
       title: 'CopilotKit',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6766FC)),
-      home: isValid ? const ChatPage() : const _MissingRuntimeScreen(),
+      home: isValid
+          ? const WeatherDemo(child: ChatPage())
+          : const _MissingRuntimeScreen(),
     );
     if (!isValid) return app;
     return CopilotKit(

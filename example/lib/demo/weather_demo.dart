@@ -1,0 +1,124 @@
+// PLACEHOLDER DEMO CONTENT.
+//
+// A stand-in frontend tool and context so the full flow (generative UI and
+// a context-based answer) can be checked on device before the demo scenario
+// is chosen. Replace this file with the real scenario in task B10.
+import 'dart:convert';
+
+import 'package:copilotkit_flutter/copilotkit_flutter.dart';
+import 'package:flutter/material.dart';
+
+/// Placeholder user shared with the agent as context.
+const demoUser = {'name': 'Ada', 'homeCity': 'Lima'};
+
+const _conditions = ['Sunny', 'Cloudy', 'Rainy', 'Windy', 'Foggy'];
+
+/// Placeholder tool handler: a fake, offline forecast for `args['city']`.
+///
+/// Deterministic per city so demos are repeatable. Waits [delay] so the
+/// executing state is visible.
+Future<String> lookUpWeather(
+  Map<String, Object?> args, {
+  required CancellationSignal signal,
+  Duration delay = const Duration(seconds: 1),
+}) async {
+  await Future<void>.delayed(delay);
+  if (signal.isCancelled) return 'Cancelled';
+  final city = args['city'] as String? ?? 'Unknown';
+  final seed = city.codeUnits.fold(0, (sum, unit) => sum + unit);
+  return jsonEncode({
+    'city': city,
+    'temperatureC': 12 + seed % 18,
+    'condition': _conditions[seed % _conditions.length],
+  });
+}
+
+/// Placeholder demo: registers the `showWeather` tool and the current user
+/// context around [child].
+class WeatherDemo extends StatelessWidget {
+  const new({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CopilotContext(
+      description: 'Current user',
+      value: demoUser,
+      child: CopilotTool(
+        tool: _showWeather,
+        builder: (context, call) => WeatherCard(call: call),
+        child: child,
+      ),
+    );
+  }
+}
+
+final _showWeather = FrontendTool(
+  name: 'showWeather',
+  description: 'Show the current weather for a city on the user screen.',
+  parameters: JsonSchema.object(
+    {'city': JsonSchema.string(description: 'City name, e.g. Lima')},
+    required: ['city'],
+  ),
+  handler: lookUpWeather,
+);
+
+/// Placeholder generative UI for `showWeather` calls.
+class WeatherCard extends StatelessWidget {
+  const new({required this.call, super.key});
+
+  final ToolCallView call;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final city = call.args['city'] as String?;
+    final content = switch (call.status) {
+      ToolCallStatus.inProgress => const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Looking up the weather…'),
+          SizedBox(height: 8),
+          LinearProgressIndicator(),
+        ],
+      ),
+      ToolCallStatus.executing => Text('Checking ${city ?? 'the city'}…'),
+      ToolCallStatus.complete => _forecast(call.result, textTheme),
+    };
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            const Icon(Icons.wb_sunny_outlined, size: 32),
+            const SizedBox(width: 16),
+            Expanded(child: content),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _forecast(String? result, TextTheme textTheme) {
+    final forecast = _decode(result);
+    if (forecast == null) return Text(result ?? '');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('${forecast['city']}', style: textTheme.titleMedium),
+        Text('${forecast['temperatureC']}°C · ${forecast['condition']}'),
+      ],
+    );
+  }
+
+  static Map<String, Object?>? _decode(String? result) {
+    try {
+      final decoded = jsonDecode(result ?? '');
+      return decoded is Map<String, Object?> ? decoded : null;
+    } on FormatException {
+      return null;
+    }
+  }
+}
