@@ -49,10 +49,10 @@ jobs:
   copilotkit:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/dart_package.yml@v1.21.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
     with:
       working_directory: packages/copilotkit
-      dart_sdk: 3.13.0
+      flutter_version_file: .fvmrc
       min_coverage: 100
       run_bloc_lint: false
 
