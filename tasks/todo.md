@@ -265,12 +265,12 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** `client.addContext(description, value)` returns an `AgentContextEntry` handle with `update` and `remove`. Every run sends all live entries as `RunAgentInput.context`, with `value` JSON-encoded.
 
 **Acceptance criteria:**
-- [ ] Entries appear in the outgoing `RunAgentInput.context` (unit test on captured request)
-- [ ] Removed entries are absent from the next run
+- [x] Entries appear in the outgoing `RunAgentInput.context` (unit test on captured request)
+- [x] Removed entries are absent from the next run
 - [ ] Manual: the agent answers a question only the context can answer
 
 **Verification:**
-- [ ] `fvm dart test test/context_test.dart`
+- [x] `fvm dart test test/context_test.dart`
 
 **Dependencies:** A5
 

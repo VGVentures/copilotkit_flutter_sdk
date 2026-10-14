@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:ag_ui/ag_ui.dart';
@@ -44,6 +45,7 @@ class CopilotKitClient {
   final AgentTransport _transport;
   final Map<String, CopilotAgent> _agents = {};
   final Map<String, FrontendTool> _tools = {};
+  final List<_ContextEntry> _context = [];
   final Map<CopilotAgent, _Turn> _turns = {};
 
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
@@ -101,25 +103,32 @@ class CopilotKitClient {
   Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
     agent._update(agent.snapshot.copyWith(isRunning: true, error: null));
 
+    final RunAgentInput input;
     final Map<String, String> requestHeaders;
     final Stream<BaseEvent> events;
-    final input = RunAgentInput(
-      threadId: agent.threadId,
-      runId: _randomId(),
-      state: agent.state,
-      messages: agent.messages,
-      tools: [
-        for (final tool in _tools.values)
-          Tool(
-            name: tool.name,
-            description: tool.description,
-            parameters: tool.parameters.toJson(),
-          ),
-      ],
-      context: const [],
-      forwardedProps: properties,
-    );
     try {
+      input = RunAgentInput(
+        threadId: agent.threadId,
+        runId: _randomId(),
+        state: agent.state,
+        messages: agent.messages,
+        tools: [
+          for (final tool in _tools.values)
+            Tool(
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters.toJson(),
+            ),
+        ],
+        context: [
+          for (final entry in _context)
+            Context(
+              description: entry.description,
+              value: jsonEncode(entry.value),
+            ),
+        ],
+        forwardedProps: properties,
+      );
       requestHeaders = await headers?.call() ?? const {};
       events = _transport.run(
         agentId: agent.agentId,
@@ -239,11 +248,14 @@ class CopilotKitClient {
 
   /// Shares [value] with the agent, described by [description].
   ///
-  /// Use the returned entry to update or remove it.
-  // coverage:ignore-start
-  AgentContextEntry addContext(String description, Object? value) =>
-      throw UnimplementedError();
-  // coverage:ignore-end
+  /// [value] must be JSON-encodable; it is encoded on every run, and a run
+  /// with a value that can't be encoded fails through [onError]. Use the
+  /// returned entry to update or remove it.
+  AgentContextEntry addContext(String description, Object? value) {
+    final entry = _ContextEntry(this, description, value);
+    _context.add(entry);
+    return entry;
+  }
 
   /// Stops all runs and releases the transport.
   ///
@@ -269,6 +281,24 @@ class CopilotKitClient {
     agent._update(agent.snapshot.copyWith(isRunning: false, error: error));
     onError?.call(error, stackTrace);
   }
+}
+
+class _ContextEntry implements AgentContextEntry {
+  new(this._client, this.description, this.value);
+
+  final CopilotKitClient _client;
+
+  @override
+  final String description;
+
+  @override
+  Object? value;
+
+  @override
+  void update(Object? value) => this.value = value;
+
+  @override
+  void remove() => _client._context.remove(this);
 }
 
 /// One `runAgent` call: stream runs plus the tool handlers between them.
