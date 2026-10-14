@@ -32,6 +32,9 @@ class AgentSnapshot {
 
   /// Error that ended the most recent run, or `null`. Cleared when a new run
   /// starts.
+  ///
+  /// A [RunErrorEvent] when the runtime reported the error; otherwise the
+  /// transport or client error.
   final Object? error;
 
   /// Returns a copy with the given fields replaced.

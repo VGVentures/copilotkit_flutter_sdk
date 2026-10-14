@@ -143,7 +143,10 @@ class CopilotKitClient {
     final run = _StreamRun(runId: input.runId, headers: requestHeaders);
     turn.run = run;
     run.subscription = events.listen(
-      agent._apply,
+      (event) {
+        agent._apply(event);
+        if (event is RunErrorEvent) onError?.call(event, StackTrace.current);
+      },
       onError: (Object error, StackTrace stackTrace) {
         _fail(agent, error, stackTrace);
         run.done.complete();

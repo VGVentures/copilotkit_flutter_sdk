@@ -12,6 +12,7 @@ export 'package:ag_ui/ag_ui.dart'
         EventType,
         Message,
         RunAgentInput,
+        RunErrorEvent,
         SystemMessage,
         ToolCall,
         ToolMessage,
