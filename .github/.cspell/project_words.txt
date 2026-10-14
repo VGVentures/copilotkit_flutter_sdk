@@ -13,5 +13,8 @@ microtasks
 multimodal
 Ollama
 overclaiming
+subschema
+subschemas
 themable
 workstreams
+worktree

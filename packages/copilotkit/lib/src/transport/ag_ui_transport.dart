@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_transport.dart';
+import 'package:copilotkit/src/transport/stop_request.dart';
 import 'package:http/http.dart' as http;
 
 /// [AgentTransport] over a Copilot Runtime v2 using `ag_ui`'s SSE client.
@@ -102,7 +103,7 @@ class AgUiTransport implements AgentTransport {
     try {
       final request = http.Request('POST', url)
         ..headers.addAll({...headers, 'Content-Type': 'application/json'})
-        ..body = jsonEncode({'runId': runId});
+        ..body = jsonEncode(StopRequest(runId: runId));
       final response = await http.Response.fromStream(
         await httpClient.send(request),
       );

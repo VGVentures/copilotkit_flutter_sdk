@@ -91,10 +91,10 @@ void main() {
       return FrontendTool(
         name: 'showWeather',
         description: 'Show the weather for a city',
-        parameters: JsonSchema.object(
-          {'city': JsonSchema.string()},
-          required: ['city'],
-        ),
+        parameters: Ack.object({
+          'city': Ack.string().describe('City name'),
+          'days': Ack.integer().optional(),
+        }),
         handler: handler,
       );
     }
@@ -112,9 +112,38 @@ void main() {
         expect(tool.parameters, {
           'type': 'object',
           'properties': {
-            'city': {'type': 'string'},
+            'city': {'type': 'string', 'description': 'City name'},
+            'days': {'type': 'integer'},
           },
           'required': ['city'],
+          'additionalProperties': false,
+        });
+      });
+
+      test('sends empty properties for empty object schemas', () async {
+        client.registerTool(
+          FrontendTool(
+            name: 'refresh',
+            description: 'Refresh the screen',
+            parameters: Ack.object({'options': Ack.object({})}),
+            handler: (_, {required signal}) async => '',
+          ),
+        );
+        runs.add(const Stream.empty());
+
+        await agent.run();
+
+        expect(sentInputs().single.tools.single.parameters, {
+          'type': 'object',
+          'properties': {
+            'options': {
+              'type': 'object',
+              'additionalProperties': false,
+              'properties': <String, Object?>{},
+            },
+          },
+          'required': ['options'],
+          'additionalProperties': false,
         });
       });
 
