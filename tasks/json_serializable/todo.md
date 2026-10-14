@@ -1,4 +1,4 @@
-# Tasks: `json_serializable` adoption
+# Tasks: `json_serializable` + `ack` adoption
 
 Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root with `fvm`.
 
@@ -103,7 +103,82 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 
 ---
 
-## Checkpoint: Complete
+## Checkpoint: Core codegen
 - [ ] All packages green; coverage unchanged at 100% excluding `*.g.dart`
 - [ ] CI stale-output check passes
+
+---
+
+## Phase 3: Replace `JsonSchema` with `ack`
+
+Independent of Phases 1–2; can run first or in parallel. Land before the A3 contract freeze (Oct 16).
+
+## Task 5: Ack spike + wire-format comparison
+
+**Description:** Add `ack: ^1.7.0` to `packages/copilotkit/pubspec.yaml` and confirm the workspace resolves. Rebuild every schema in the repo today (the weather tool, the core `example/main.dart` tool, and the test schemas) with Ack in a scratch test, and diff `toJsonSchema()` against `JsonSchema.toJson()`. Then send the Ack version of the weather tool through `tool/round_trip.dart` (or the example app) to the local runtime and confirm the model still calls it with valid args. Record the differences and the result in the plan.
+
+**Acceptance criteria:**
+- [ ] `fvm flutter pub get` resolves with `ack` in core; core still runs under `fvm dart test` without Flutter
+- [ ] The diff of each schema is recorded; only the expected differences appear (`additionalProperties: false`, `anyOf` nullables, key order)
+- [ ] A real tool call succeeds against the local runtime with the Ack-generated schema (needs a model key; otherwise marked pending)
+
+**Verification:**
+- [ ] `cd packages/copilotkit && fvm dart test` (scratch comparison test, deleted or turned into Task 6's golden test)
+- [ ] Manual: round trip with a tool against the local runtime
+
+**Dependencies:** None
+
+**Files likely touched:** `packages/copilotkit/pubspec.yaml`, `pubspec.lock`, `packages/copilotkit/test/src/ack_schema_probe_test.dart` (temporary), `tasks/json_serializable/plan.md`
+
+**Estimated scope:** XS
+
+---
+
+## Task 6: Swap `FrontendTool.parameters` to Ack in core
+
+**Description:** Change `FrontendTool.parameters` from `JsonSchema` to Ack's `ObjectSchema`, send `parameters.toJsonSchema()` from `client.dart` when building `RunAgentInput.tools`, delete `JsonSchema` and its tests, and re-export the Ack types apps need from `lib/copilotkit.dart`. Update the core `example/main.dart` and `tool_loop_test.dart`. Add a golden test that pins the JSON sent for a representative tool, so changes in Ack's output show up on upgrade.
+
+**Acceptance criteria:**
+- [ ] `JsonSchema` no longer exists in core; `FrontendTool(parameters: Ack.object({...}))` compiles from `package:copilotkit/copilotkit.dart` alone
+- [ ] The outgoing `RunAgentInput.tools[].parameters` equals the Ack JSON Schema (golden test on the captured request)
+- [ ] Every public member still has a doc comment; `fvm dart doc --dry-run` has no unresolved references
+
+**Verification:**
+- [ ] `cd packages/copilotkit && very_good test --coverage` (100%)
+- [ ] `fvm flutter analyze` in core and the core example
+
+**Dependencies:** Task 5
+
+**Files likely touched:** `packages/copilotkit/lib/src/tools.dart`, `packages/copilotkit/lib/src/client.dart`, `packages/copilotkit/lib/copilotkit.dart`, `packages/copilotkit/example/main.dart`, `packages/copilotkit/test/src/tools_test.dart`, `packages/copilotkit/test/src/tool_loop_test.dart`
+
+**Estimated scope:** M
+
+---
+
+## Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`
+
+**Description:** Update the remaining callers to Ack: `copilot_tool_test.dart` in the Flutter package, plus `weather_demo.dart` and its test in the example app. Update the docs that show `JsonSchema`: the snippet in `docs/requirements.md`, and the A3 contract notes and A3 task text in `tasks/plan.md` / `tasks/todo.md` (as a recorded contract change, not a rewrite of history). Ask engineer B for sign-off on the contract change.
+
+**Acceptance criteria:**
+- [ ] `rg JsonSchema` finds no Dart code outside Ack imports, and no stale docs
+- [ ] The weather tool behaves the same: the model calls it and the card renders (widget tests plus a simulator check)
+- [ ] The A3 contract notes record the change, and engineer B has signed off
+
+**Verification:**
+- [ ] `very_good test --coverage --recursive` (all packages at 100%)
+- [ ] `fvm flutter analyze` and `fvm dart format --set-exit-if-changed .` clean
+- [ ] Manual: "What's the weather in Lima?" on a simulator against the local runtime
+
+**Dependencies:** Task 6. If Task 2 has already landed, rebase `weather_demo.dart` on it.
+
+**Files likely touched:** `packages/copilotkit_flutter/test/src/copilot_tool_test.dart`, `example/lib/demo/weather_demo.dart`, `example/test/demo/weather_demo_test.dart`, `docs/requirements.md`, `tasks/plan.md`
+
+**Estimated scope:** S
+
+---
+
+## Checkpoint: Complete
+- [ ] No `JsonSchema` left; all packages green; coverage unchanged at 100% excluding `*.g.dart`
+- [ ] CI stale-output check passes
+- [ ] A3 contract change signed off by engineer B
 - [ ] Ready for PR from `chore/json-serializable`
