@@ -115,13 +115,13 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Acceptance criteria:**
 - [ ] The API sketch compiles against the skeleton, with the stream + bloc decision applied
-- [ ] Every public member has a doc comment; `fvm flutter analyze` is clean
+- [x] Every public member has a doc comment; `fvm flutter analyze` is clean
 - [ ] A and B both sign off (PR approval). The contract is frozen from here on.
-- [ ] Skeleton stub files carry `// coverage:ignore-file`, and each later task removes it as it implements a file
+- [x] Skeleton stub files carry `// coverage:ignore-file`, and each later task removes it as it implements a file
 
 **Verification:**
-- [ ] `fvm flutter analyze`
-- [ ] `fvm dart doc packages/copilotkit --dry-run` has no unresolved references
+- [x] `fvm flutter analyze`
+- [x] `fvm dart doc packages/copilotkit --dry-run` has no unresolved references
 
 **Dependencies:** T0; A1 findings, so `CopilotKitClient` options match the real contract
 

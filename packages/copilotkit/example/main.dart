@@ -1,0 +1,60 @@
+// Headless use of the CopilotKit core: the API sketch from
+// docs/requirements.md without Flutter.
+// ignore_for_file: avoid_print
+
+import 'dart:convert';
+
+import 'package:copilotkit/copilotkit.dart';
+
+Future<void> main() async {
+  final client = CopilotKitClient(
+    runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
+    headers: () async => {'Authorization': 'Bearer <token>'},
+    properties: {'userId': '42'},
+    onError: (error, stackTrace) => print('CopilotKit error: $error'),
+  );
+
+  // A frontend tool. In Flutter, `CopilotTool` registers it for the
+  // lifetime of a widget and renders `ToolCallView`s with a builder.
+  final unregisterTool = client.registerTool(
+    FrontendTool(
+      name: 'showWeather',
+      description: 'Show the weather for a city',
+      parameters: JsonSchema.object(
+        {'city': JsonSchema.string()},
+        required: ['city'],
+      ),
+      handler: (args, {required signal}) async =>
+          jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
+    ),
+  );
+
+  // App data the agent can answer from. In Flutter, `CopilotContext`.
+  final user = client.addContext('Current user', {'name': 'Ada'});
+
+  final agent = client.agent('default');
+  final subscription = agent.changes.listen((snapshot) {
+    for (final call in snapshot.toolCalls) {
+      final view = switch (call.status) {
+        ToolCallStatus.inProgress => 'loading…',
+        ToolCallStatus.executing => 'weather for ${call.args['city']}',
+        ToolCallStatus.complete => call.result!,
+      };
+      print('${call.name}: $view');
+    }
+    print(
+      'running: ${snapshot.isRunning}, '
+      'messages: ${snapshot.messages.length}',
+    );
+  });
+
+  await agent.addMessage(
+    UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
+  );
+  await agent.run();
+
+  await subscription.cancel();
+  user.remove();
+  unregisterTool();
+  await client.dispose();
+}

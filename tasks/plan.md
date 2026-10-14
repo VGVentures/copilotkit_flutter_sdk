@@ -142,3 +142,13 @@ Read from `@copilotkit/runtime` 1.79.0 (`dist/v2/runtime/core/fetch-router`, `ha
 - **Headers / auth:** the OSS runtime does no auth itself. Request headers are forwarded to the agent (minus a deny list of proxy and platform headers), and apps add auth through runtime hooks or middleware. `x-copilotcloud-public-api-key` is Copilot Cloud only.
 - **`useSingleEndpoint`:** only for runtimes mounted with `mode: "single-route"`, where a single POST to `runtimeUrl` carries a `{ method, params, body }` envelope. Multi-route servers reject it, so it stays deferred.
 - **Open for the CopilotKit call:** whether the hosted runtime runs multi-route; whether it expects auth headers; whether `connect` / `threads` are stable for P2.
+
+## A3 contract notes (for B's review)
+
+Skeleton: `packages/copilotkit/lib/`. Core half of the API sketch: `packages/copilotkit/example/main.dart`. Where it differs from the requirements sketch:
+
+- **Tool handlers:** declared `(args, {required signal})`. Dart closures can't leave a non-nullable named parameter optional, and a nullable signal would only push null checks into every handler. `signal` is a `CancellationSignal` (`isCancelled`, `whenCancelled`).
+- **User messages:** `ag_ui` has no `UserMessage.text`. Callers write `UserMessage(id: …, content: …)`; `CopilotChatBloc` generates the id for `ChatMessageSent`.
+- **Data types:** `AgentSnapshot`, `ToolCallView`, `JsonSchema`, `FrontendTool` and `CancellationSignal` are fully implemented and tested. `CopilotKitClient` and `CopilotAgent` are stubs (`UnimplementedError`, `// coverage:ignore-file`). `AgentTransport` and `AgentContextEntry` are interfaces, so they can be mocked directly.
+- **Additions the sketch implies:** `AgentSnapshot.error` (last run error, for the bloc state); `CopilotAgent.snapshot`, `stateStream` and `events`; `CopilotKitClient.dispose()` (for B5 ownership); `AgentTransport.stop()` (calls the runtime's stop endpoint, see the A1 findings).
+- **Re-exported from `ag_ui`:** the `Message` family, `ToolCall`, `BaseEvent`, `EventType`, `RunAgentInput`. Apps that switch on concrete events import `ag_ui` directly.
