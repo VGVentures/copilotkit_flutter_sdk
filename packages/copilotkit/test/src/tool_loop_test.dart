@@ -120,12 +120,12 @@ void main() {
         });
       });
 
-      test('sends empty properties for a tool without arguments', () async {
+      test('sends empty properties for empty object schemas', () async {
         client.registerTool(
           FrontendTool(
             name: 'refresh',
             description: 'Refresh the screen',
-            parameters: Ack.object({}),
+            parameters: Ack.object({'options': Ack.object({})}),
             handler: (_, {required signal}) async => '',
           ),
         );
@@ -135,7 +135,14 @@ void main() {
 
         expect(sentInputs().single.tools.single.parameters, {
           'type': 'object',
-          'properties': <String, Object?>{},
+          'properties': {
+            'options': {
+              'type': 'object',
+              'additionalProperties': false,
+              'properties': <String, Object?>{},
+            },
+          },
+          'required': ['options'],
           'additionalProperties': false,
         });
       });

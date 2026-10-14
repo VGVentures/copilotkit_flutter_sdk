@@ -7,6 +7,7 @@ import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/agent_transport.dart';
 import 'package:copilotkit/src/context.dart';
 import 'package:copilotkit/src/reducer.dart';
+import 'package:copilotkit/src/tool_schema.dart';
 import 'package:copilotkit/src/tools.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 
@@ -135,12 +136,7 @@ class CopilotKitClient {
             Tool(
               name: tool.name,
               description: tool.description,
-              // Ack omits `properties` on an empty object, and some
-              // providers reject object schemas without it.
-              parameters: {
-                'properties': <String, Object?>{},
-                ...tool.parameters.toJsonSchema(),
-              },
+              parameters: toolParametersJson(tool.parameters),
             ),
         ],
         context: [
