@@ -233,13 +233,41 @@ void main() {
       },
     );
 
-    test('leaves calls to unregistered tools alone', () async {
+    test('closes calls to unregistered tools as unavailable', () async {
       runs.add(Stream.fromIterable(_toolCallRun(agent.threadId)));
 
       await agent.run();
 
       expect(sentInputs(), hasLength(1));
-      expect(agent.toolCalls.single.status, ToolCallStatus.executing);
+      final view = agent.toolCalls.single;
+      expect(view.status, ToolCallStatus.complete);
+      expect(view.result, 'Tool is not available.');
+      expect(agent.messages.last, isA<ToolMessage>());
+    });
+
+    test('closes unregistered calls before running again', () async {
+      client.registerTool(weatherTool((_, {required signal}) async => 'ok'));
+      final events = _toolCallRun(agent.threadId)
+        ..insertAll(4, const [
+          ToolCallStartEvent(
+            toolCallId: 'c2',
+            toolCallName: 'gone',
+            parentMessageId: 'a1',
+          ),
+          ToolCallEndEvent(toolCallId: 'c2'),
+        ]);
+      runs
+        ..add(Stream.fromIterable(events))
+        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+
+      await agent.run();
+
+      final results = {
+        for (final message
+            in sentInputs().last.messages.whereType<ToolMessage>())
+          message.toolCallId: message.content,
+      };
+      expect(results, {'c1': 'ok', 'c2': 'Tool is not available.'});
     });
 
     test('does not run handlers for calls the runtime completed', () async {

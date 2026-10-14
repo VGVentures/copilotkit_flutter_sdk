@@ -27,6 +27,11 @@ const _cancelledResult = 'Tool call cancelled.';
 /// Result sent to the agent for a tool call left open by a failed run.
 const _failedResult = 'Tool call failed: the run ended early.';
 
+/// Result sent to the agent for a call to a tool that isn't registered, e.g.
+/// because its `CopilotTool` was unmounted. Backend tool calls never get it:
+/// the runtime sends their results within the run.
+const _unavailableResult = 'Tool is not available.';
+
 /// Result sent to the agent when a handler throws. The error itself goes to
 /// `onError` only, so exception details never reach the model.
 const _handlerErrorResult = 'Tool failed.';
@@ -78,9 +83,10 @@ class CopilotKitClient {
   /// When the agent calls registered frontend tools, their handlers run and
   /// the agent runs again with the results, until it stops calling them.
   /// Completes when that whole turn ends. Errors go to [onError] instead of
-  /// being thrown. When a run fails, tool calls without a result are closed
-  /// as failed so the next run sends a valid conversation. Does nothing if
-  /// [agent] is already running.
+  /// being thrown. Tool calls that will never get a result (the run failed,
+  /// or no registered tool handles them) are closed with a result saying so,
+  /// so the next run sends a valid conversation. Does nothing if [agent] is
+  /// already running.
   Future<void> runAgent(CopilotAgent agent) async {
     if (agent.isRunning || _turns.containsKey(agent)) return;
     final turn = _Turn();
@@ -88,6 +94,11 @@ class CopilotKitClient {
     try {
       while (await _runOnce(agent, turn)) {
         final pending = _pendingToolCalls(agent);
+        _closeOpenToolCalls(
+          agent,
+          _unavailableResult,
+          where: (call) => !_tools.containsKey(call.name),
+        );
         if (pending.isEmpty) return;
         agent._update(agent.snapshot.copyWith(isRunning: true));
         for (final (call, tool) in pending) {
@@ -284,11 +295,16 @@ class CopilotKitClient {
     await _transport.close();
   }
 
-  /// Gives every tool call without a result the result [content], so the
-  /// conversation stays valid for the next run.
-  void _closeOpenToolCalls(CopilotAgent agent, String content) {
+  /// Gives every tool call without a result (and matching [where], if set)
+  /// the result [content], so the conversation stays valid for the next run.
+  void _closeOpenToolCalls(
+    CopilotAgent agent,
+    String content, {
+    bool Function(ToolCallView call)? where,
+  }) {
     for (final call in agent.toolCalls) {
-      if (call.status != ToolCallStatus.complete) {
+      if (call.status != ToolCallStatus.complete &&
+          (where?.call(call) ?? true)) {
         agent._reduce(
           ToolCallResultEvent(
             messageId: _randomId(),
