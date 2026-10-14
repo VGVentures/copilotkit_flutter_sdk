@@ -24,6 +24,11 @@ Map<String, Object?> parsePartialJson(String input) {
 
 class _Garbage implements Exception;
 
+final _numberPattern = RegExp(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?');
+
+/// A fraction or exponent cut off at the end of the input, e.g. `1.`.
+final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
+
 /// Marks a value cut off before any usable content, e.g. `-` or `"\u00`.
 const Object _incomplete = Object();
 
@@ -158,18 +163,14 @@ class _PartialJsonParser {
   }
 
   Object? _literal(String word, Object? value) {
-    final rest = _input.substring(_index);
-    final length = rest.length < word.length ? rest.length : word.length;
-    if (rest.substring(0, length) != word.substring(0, length)) {
-      throw _Garbage();
+    for (var i = 0; i < word.length && !_atEnd; i++, _index++) {
+      if (_peek != word[i]) throw _Garbage();
     }
-    _index += length;
     return value;
   }
 
   Object _number() {
-    final match = RegExp(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?')
-        .matchAsPrefix(_input, _index);
+    final match = _numberPattern.matchAsPrefix(_input, _index);
     if (match == null) {
       if (_peek == '-' && _index + 1 == _input.length) {
         _index++;
@@ -179,7 +180,7 @@ class _PartialJsonParser {
     }
     _index = match.end;
     // Skip a dangling fraction or exponent cut off at the end, e.g. `1.`.
-    final tail = RegExp(r'(?:\.|[eE][+-]?)$').matchAsPrefix(_input, _index);
+    final tail = _danglingNumberTail.matchAsPrefix(_input, _index);
     if (tail != null) _index = tail.end;
     return num.parse(match[0]!);
   }
