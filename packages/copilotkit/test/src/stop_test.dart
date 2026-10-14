@@ -181,6 +181,30 @@ void main() {
       });
     });
 
+    for (final (name, end) in [
+      ('fails', (StreamController<BaseEvent> e) => e.addError(Exception())),
+      ('ends early', (StreamController<BaseEvent> e) => e.close()),
+    ]) {
+      test('can be called from onError when the stream $name', () async {
+        Future<void>? stop;
+        client = CopilotKitClient(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          onError: (_, _) => stop ??= agent.stop(),
+          transport: transport,
+        );
+        agent = client.agent('default');
+        run = agent.run();
+        await pumpEventQueue();
+
+        end(events);
+        await run;
+
+        expect(stop, isNotNull);
+        await expectLater(stop, completes);
+        expect(agent.isRunning, isFalse);
+      });
+    }
+
     test('does nothing when the agent is not running', () async {
       await agent.stop();
 

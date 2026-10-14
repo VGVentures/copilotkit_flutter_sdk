@@ -156,7 +156,7 @@ class CopilotKitClient {
       },
       onError: (Object error, StackTrace stackTrace) {
         _fail(agent, error, stackTrace);
-        run.done.complete();
+        run.finish();
       },
       onDone: () {
         if (agent.isRunning) {
@@ -166,7 +166,7 @@ class CopilotKitClient {
             StackTrace.current,
           );
         }
-        run.done.complete();
+        run.finish();
       },
       cancelOnError: true,
     );
@@ -225,7 +225,7 @@ class CopilotKitClient {
     _closeOpenToolCalls(agent, _cancelledResult);
     agent._update(agent.snapshot.copyWith(isRunning: false));
     if (run == null) return;
-    run.done.complete();
+    run.finish();
     try {
       await _transport.stop(
         agentId: agent.agentId,
@@ -271,7 +271,7 @@ class CopilotKitClient {
       final run = turn.run;
       if (run == null) continue;
       await run.subscription.cancel();
-      run.done.complete();
+      run.finish();
     }
     _turns.clear();
     for (final agent in _agents.values) {
@@ -338,6 +338,12 @@ class _StreamRun {
   // ignore: cancel_subscriptions
   late StreamSubscription<BaseEvent> subscription;
   final done = Completer<void>();
+
+  /// Completes [done]; the stream ending and a stop or dispose can race, so
+  /// only the first call has an effect.
+  void finish() {
+    if (!done.isCompleted) done.complete();
+  }
 }
 
 final _random = Random.secure();
