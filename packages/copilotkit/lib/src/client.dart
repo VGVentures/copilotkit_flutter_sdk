@@ -1,9 +1,15 @@
-// coverage:ignore-file
-// Contract stub (A3); implemented in A5 (runs), A7 (tools) and A8 (context).
-import 'package:copilotkit/src/agent.dart';
+import 'dart:async';
+import 'dart:math';
+
+import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/agent_transport.dart';
 import 'package:copilotkit/src/context.dart';
+import 'package:copilotkit/src/reducer.dart';
 import 'package:copilotkit/src/tools.dart';
+import 'package:copilotkit/src/transport/ag_ui_transport.dart';
+
+part 'agent.dart';
 
 /// Returns the headers sent with a run; called once per run.
 typedef HeadersBuilder = Future<Map<String, String>> Function();
@@ -22,17 +28,19 @@ typedef CopilotErrorHandler = void Function(
 /// {@endtemplate}
 class CopilotKitClient {
   /// {@macro copilot_kit_client}
+  ///
+  /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
   new({
     required this.runtimeUrl,
     this.headers,
     this.properties = const {},
     this.onError,
-    this._transport,
-  });
+    AgentTransport? transport,
+  }) : _transport = transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
 
-  // Read once runs are implemented (A5).
-  // ignore: unused_field
-  final AgentTransport? _transport;
+  final AgentTransport _transport;
+  final Map<String, CopilotAgent> _agents = {};
+  final Map<CopilotAgent, _ActiveRun> _activeRuns = {};
 
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
   final Uri runtimeUrl;
@@ -47,15 +55,65 @@ class CopilotKitClient {
   final CopilotErrorHandler? onError;
 
   /// Returns the agent with [agentId], creating it on first use.
-  CopilotAgent agent(String agentId) => throw UnimplementedError();
+  CopilotAgent agent(String agentId) => _agents.putIfAbsent(
+    agentId,
+    () => CopilotAgent(agentId: agentId, client: this),
+  );
 
   /// Runs [agent] with all registered tools and context entries.
   ///
   /// Completes when the run ends, including any follow-up runs triggered by
-  /// frontend tools. Errors go to [onError] instead of being thrown.
-  Future<void> runAgent(CopilotAgent agent) => throw UnimplementedError();
+  /// frontend tools. Errors go to [onError] instead of being thrown. Does
+  /// nothing if [agent] is already running.
+  Future<void> runAgent(CopilotAgent agent) async {
+    if (agent.isRunning) return;
+    agent._update(agent.snapshot.copyWith(isRunning: true, error: null));
+
+    final Map<String, String> requestHeaders;
+    try {
+      requestHeaders = await headers?.call() ?? const {};
+    } on Object catch (error, stackTrace) {
+      _fail(agent, error, stackTrace);
+      return;
+    }
+
+    final input = RunAgentInput(
+      threadId: agent.threadId,
+      runId: _randomId(),
+      state: agent.state,
+      messages: agent.messages,
+      tools: const [],
+      context: const [],
+      forwardedProps: properties,
+    );
+    final run = _ActiveRun();
+    _activeRuns[agent] = run;
+    run.subscription = _transport
+        .run(agentId: agent.agentId, input: input, headers: requestHeaders)
+        .listen(
+          agent._apply,
+          onError: (Object error, StackTrace stackTrace) {
+            _fail(agent, error, stackTrace);
+            run.done.complete();
+          },
+          onDone: () {
+            if (agent.isRunning) {
+              _fail(
+                agent,
+                StateError('The connection closed before the run finished.'),
+                StackTrace.current,
+              );
+            }
+            run.done.complete();
+          },
+          cancelOnError: true,
+        );
+    await run.done.future;
+    _activeRuns.remove(agent);
+  }
 
   /// Stops the current run of [agent], closing its connection.
+  // coverage:ignore-start
   Future<void> stopAgent(CopilotAgent agent) => throw UnimplementedError();
 
   /// Makes [tool] available to the agent on every run.
@@ -68,7 +126,39 @@ class CopilotKitClient {
   /// Use the returned entry to update or remove it.
   AgentContextEntry addContext(String description, Object? value) =>
       throw UnimplementedError();
+  // coverage:ignore-end
 
   /// Stops all runs and releases the transport.
-  Future<void> dispose() => throw UnimplementedError();
+  ///
+  /// The client and its agents can't be used afterwards.
+  Future<void> dispose() async {
+    for (final run in _activeRuns.values) {
+      await run.subscription.cancel();
+      if (!run.done.isCompleted) run.done.complete();
+    }
+    _activeRuns.clear();
+    for (final agent in _agents.values) {
+      await agent._close();
+    }
+    await _transport.close();
+  }
+
+  void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
+    agent._update(agent.snapshot.copyWith(isRunning: false, error: error));
+    onError?.call(error, stackTrace);
+  }
 }
+
+class _ActiveRun {
+  // Cancelled on error (cancelOnError), on dispose and by stopAgent.
+  // ignore: cancel_subscriptions
+  late StreamSubscription<BaseEvent> subscription;
+  final done = Completer<void>();
+}
+
+final _random = Random.secure();
+
+String _randomId() => List.generate(
+  16,
+  (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+).join();

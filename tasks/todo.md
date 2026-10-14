@@ -197,11 +197,11 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Acceptance criteria:**
 - [ ] A user message plus `run()` against the local runtime streams an assistant reply into `messages`
-- [ ] Custom headers reach the server (asserted in a unit test with a mock `http.Client`)
-- [ ] Transport or HTTP errors call `onError`, set `isRunning` false, and never throw out of `run()` uncaught
+- [x] Custom headers reach the server (asserted in a unit test with a mock `http.Client`)
+- [x] Transport or HTTP errors call `onError`, set `isRunning` false, and never throw out of `run()` uncaught
 
 **Verification:**
-- [ ] `fvm dart test test/client_test.dart` (mocked transport)
+- [x] `fvm dart test test/client_test.dart` (mocked transport)
 - [ ] `fvm dart run core/tool/round_trip.dart --via-client` against the local runtime
 
 **Dependencies:** A4

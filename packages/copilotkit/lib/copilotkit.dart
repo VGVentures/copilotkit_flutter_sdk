@@ -17,7 +17,6 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent.dart';
 export 'src/agent_snapshot.dart';
 export 'src/agent_transport.dart';
 export 'src/client.dart';

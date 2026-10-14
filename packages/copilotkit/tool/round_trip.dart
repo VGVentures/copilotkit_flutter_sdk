@@ -3,16 +3,18 @@
 // Usage:
 //   fvm dart run tool/round_trip.dart \
 //     --url http://localhost:8200/api/copilotkit \
-//     [--agent default] [--message "Hello"]
+//     [--agent default] [--message "Hello"] [--via-client true]
 //
 // Prints the runtime info document, then every AG-UI event of one run
-// from RUN_STARTED to RUN_FINISHED (or RUN_ERROR).
+// from RUN_STARTED to RUN_FINISHED (or RUN_ERROR). With --via-client, runs
+// through CopilotKitClient instead and prints the streamed reply.
 // ignore_for_file: avoid_print
 
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/copilotkit.dart';
 import 'package:http/http.dart' as http;
 
 Future<void> main(List<String> arguments) async {
@@ -27,6 +29,9 @@ Future<void> main(List<String> arguments) async {
   }
   final agent = options['agent'] ?? 'default';
   final message = options['message'] ?? 'Say hello in five words.';
+  if (options['via-client'] == 'true') {
+    return await _viaClient(Uri.parse(url), agent, message);
+  }
 
   final httpClient = http.Client();
   try {
@@ -51,6 +56,25 @@ Future<void> main(List<String> arguments) async {
   } finally {
     httpClient.close();
   }
+}
+
+Future<void> _viaClient(Uri url, String agentId, String message) async {
+  final client = CopilotKitClient(
+    runtimeUrl: url,
+    onError: (error, stackTrace) => print('onError: $error'),
+  );
+  final agent = client.agent(agentId);
+  final subscription = agent.changes.listen((snapshot) {
+    final last = snapshot.messages.lastOrNull;
+    print(
+      'running: ${snapshot.isRunning} | ${last?.role.value}: '
+      '${last?.content}',
+    );
+  });
+  await agent.addMessage(UserMessage(id: 'user-1', content: message));
+  await agent.run();
+  await subscription.cancel();
+  await client.dispose();
 }
 
 Map<String, String> _parse(List<String> arguments) {
