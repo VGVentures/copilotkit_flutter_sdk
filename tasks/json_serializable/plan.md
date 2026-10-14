@@ -45,7 +45,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 
 ### Phase 2: Core package
 - [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff.
-- [ ] Task 4: Typed stop request/response in `AgUiTransport`
+- [x] Task 4: Typed stop request/response in `AgUiTransport`. Only `StopRequest` is added (Open Question 4 default); `StopResponse` waits for that answer so no unused model ships. Primary constructors in core get their constructor doc on the in-body `this;` part, because `public_member_api_docs` flags an undocumented primary constructor at the class name.
 
 ### Checkpoint: Core codegen
 - [ ] All packages green, coverage unchanged

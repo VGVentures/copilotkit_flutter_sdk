@@ -88,12 +88,12 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 **Description:** Add internal (not exported) `StopRequest` (`runId`) and `StopResponse` (`stopped`, `interrupt?`) models and use them in `AgUiTransport.stop()` in place of `jsonEncode({'runId': runId})`. Whether the response is parsed and surfaced depends on Open Question 4; by default only the request is typed and the response stays ignored, so behaviour is unchanged.
 
 **Acceptance criteria:**
-- [ ] The request body sent to `/agent/{id}/stop/{threadId}` is byte-for-byte equivalent JSON (existing transport tests still pass)
-- [ ] Models aren't part of the public API (`lib/copilotkit.dart` exports unchanged)
+- [x] The request body sent to `/agent/{id}/stop/{threadId}` is byte-for-byte equivalent JSON (existing transport tests still pass)
+- [x] Models aren't part of the public API (`lib/copilotkit.dart` exports unchanged)
 - [ ] If the response is parsed: malformed or empty bodies never throw out of `stop()`
 
 **Verification:**
-- [ ] `cd packages/copilotkit && very_good test --coverage --exclude-coverage '**/*.g.dart'`
+- [x] `cd packages/copilotkit && very_good test --coverage --exclude-coverage '**/*.g.dart'`
 
 **Dependencies:** Task 3
 
