@@ -1,0 +1,21 @@
+{
+  "name": "copilotkit-flutter-example-runtime",
+  "private": true,
+  "description": "Local Copilot Runtime for the CopilotKit Flutter SDK example app.",
+  "type": "module",
+  "scripts": {
+    "start": "tsx server.ts"
+  },
+  "dependencies": {
+    "@copilotkit/runtime": "^1.79.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "allowScripts": {
+    "@scarf/scarf": false,
+    "esbuild": false
+  }
+}
