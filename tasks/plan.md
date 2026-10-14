@@ -47,14 +47,16 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 
 ## Task List
 
+`[x]` means the code is merged locally with tests; anything still pending (manual, device, key, or people) is noted inline. Per-check detail lives in `tasks/todo.md`. See **Handoff** at the end of this file before picking up work.
+
 ### Phase 1a: Foundation and contract (Oct 14–16)
-- [x] T0: Workspace scaffold (shared)
-- [ ] B3: CI with coverage reporting
-- [ ] A1: Runtime v2 contract research + P1-1 round trip on device
-- [ ] B1: Local quickstart runtime script (`example/tool/`)
-- [ ] A2: Record AG-UI fixtures
-- [ ] A3: Public API contract skeleton
-- [ ] A4: Event reducer: lifecycle + text messages
+- [x] T0: Workspace scaffold (shared). Pending: launch on a simulator (iOS and Android builds pass).
+- [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin).
+- [ ] A1: Runtime v2 contract research + P1-1 round trip on device. Contract recorded below; the `RUN_FINISHED` round trip needs a model key; device run is manual.
+- [x] B1: Local quickstart runtime script (`example/tool/`)
+- [ ] A2: Record AG-UI fixtures. Blocked on a model key.
+- [x] A3: Public API contract skeleton. Pending: engineer B's sign-off on the deviations under "A3 contract notes".
+- [x] A4: Event reducer: lifecycle + text messages
 
 ### Checkpoint: Go / no-go (Oct 16)
 - [ ] P1-1 round trip on a physical device against the local runtime
@@ -64,30 +66,32 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 
 ### Phase 1b: Parallel build (Oct 16–20)
 Track A (core):
-- [ ] A5: `CopilotKitClient` + `CopilotAgent.run()` over HTTP
-- [ ] A6: `stop()` with real socket abort
-- [ ] A7: Frontend tool-call loop
-- [ ] A8: Agent context entries
-- [ ] A9: Resilience + shared-state read
+- [x] A5: `CopilotKitClient` + `CopilotAgent.run()` over HTTP
+- [x] A6: `stop()` with real socket abort
+- [x] A7: Frontend tool-call loop
+- [x] A8: Agent context entries
+- [x] A9: Resilience + shared-state read
 
 Track B (Flutter):
-- [ ] B4: Partial-JSON parser (core)
-- [ ] B5: `CopilotKit` root widget
-- [ ] B6: `ToolRenderer` + `CopilotTool` widget
-- [ ] B7: `CopilotContext` widget
-- [ ] B8: `CopilotChatBloc` + message list with streaming text
-- [ ] B9: Composer with send / stop
+- [x] B4: Partial-JSON parser (core)
+- [x] B5: `CopilotKit` root widget
+- [x] B6: `ToolRenderer` + `CopilotTool` widget
+- [x] B7: `CopilotContext` widget
+- [x] B8: `CopilotChatBloc` + message list with streaming text
+- [x] B9: Composer with send / stop
+
+All A5–A9 and B4–B9 tests use hand-built events; switch them to A2's fixtures once recorded. Device checks are manual.
 
 ### Checkpoint: Core usable (Oct 20)
 - [ ] P1-1, P1-3, P1-4 pass against the quickstart runtime on device
 - [ ] Coverage on `main` reviewed; any package below 100% has a known reason
 
 ### Phase 1c: Integration and demo (Oct 20–27)
-- [ ] I1: Wire the real agent end to end on iOS and Android
-- [ ] B10: Demo scenario widgets
-- [ ] B11: Hosted runtime + local fallback
-- [ ] I2: Streaming markdown (optional; plain text is acceptable)
-- [ ] I3: New-engineer onboarding under 15 minutes
+- [x] I1: Wire the real agent end to end on iOS and Android. Code done (`RUNTIME_URL`, setup screen, placeholder weather demo); the device flow is manual.
+- [ ] B10: Demo scenario widgets. Blocked on the scenario decision; replaces `example/lib/demo/weather_demo.dart`.
+- [ ] B11: Hosted runtime + local fallback. Blocked on CopilotKit hosting; the local fallback and `RUNTIME_URL` switching already work.
+- [x] I2: Streaming markdown (`gpt_markdown`). Pending: jank check on device.
+- [x] I3: New-engineer onboarding under 15 minutes. Root `README.md` written; pending: timed run by a non-project engineer.
 
 ### Checkpoint: Rehearsed (Oct 27)
 - [ ] I4: Full demo rehearsed on the booth device, hosted runtime and local fallback
@@ -154,3 +158,45 @@ Skeleton: `packages/copilotkit/lib/`. Core half of the API sketch: `packages/cop
 - **Re-exported from `ag_ui`:** the `Message` family, `ToolCall`, `BaseEvent`, `EventType`, `RunAgentInput`. Apps that switch on concrete events import `ag_ui` directly.
 - **`CopilotKit` widget (B5):** `CopilotKit(runtimeUrl:, headers:, properties:, onError:, child:)` creates and owns the client; `CopilotKit.value(client:, child:)` provides an injected one and never disposes it, like `BlocProvider` / `BlocProvider.value`. The sketch's `CopilotKit(client: CopilotKitClient(...))` would build a new client on every parent rebuild.
 - **Tool rendering (B6):** `CopilotTool(tool:, builder:, child:)` registers the frontend tool for its lifetime and scopes its builder to `child`. `ToolRenderer(name:, builder:, child:)` registers a render-only builder by name or `'*'` (backend tools, the `useRenderTool` analog). Chat rows render a call with `ToolCallWidget(call:)`, which picks the nearest named builder, then `'*'`, and is keyed by call id and kept alive in lists.
+
+## Handoff (status as of Oct 14, 2026)
+
+Everything below is committed on local `main`; **nothing has been pushed** (push only when the user asks). Working tree is clean.
+
+### Verify the current state
+
+Run from the repo root (Flutter comes from `.fvmrc` via `fvm`):
+
+```sh
+fvm flutter pub get
+fvm flutter analyze                       # 0 issues
+fvm dart format --set-exit-if-changed .   # 0 changed
+very_good test --coverage --recursive     # core 155, flutter 38, example 27; all 100%
+```
+
+### Next steps for the next agent
+
+1. **Model key (user provides it).** `export OPENAI_API_KEY=...` in the agent's shell, or the user starts `./example/tool/start_runtime.sh` and shares the URL. For another provider, make `start_runtime.sh` check the key that matches the `COPILOTKIT_MODEL` provider first, and update `example/README.md` and `README.md`. Supported: `openai`, `anthropic` (`ANTHROPIC_API_KEY`), `google` (`GOOGLE_API_KEY`), `vertex` (GCP credentials), `minimax`, or any OpenAI-compatible server through `OPENAI_BASE_URL` (Azure, OpenRouter, Ollama).
+2. **A1:** `cd packages/copilotkit && fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit` must print `RUN_STARTED` … `RUN_FINISHED`; also try `--via-client true`.
+3. **A2:** add `--record <file>` to `tool/round_trip.dart` (raw events as JSONL). Record `text_stream`, `frontend_tool_call` (needs a tool in the request: register one or send `tools`), and `state_snapshot_delta` (BuiltInAgent may not emit state; mark it `synthetic` if handwritten). Handwrite `run_error`, `unknown_events` and `dropped_connection` from real shapes with a `synthetic` header line. Add `test/helpers/fixtures.dart` (`loadFixture`) and `test/fixtures_test.dart`, then add fixture replays to the reducer, tool loop, partial-JSON, resilience and state tests. Fix any mismatch with real model output.
+4. Run the README demo prompts end to end on a simulator, then tick the remaining items in `tasks/todo.md`.
+5. Push when the user asks; check that CI (`.github/workflows/main.yaml`) passes and reports coverage.
+
+Blocked on people, not code: B10 scenario (leadership), B11 hosting (CopilotKit), branch protection (repo admin), the A3 sign-off (engineer B), device checks and the I3 timed run and I4 rehearsal (team).
+
+### Where things live
+
+- Core: `packages/copilotkit/lib/src/`. `client.dart` holds the runner/turn loop, stop and context; `agent.dart` is a `part` of it so the client can use private members. Also `reducer.dart` (single pure reducer), `transport/ag_ui_transport.dart`, `partial_json.dart`, `json_patch.dart`, `tools.dart`, and `agent_snapshot.dart`. The reducer, parser, patch and transport are internal (not exported).
+- Flutter: `packages/copilotkit_flutter/lib/src/` (`copilot_kit.dart`, `copilot_tool.dart`, `tool_renderer.dart`, `copilot_context.dart`, `chat/`).
+- Example: `example/lib/` (`app/app.dart`, `chat/`, `demo/weather_demo.dart` placeholder), runtime in `example/tool/`.
+- Tests live under `test/src/...` (core and flutter), not the `test/...` paths written in `tasks/todo.md`.
+
+### Gotchas learned this session
+
+- **Dart 3.13 + very_good_analysis 11:** constructors use the new syntax (`const new(...)`, `new raw(...)`); private named params work (`required this._client` exposes `client:`). `fvm dart fix --apply` converts them, but it also strips closure parameter types, which broke `context.select`; use `context.select<Bloc, T>(...)`.
+- **Workspace resolution:** core's `test` is held at `^1.31.0` because `flutter_test` pins `test_api`.
+- **ag_ui 0.3.0:** posts to `baseUrl/endpoint`, so use `runAgent('agent/$id/run', ...)`. Its cancel doesn't abort the socket, so the transport uses one `http.Client` per run and closes it. Its subscription cancel waits for the body to end, so it isn't awaited. It emits a `DecodingError` or `AGUIValidationError` per undecodable event and keeps going, so the transport skips those. It has no JSON Patch apply (core has its own) and messages have no value `==`.
+- **Runtime:** errors arrive in-stream as `RUN_ERROR` with HTTP 200. Closing the socket doesn't stop the server run; `stop()` also calls `POST .../agent/{id}/stop/{threadId}`.
+- **Tests:** mocktail `verify` can't be nested inside another `verify`'s arguments. Widget tests that push bloc states through a `StreamController` need `pumpAndSettle` (`pump` flushes microtasks after the frame). `BlocProvider.create` can't call `CopilotKit.of` (it listens); read the client in `build`.
+- **npm 11:** install scripts for `esbuild` and `@scarf/scarf` are denied in `example/tool/runtime/package.json` (`allowScripts`); `tsx` works without them.
+

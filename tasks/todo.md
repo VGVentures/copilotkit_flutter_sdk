@@ -44,7 +44,7 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 
 **Acceptance criteria:**
 - [x] Contract findings recorded (endpoint, body, headers, info endpoint, open gaps for the CopilotKit call)
-- [ ] CLI prints a full `RunStarted` … `RunFinished` sequence against the local runtime
+- [ ] CLI prints a full `RunStarted` … `RunFinished` sequence against the local runtime (blocked on a model key; with a dummy key it prints `RUN_STARTED` then `RUN_ERROR`)
 - [ ] Same round trip succeeds from a physical iOS **and** Android device on LAN (manual, done by the team)
 
 **Verification:**
@@ -66,14 +66,14 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 **Description:** Add `example/tool/runtime/` with the RN quickstart server (`CopilotRuntime` + `BuiltInAgent`, `createCopilotNodeListener` at `/api/copilotkit`) and a single start script. The model key comes from an environment variable (e.g. `OPENAI_API_KEY`) that each engineer sets in their shell; the start script fails fast with a clear message if it's unset, and `example/README.md` documents how to set it. The server binds to `0.0.0.0` so devices on the LAN can reach it.
 
 **Acceptance criteria:**
-- [ ] One command starts the runtime; it prints the LAN URL
-- [ ] No secrets committed; the required environment variable is documented in `example/README.md`
-- [ ] Running the script without the variable exits with a clear error
-- [ ] A1's CLI round trip works against it
+- [x] One command starts the runtime; it prints the LAN URL
+- [x] No secrets committed; the required environment variable is documented in `example/README.md`
+- [x] Running the script without the variable exits with a clear error
+- [ ] A1's CLI round trip works against it (works up to `RUN_ERROR` with a dummy key; needs a real key for `RUN_FINISHED`)
 
 **Verification:**
-- [ ] `./example/tool/start_runtime.sh` then `curl` the info endpoint
-- [ ] `git grep -i 'sk-'` finds no keys
+- [x] `./example/tool/start_runtime.sh` then `curl` the info endpoint
+- [x] `git grep -i 'sk-'` finds no keys
 
 **Dependencies:** T0
 
@@ -114,9 +114,9 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Write the public surface of `core` as it will look when frozen: `CopilotKitClient`, `CopilotAgent`, `FrontendTool`, `JsonSchema`, `ToolCallView`, `ToolCallStatus`, `AgentContextEntry`, `AgentTransport`, and `AgentSnapshot`. Every type and member gets a doc comment, and method bodies are `UnimplementedError` until later tasks fill them in. `CopilotAgent` exposes synchronous getters plus `Stream<AgentSnapshot> changes`, and neither it nor `CopilotKitClient` is `final`, so both can be mocked. Write the API sketch from the requirements as a compiling snippet under `example/`.
 
 **Acceptance criteria:**
-- [ ] The API sketch compiles against the skeleton, with the stream + bloc decision applied
+- [x] The API sketch compiles against the skeleton, with the stream + bloc decision applied (core half in `packages/copilotkit/example/main.dart`; the widget half is the example app itself)
 - [x] Every public member has a doc comment; `fvm flutter analyze` is clean
-- [ ] A and B both sign off (PR approval). The contract is frozen from here on.
+- [ ] A and B both sign off (PR approval). The contract is frozen from here on. (pending: B reviews the deviations in `tasks/plan.md` under A3 contract notes)
 - [x] Skeleton stub files carry `// coverage:ignore-file`, and each later task removes it as it implements a file
 
 **Verification:**
@@ -143,7 +143,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 - [x] Reducer is pure (no I/O, no clocks); unknown events return the snapshot unchanged
 
 **Verification:**
-- [ ] `cd packages/copilotkit && fvm dart test test/reducer_text_test.dart`
+- [x] `cd packages/copilotkit && fvm dart test test/reducer_text_test.dart`
 
 **Dependencies:** A2, A3
 
@@ -160,9 +160,9 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Add GitHub Actions with `very_good_workflows`: `dart_package.yml` for `core` and `flutter_package.yml` for `flutter` and `example`. Each runs tests with coverage, format and analyze checks, with path filters so a package only runs when it (or core) changes. The target is 100% coverage; it is reported on every PR but doesn't block the merge. Add the semantic PR title check (Conventional Commits). Turn on branch protection that requires tests, format, analyze and PR title on `main`.
 
 **Acceptance criteria:**
-- [ ] Every PR shows each touched package's coverage
+- [ ] Every PR shows each touched package's coverage (workflows written in `.github/`; unverified until the first push)
 - [ ] A PR with a failing test, formatting issue or analyzer issue fails CI
-- [ ] `main` requires the blocking checks to pass before merge
+- [ ] `main` requires the blocking checks to pass before merge (needs a repo admin)
 
 **Verification:**
 - [ ] Open a throwaway PR with an analyzer issue and an untested function; analyze fails and coverage is reported below 100%. Close it.
@@ -542,7 +542,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Write a short root `README.md` covering prerequisites, runtime start, and `flutter run` with `RUNTIME_URL`. Then have someone outside the project time a fresh clone through to the demo running.
 
 **Acceptance criteria:**
-- [ ] A fresh clone reaches the running demo in under 15 minutes, timed by a non-project engineer
+- [ ] A fresh clone reaches the running demo in under 15 minutes, timed by a non-project engineer (root `README.md` written; timed run pending)
 - [ ] Every friction point found is fixed
 
 **Verification:**
