@@ -26,6 +26,7 @@ Confirmed Oct 14.
 - **Partial-JSON parser** is pure Dart in core (`partial_json.dart`). B owns it because the generative UI work needs it first.
 - **Testing bar: aim for 100% line coverage in every package (`copilotkit`, `copilotkit_flutter`, `example`) on every PR.** 100% is preferred, but a PR can skip it if needed, with the reason noted in the PR description.
   - CI (`very_good_workflows`) reports coverage on every PR without blocking. Tests, `very_good_analysis` with zero issues, and `dart format` do block.
+  - **Superseded:** CI now requires 100% coverage in every package and runs a spell check; skips are no longer possible. See `README.md` (Development).
   - Core uses unit tests with fixtures and `mocktail`.
   - Flutter uses `bloc_test` for blocs and widget tests for widgets.
   - Example uses widget tests for screens and demo widgets.
@@ -51,7 +52,7 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 
 ### Phase 1a: Foundation and contract (Oct 14–16)
 - [x] T0: Workspace scaffold (shared). Pending: launch on a simulator (iOS and Android builds pass).
-- [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin).
+- [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin). Since replaced by a hard 100% coverage gate plus spell check and Dependabot.
 - [ ] A1: Runtime v2 contract research + P1-1 round trip on device. Contract recorded below; the `RUN_FINISHED` round trip needs a model key; device run is manual.
 - [x] B1: Local quickstart runtime script (`example/tool/`)
 - [ ] A2: Record AG-UI fixtures. Blocked on a model key.
@@ -113,7 +114,7 @@ P2-1 HITL + interrupts · P2-2 two-way state · P2-3 prebuilt UI · P2-4 suggest
 | Runtime v2 HTTP contract undocumented for non-JS clients | High: blocks A1 | A1 is first; read `@copilotkit/runtime/v2` and `@ag-ui/client` `HttpAgent` source; CopilotKit engineer call. If still blocked Oct 16 → fallback demo. |
 | `ag_ui` 0.3.0 cancel doesn't close the socket; pre-1.0 churn | Med: stop leaks connections | Pin version; `AgentTransport` wrapper; A6 owns abort (own `http.Client` per run, closed on stop); upstream patch optional. |
 | `ag_ui` event model gaps (e.g. missing reasoning/activity types) | Med: stream crashes on unknown events | A9 tolerant decoding; fixtures include unknown events from day one (A2). |
-| Mocks drift from real agent behaviour (no fake to run the UI against) | High: Oct 20 integration slips | Mocks stub only the frozen interface; A5 lands first after freeze so B runs the UI on device against the local runtime before Oct 20; A reviews B's mock setups for realistic snapshot sequences. |
+| Mocks drift from real agent behavior (no fake to run the UI against) | High: Oct 20 integration slips | Mocks stub only the frozen interface; A5 lands first after freeze so B runs the UI on device against the local runtime before Oct 20; A reviews B's mock setups for realistic snapshot sequences. |
 | Coverage debt builds up when PRs skip 100% under demo pressure | Med: catch-up work before Phase 2 | Coverage reported on every PR from T0; skips need a stated reason; review coverage at the Oct 20 checkpoint and close gaps in Phase 2 before publishing. |
 | Bloc as a hard dependency of the SDK | Low for demo, Med for adoption | Bloc lives only in `copilotkit_flutter`; core stays stream-only so non-bloc apps can use it directly. |
 | Partial tool args flicker or crash | Med: generative UI looks broken | B4 parser never throws; `inProgress` falls back to skeleton. |
@@ -135,7 +136,7 @@ Read from `@copilotkit/runtime` 1.79.0 (`dist/v2/runtime/core/fetch-router`, `ha
 | Route | Method | Body | Response |
 | --- | --- | --- | --- |
 | `{runtimeUrl}/info` | GET | none | JSON: `version`, `agents` map (`name`, `description`, `className`, `capabilities`), `mode: "sse"`, `threadEndpoints`, `suggestions`, flags |
-| `{runtimeUrl}/agent/{agentId}/run` | POST | plain AG-UI `RunAgentInput` JSON (`threadId`, `runId`, `state`, `messages`, `tools`, `context`, `forwardedProps`) | `text/event-stream` of AG-UI events (`data: {json}`), with SSE keep-alives |
+| `{runtimeUrl}/agent/{agentId}/run` | POST | plain AG-UI `RunAgentInput` JSON (`threadId`, `runId`, `state`, `messages`, `tools`, `context`, `forwardedProps`) | `text/event-stream` of AG-UI events (`data: {json}`), with SSE keep-alive messages |
 | `{runtimeUrl}/agent/{agentId}/connect` | POST | `RunAgentInput` (uses `threadId`) | SSE replay of the thread (threads, P2) |
 | `{runtimeUrl}/agent/{agentId}/stop/{threadId}` | POST | `{}` or `{"runId": "…"}` | JSON `{stopped, interrupt?}`; stops the run server-side |
 | `{runtimeUrl}/agent/{agentId}/suggest`, `/threads/*`, `/transcribe` | various | | P2 |

@@ -1,0 +1,14 @@
+name: spell_checker
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on: [push, pull_request]
+
+jobs:
+  spell_check:
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/spell_check.yml@v1.21.1
+    with:
+      includes: "**/*.{md,dart,yml,yaml}"
+      modified_files_only: false

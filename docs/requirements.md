@@ -10,7 +10,7 @@ This doc has two parts. **[Product](#product)** is for the leadership team and s
 
 ## Summary
 
-CopilotKit is an open-source framework for putting AI agents inside apps: chat, tools the agent can call, and UI the agent can generate. It has SDKs for React and React Native. We are building the Flutter SDK.
+CopilotKit is an open source framework for putting AI agents inside apps: chat, tools the agent can call, and UI the agent can generate. It has SDKs for React and React Native. We are building the Flutter SDK.
 
 The Flutter SDK is a port of the React Native SDK. It talks to the same CopilotKit server ("Copilot Runtime"), so nothing changes on the server side. Our work is entirely on the app side.
 
@@ -46,7 +46,7 @@ That's all. Everything else (approvals, suggestions, conversation history, attac
 | Phase | Goal | When |
 | --- | --- | --- |
 | 1 — Demo | The thin slice above, working on iOS and Android. | Oct 13–29 |
-| 2 — Publish | Match the React Native SDK feature for feature, VGV open-source quality bar, published on pub.dev. | After the events |
+| 2 — Publish | Match the React Native SDK feature for feature, VGV open source quality bar, published on pub.dev. | After the events |
 | 3 — Later | Features the web SDK has but React Native doesn't. Not committed; listed so our parity claims are accurate. | After launch |
 
 ## Demo scenario (decision needed by Oct 16)
@@ -198,7 +198,7 @@ The core must be usable by Oct 20; if it isn't, B's integration work can't land 
 
 ## Phase 2 — Publishable SDK
 
-Goal: parity with `@copilotkit/react-native` as documented today, published on pub.dev, at the VGV open-source quality bar (very_good_analysis, 100% coverage in every package, CI via very_good_workflows). Starts the week after the events.
+Goal: parity with `@copilotkit/react-native` as documented today, published on pub.dev, at the VGV open source quality bar (very_good_analysis, 100% coverage in every package, CI via very_good_workflows). Starts the week after the events.
 
 | # | Requirement | Acceptance criterion |
 | --- | --- | --- |
@@ -314,7 +314,7 @@ Design rules:
 | Streamed partial tool args need tolerant JSON parsing | Generative UI flickers or crashes while args stream | Partial-JSON parser, or render a skeleton until `ToolCallEnd`; `inProgress` rendering is optional for the demo | B |
 | Hosted runtime and model keys for the booth | No demo without network | Ask CopilotKit to host; local runtime on the laptop with a hotspot as fallback; keys only in environment variables | B |
 | Coverage skipped under demo pressure | Test debt before publishing | Coverage reported on every PR; skips need a stated reason; gaps closed in P2-10 | A + B |
-| Mocks drift from real agent behaviour | Integration on Oct 20 takes days instead of hours | Mocks stub only the frozen interface; contract frozen Oct 16; `run()` lands first so B runs on device before Oct 20; A reviews B's mock setups | A + B |
+| Mocks drift from real agent behavior | Integration on Oct 20 takes days instead of hours | Mocks stub only the frozen interface; contract frozen Oct 16; `run()` lands first so B runs on device before Oct 20; A reviews B's mock setups | A + B |
 | Two engineers, ~2.5 weeks | Slice slips | Freeze P1 scope Oct 16; third engineer as escalation | A + B |
 
 ## Open questions for CopilotKit

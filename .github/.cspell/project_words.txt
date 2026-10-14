@@ -1,0 +1,17 @@
+AGUI
+copilotcloud
+copilotkit
+Cupertino
+dorny
+fvmrc
+gorhom
+HITL
+hotspot
+jank
+José
+microtasks
+multimodal
+Ollama
+overclaiming
+themable
+workstreams

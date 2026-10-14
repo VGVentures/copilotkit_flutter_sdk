@@ -4,7 +4,7 @@ Plan: `tasks/plan.md`. Owner: **A** = core, **B** = Flutter / demo / runtime.
 Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutter` = `packages/copilotkit_flutter`.
 
 **Every PR, every task (implicit in each Verification list below):**
-- [ ] `very_good test --coverage` passes in each touched package. 100% coverage is preferred; it can be skipped if needed, with the reason noted in the PR description.
+- [ ] `very_good test --coverage --min-coverage 100` passes in each touched package. CI enforces 100%; it can no longer be skipped.
 - [ ] `fvm dart format --set-exit-if-changed .` and `fvm flutter analyze` clean
 - [ ] Collaborators mocked with `mocktail` inside the test file that needs them; no shared fake classes
 
@@ -158,6 +158,8 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Owner:** B (A reviews) · **Due:** Oct 14
 
 **Description:** Add GitHub Actions with `very_good_workflows`: `dart_package.yml` for `core` and `flutter_package.yml` for `flutter` and `example`. Each runs tests with coverage, format and analyze checks, with path filters so a package only runs when it (or core) changes. The target is 100% coverage; it is reported on every PR but doesn't block the merge. Add the semantic PR title check (Conventional Commits). Turn on branch protection that requires tests, format, analyze and PR title on `main`.
+
+**Update:** coverage is now a hard 100% gate (`min_coverage: 100`), the custom coverage summary jobs are gone, and a spell check and Dependabot were added. See `README.md` (Development).
 
 **Acceptance criteria:**
 - [ ] Every PR shows each touched package's coverage (workflows written in `.github/`; unverified until the first push)
@@ -383,7 +385,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 - [x] `cd packages/copilotkit_flutter && very_good test --coverage`
 - [ ] Manual (after A8): the agent answers from the context on device
 
-**Dependencies:** B5, A8 for real behaviour (tests mock until then)
+**Dependencies:** B5, A8 for real behavior (tests mock until then)
 
 **Files likely touched:** `flutter/lib/src/copilot_context.dart`, `flutter/test/src/copilot_context_test.dart`
 
