@@ -27,7 +27,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 - **Generated code is excluded from analysis and coverage** (`analyzer.exclude: '**/*.g.dart'`; `coverage_excludes: '**/*.g.dart'` in `very_good_workflows`, `--exclude-coverage '**/*.g.dart'` locally). Models are still covered by round-trip tests on their hand-written parts.
 - **Models are plain immutable classes** (`@JsonSerializable()` + `factory .fromJson` / `toJson`), using the repo's Dart 3.13 constructor syntax. Verified in Task 1: `json_serializable` 6.14.1 generates correct code for `const new({required this.x})` and for private named params (`new({required this._x})`), so model files need no exception. Models use primary constructors (`class const Forecast({required final String city, ...})` with `factory fromJson`); the generator reads header-declared fields and defaults correctly.
 - **`ack` for schemas, `json_serializable` for models.** Ack replaces `JsonSchema` only, without `ack_generator`; models stay on `json_serializable`, so there is one codegen tool. `ack` is a runtime dependency of core, with no codegen involved.
-- **`FrontendTool.parameters` becomes an Ack `ObjectSchema`** (tool params are always an object). `client.dart` sends `parameters.toJsonSchema()`. Core re-exports the Ack types apps need (`Ack`, `AckSchema`, `ObjectSchema`) so `package:copilotkit_flutter` stays the only import. `JsonSchema` is deleted outright, with no deprecation, because nothing is published and the contract isn't frozen yet.
+- **`FrontendTool.parameters` becomes an Ack `ObjectSchema`** (tool params are always an object). `client.dart` sends the schema through the internal `toolParametersJson` helper (`tool_schema.dart`), which wraps `parameters.toJsonSchema()`. Core re-exports the Ack types apps need (`Ack`, `AckSchema`, `ObjectSchema`) so `package:copilotkit_flutter` stays the only import. `JsonSchema` is deleted outright, with no deprecation, because nothing is published and the contract isn't frozen yet.
 - **Wire-format difference accepted:** Ack emits `additionalProperties: false` on objects and `anyOf: [T, {type: null}]` for nullable fields (checked with a probe on 1.7.0). OpenAI, Anthropic and Gemini tool calling accept both, and `additionalProperties: false` is required for OpenAI strict mode anyway.
 - **Tolerant decoding stays tolerant.** Where the current code falls back on bad input (e.g. `WeatherCard` shows the raw string), the model wrapper catches `CheckedFromJsonException` / `FormatException` and keeps that fallback.
 
@@ -35,7 +35,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 
 ### Phase 1: Example app
 - [x] Task 1: Toolchain spike + codegen setup in `example/` (high risk, first). Resolved Oct 14: `json_annotation` 4.12.0, `json_serializable` 6.14.1, `build_runner` 2.16.1 resolve in the workspace with Flutter 3.47.0. `build_runner` 2.16 removed `--delete-conflicting-outputs` (ignored with a warning), so commands omit it. CI runs a separate `example_codegen` job (the reusable VGV workflow has no codegen step).
-- [x] Task 2: Typed weather demo models. Two malformed cases now degrade instead of misbehaving: a non-string `city` in `WeatherCard` shows "Checking the city…" (it threw in `build`), and a JSON map missing forecast fields renders as raw text (it showed `null°C · null`). A non-string `city` still makes the handler throw, so the model gets an error result as before.
+- [x] Task 2: Typed weather demo models. `WeatherArgs` and the tool's Ack schema describe the same args; comments in both point at each other until Open Question 5 lets the schema parse args itself. `city` is nullable in the model, unlike in the schema, because `WeatherCard` also reads partial streamed args. Two malformed cases now degrade instead of misbehaving: a non-string `city` in `WeatherCard` shows "Checking the city…" (it threw in `build`), and a JSON map missing forecast fields renders as raw text (it showed `null°C · null`). A non-string `city` still makes the handler throw, so the model gets an error result as before.
 
 ### Checkpoint: Example
 - [ ] `very_good test --coverage --recursive` passes, `example` at 100% excluding `*.g.dart`
@@ -44,7 +44,7 @@ Phase 3 replaces core's hand-rolled `JsonSchema` builder with [`ack`](https://pu
 - [ ] Human review
 
 ### Phase 2: Core package
-- [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff.
+- [x] Task 3: Codegen setup in `packages/copilotkit`. CI's codegen job (renamed `codegen`) now regenerates core and `example` together and fails on any diff. Codegen made the workspace need Flutter for `pub get`, so the `copilotkit` CI job moved from `dart_package.yml` to `flutter_package.yml`; a separate `copilotkit_pure_dart` job keeps the "no Flutter dependency" promise by failing if core's `lib/` imports `package:flutter*` or its pubspec lists `flutter` / `flutter_test`.
 - [x] Task 4: Typed stop request/response in `AgUiTransport`. Only `StopRequest` is added (Open Question 4 default); `StopResponse` waits for that answer so no unused model ships. Primary constructors in core get their constructor doc on the in-body `this;` part, because `public_member_api_docs` flags an undocumented primary constructor at the class name.
 
 ### Checkpoint: Core codegen
@@ -57,10 +57,10 @@ Independent of Phases 1–2 (no codegen). It can run first or in parallel, and *
   - Every object gains `"additionalProperties": false` (expected).
   - Key order differs inside arrays (`items` before `description`); the content is the same.
   - Nullable fields become `anyOf: [T, {type: null}]` (expected). Nothing in the repo uses them today.
-  - **Unexpected:** an empty `Ack.object({})` emits `{"type":"object","additionalProperties":false}` with **no `properties` key**. Some providers (OpenAI strict mode at least) reject object schemas without `properties`, so Task 6 has `client.dart` add `"properties": {}` when it's missing.
+  - **Unexpected:** an empty `Ack.object({})` emits `{"type":"object","additionalProperties":false}` with **no `properties` key**. Some providers (OpenAI strict mode at least) reject object schemas without `properties`, so Task 6 adds `"properties": {}` when it's missing. A later probe showed nested empty objects (direct, inside `anyOf` nullables, and as list `items`) also lack `properties`, so the fix applies at every depth (see Task 6).
   - **Mapping note:** Ack fields are required unless `.optional()`, the inverse of `JsonSchema.object` (optional unless listed in `required`). `JsonSchema.object({'city': ...})` without `required` becomes `Ack.object({'city': Ack.string().optional()})`.
   - **Pending:** a live tool call against the local runtime (no runtime running and no model key in this session).
-- [x] Task 6: Swap `FrontendTool.parameters` to Ack in core. The Dart callers from Task 7 changed in the same commit so every commit compiles. `client.dart` fills in `"properties": {}` when Ack leaves it out (see Task 5).
+- [x] Task 6: Swap `FrontendTool.parameters` to Ack in core. The Dart callers from Task 7 changed in the same commit so every commit compiles. The internal `toolParametersJson` helper (`lib/src/tool_schema.dart`, not exported) fills in `"properties": {}` on every object schema Ack leaves it off, at any depth: `properties`, `items`, `additionalProperties`, `not`, and `anyOf`/`oneOf`/`allOf` (see Task 5). `client.dart` calls it when building `RunAgentInput.tools`.
 - [x] Task 7: Migrate `copilotkit_flutter`, `example/` and docs off `JsonSchema`. The code moved in Task 6's commit. Docs record the change in the A3 notes without rewriting history. **Pending:** engineer B's sign-off and a simulator check.
 
 ### Checkpoint: Complete

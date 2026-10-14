@@ -163,6 +163,8 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 
 **Update:** coverage is now a hard 100% gate (`min_coverage: 100`), the custom coverage summary jobs are gone, and a spell check and Dependabot were added. See `README.md` (Development).
 
+**CI change (Oct 14):** core now runs on `flutter_package.yml`, because codegen dev dependencies make the workspace need Flutter for `pub get`. A `copilotkit_pure_dart` job checks that core still has no Flutter import or dependency, and a `codegen` job checks the committed `*.g.dart` files. See `tasks/json_serializable/plan.md`, Task 3.
+
 **Acceptance criteria:**
 - [ ] Every PR shows each touched package's coverage (workflows written in `.github/`; unverified until the first push)
 - [ ] A PR with a failing test, formatting issue or analyzer issue fails CI

@@ -71,6 +71,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 - [x] Core resolves and `fvm dart test` passes without Flutter
 - [x] `fvm dart doc --dry-run` has no new warnings
 - [x] CI coverage excludes `*.g.dart` for `copilotkit`
+- [x] CI's `copilotkit_pure_dart` job fails if core gains a Flutter import or dependency (the `copilotkit` job itself now runs on `flutter_package.yml`)
 
 **Verification:**
 - [x] `cd packages/copilotkit && fvm dart run build_runner build && fvm dart test`
@@ -97,7 +98,7 @@ Plan: `tasks/json_serializable/plan.md`. Commands run from the worktree root wit
 
 **Dependencies:** Task 3
 
-**Files likely touched:** `packages/copilotkit/lib/src/transport/ag_ui_transport.dart`, `packages/copilotkit/lib/src/transport/stop_models.dart` (+ `.g.dart`), `packages/copilotkit/test/src/transport/ag_ui_transport_test.dart`
+**Files likely touched:** `packages/copilotkit/lib/src/transport/ag_ui_transport.dart`, `packages/copilotkit/lib/src/transport/stop_request.dart` (+ `.g.dart`), `packages/copilotkit/test/src/transport/stop_request_test.dart`, `packages/copilotkit/test/src/transport/ag_ui_transport_test.dart`
 
 **Estimated scope:** S
 
@@ -136,11 +137,12 @@ Independent of Phases 1–2; can run first or in parallel. Land before the A3 co
 
 ## Task 6: Swap `FrontendTool.parameters` to Ack in core
 
-**Description:** Change `FrontendTool.parameters` from `JsonSchema` to Ack's `ObjectSchema`, send `parameters.toJsonSchema()` from `client.dart` when building `RunAgentInput.tools`, delete `JsonSchema` and its tests, and re-export the Ack types apps need from `lib/copilotkit.dart`. Update the core `example/main.dart` and `tool_loop_test.dart`. Add a golden test that pins the JSON sent for a representative tool, so changes in Ack's output show up on upgrade.
+**Description:** Change `FrontendTool.parameters` from `JsonSchema` to Ack's `ObjectSchema`, send the schema from `client.dart` when building `RunAgentInput.tools` (through the internal `toolParametersJson` helper in `lib/src/tool_schema.dart`, which wraps `parameters.toJsonSchema()` and adds `"properties": {}` to every object schema missing it, at any depth), delete `JsonSchema` and its tests, and re-export the Ack types apps need from `lib/copilotkit.dart`. Update the core `example/main.dart` and `tool_loop_test.dart`. Add a golden test that pins the JSON sent for a representative tool, so changes in Ack's output show up on upgrade.
 
 **Acceptance criteria:**
 - [x] `JsonSchema` no longer exists in core; `FrontendTool(parameters: Ack.object({...}))` compiles from `package:copilotkit/copilotkit.dart` alone
 - [x] The outgoing `RunAgentInput.tools[].parameters` equals the Ack JSON Schema (golden test on the captured request)
+- [x] Empty object schemas, including nested ones, are sent with `"properties": {}` (`tool_schema_test.dart`, `tool_loop_test.dart`)
 - [x] Every public member still has a doc comment; `fvm dart doc --dry-run` has no unresolved references
 
 **Verification:**
@@ -149,7 +151,7 @@ Independent of Phases 1–2; can run first or in parallel. Land before the A3 co
 
 **Dependencies:** Task 5
 
-**Files likely touched:** `packages/copilotkit/lib/src/tools.dart`, `packages/copilotkit/lib/src/client.dart`, `packages/copilotkit/lib/copilotkit.dart`, `packages/copilotkit/example/main.dart`, `packages/copilotkit/test/src/tools_test.dart`, `packages/copilotkit/test/src/tool_loop_test.dart`
+**Files likely touched:** `packages/copilotkit/lib/src/tools.dart`, `packages/copilotkit/lib/src/client.dart`, `packages/copilotkit/lib/src/tool_schema.dart`, `packages/copilotkit/test/src/tool_schema_test.dart`, `packages/copilotkit/lib/copilotkit.dart`, `packages/copilotkit/example/main.dart`, `packages/copilotkit/test/src/tools_test.dart`, `packages/copilotkit/test/src/tool_loop_test.dart`
 
 **Estimated scope:** M
 
