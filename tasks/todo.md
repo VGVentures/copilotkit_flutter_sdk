@@ -376,11 +376,11 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** `CopilotContext(description:, value:, child:)` adds an entry on mount, updates it when `value` changes, and removes it on dispose.
 
 **Acceptance criteria:**
-- [ ] Entry lifecycle follows the widget: mount adds, value change updates, dispose removes
-- [ ] Widget tests verify `addContext`, `update` and `remove` calls on mocked client and entry
+- [x] Entry lifecycle follows the widget: mount adds, value change updates, dispose removes
+- [x] Widget tests verify `addContext`, `update` and `remove` calls on mocked client and entry
 
 **Verification:**
-- [ ] `cd packages/copilotkit_flutter && very_good test --coverage`
+- [x] `cd packages/copilotkit_flutter && very_good test --coverage`
 - [ ] Manual (after A8): the agent answers from the context on device
 
 **Dependencies:** B5, A8 for real behaviour (tests mock until then)
