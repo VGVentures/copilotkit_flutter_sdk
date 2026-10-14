@@ -30,7 +30,6 @@ jobs:
           filters: |
             shared: &shared
               - .github/workflows/main.yaml
-              - .github/actions/**
               - .fvmrc
               - pubspec.yaml
               - pubspec.lock
@@ -55,21 +54,6 @@ jobs:
       dart_sdk: 3.13.0
       min_coverage: 100
       run_bloc_lint: false
-      artifact_name: copilotkit-coverage
-      artifact_paths: packages/copilotkit/coverage/lcov.info
-
-  copilotkit_coverage:
-    needs: copilotkit
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 📊 Coverage
-        uses: ./.github/actions/coverage_summary
-        with:
-          package: copilotkit
-          artifact_name: copilotkit-coverage
 
   copilotkit_flutter:
     needs: changes
@@ -79,21 +63,6 @@ jobs:
       working_directory: packages/copilotkit_flutter
       flutter_version_file: .fvmrc
       min_coverage: 100
-      artifact_name: copilotkit_flutter-coverage
-      artifact_paths: packages/copilotkit_flutter/coverage/lcov.info
-
-  copilotkit_flutter_coverage:
-    needs: copilotkit_flutter
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 📊 Coverage
-        uses: ./.github/actions/coverage_summary
-        with:
-          package: copilotkit_flutter
-          artifact_name: copilotkit_flutter-coverage
 
   example:
     needs: changes
@@ -103,18 +72,3 @@ jobs:
       working_directory: example
       flutter_version_file: .fvmrc
       min_coverage: 100
-      artifact_name: example-coverage
-      artifact_paths: example/coverage/lcov.info
-
-  example_coverage:
-    needs: example
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📚 Git Checkout
-        uses: actions/checkout@v7
-
-      - name: 📊 Coverage
-        uses: ./.github/actions/coverage_summary
-        with:
-          package: example
-          artifact_name: example-coverage
