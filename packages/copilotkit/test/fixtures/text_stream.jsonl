@@ -1,0 +1,8 @@
+{"fixture":{"source":"recorded","runtimeVersion":"1.79.0","recordedOn":"2026-10-15","message":"Say hello in five words.","tools":[]}}
+{"type":"RUN_STARTED","threadId":"thread-1792078144257","runId":"run-1792078144257","protocolVersion":"1.0","input":{"threadId":"thread-1792078144257","runId":"run-1792078144257","messages":[{"id":"user-1","role":"user","content":"Say hello in five words."}],"tools":[],"context":[]}}
+{"type":"TEXT_MESSAGE_START","messageId":"805e4c33-49e2-410c-88c8-f71daca08cf3","role":"assistant"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"805e4c33-49e2-410c-88c8-f71daca08cf3","delta":"Hello"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"805e4c33-49e2-410c-88c8-f71daca08cf3","delta":"! Wonderful to meet you."}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"805e4c33-49e2-410c-88c8-f71daca08cf3","delta":""}
+{"type":"TEXT_MESSAGE_END","messageId":"805e4c33-49e2-410c-88c8-f71daca08cf3"}
+{"type":"RUN_FINISHED","metadata":{"finishReason":"stop"},"threadId":"thread-1792078144257","runId":"run-1792078144257","usage":[{"provider":"google.generative-ai","model":"gemini-3.8-flash","inputTokens":227,"outputTokens":101,"totalTokens":328,"reasoningTokens":94,"cachedInputTokens":0}]}

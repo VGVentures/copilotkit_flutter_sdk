@@ -1,0 +1,9 @@
+{"fixture":{"source":"recorded","runtimeVersion":"1.79.0","recordedOn":"2026-10-15","message":"Add 'walk dog' to my todos.","tools":[],"state":{"todos":["buy milk"]}}}
+{"type":"RUN_STARTED","threadId":"thread-1792078166271","runId":"run-1792078166271","protocolVersion":"1.0","input":{"threadId":"thread-1792078166271","runId":"run-1792078166271","state":{"todos":["buy milk"]},"messages":[{"id":"user-1","role":"user","content":"Add 'walk dog' to my todos."}],"tools":[],"context":[]}}
+{"type":"TOOL_CALL_START","toolCallId":"call_939037","toolCallName":"AGUISendStateDelta","parentMessageId":"52dfa12e-f46a-4505-a4f4-1cc3b90d3f6c"}
+{"type":"TOOL_CALL_ARGS","toolCallId":"call_939037","delta":"{\"delta\":[{\"path\":\"/todos/-\",\"value\":\"walk dog\",\"op\":\"add\"}]}"}
+{"type":"TOOL_CALL_END","toolCallId":"call_939037"}
+{"type":"STATE_SNAPSHOT","snapshot":{"todos":["buy milk"]}}
+{"type":"STATE_DELTA","delta":[{"op":"add","path":"/todos/-","value":"walk dog"}]}
+{"type":"TOOL_CALL_RESULT","messageId":"57628107-c32b-41c6-93c7-6e78d8b7ce00","toolCallId":"call_939037","content":"{\"success\":true,\"delta\":[{\"op\":\"add\",\"path\":\"/todos/-\",\"value\":\"walk dog\"}]}","role":"tool"}
+{"type":"RUN_FINISHED","metadata":{"finishReason":"tool-calls"},"threadId":"thread-1792078166271","runId":"run-1792078166271","usage":[{"provider":"google.generative-ai","model":"gemini-3.8-flash","inputTokens":284,"outputTokens":185,"totalTokens":469,"reasoningTokens":149,"cachedInputTokens":0}]}
