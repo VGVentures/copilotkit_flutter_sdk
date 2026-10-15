@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
+import 'package:copilotkit/src/transport/extensions/run_agent_input_x.dart';
 import 'package:copilotkit/src/transport/models/stop_request.dart';
 import 'package:http/http.dart' as http;
 
@@ -54,7 +55,7 @@ class AgUiTransport({
         subscription = client
             .runAgent(
               'agent/${Uri.encodeComponent(agentId)}/run',
-              _simpleInput(input),
+              input.toSimpleInput(),
             )
             .listen(
               controller.add,
@@ -130,20 +131,8 @@ class AgUiTransport({
     }
     _activeClients.clear();
   }
-}
 
-SimpleRunAgentInput _simpleInput(RunAgentInput input) {
-  return SimpleRunAgentInput(
-    threadId: input.threadId,
-    runId: input.runId,
-    parentRunId: input.parentRunId,
-    state: input.state,
-    messages: input.messages,
-    tools: input.tools,
-    context: input.context,
-    forwardedProps: input.forwardedProps,
-  );
+  /// Whether [error] is `ag_ui` reporting an event it could not decode.
+  static bool _isDecodeError(Object error) =>
+      error is DecodingError || error is AGUIValidationError;
 }
-
-bool _isDecodeError(Object error) =>
-    error is DecodingError || error is AGUIValidationError;
