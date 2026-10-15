@@ -1,7 +1,7 @@
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
-import '../helpers/tool_loop_harness.dart';
+import '../../helpers/tool_loop_harness.dart';
 
 void main() {
   setUpAll(ToolLoopHarness.registerFallbacks);
