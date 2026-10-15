@@ -104,17 +104,17 @@ Tests mirror `lib/src/`.
 - [x] Task 11: Flutter `tools/`, `context/` and `client/` folders
 
 ### Checkpoint B: Layout in place
-- [ ] All tests pass with 100% coverage, analyze and format clean, example app runs
+- [x] All tests pass with 100% coverage, analyze and format clean, example app runs
 
 ### Phase 2: Small refactors
-- [ ] Task 12: Transport helpers (`toSimpleInput` extension, `_isDecodeError` method)
-- [ ] Task 13: Tool result strings → enum
-- [ ] Task 14: `ToolSchema` extension type + key enums
-- [ ] Task 15: Nullable `copyWith` via getter closures (remove `_unset`)
-- [ ] Task 16: `uuid` for ids (remove `_randomId`, `_sentCount`)
-- [ ] Task 17: `Equatable` on core value models + public `ToolCallView.copyWith`
-- [ ] Task 18: `PartialJsonParser` class
-- [ ] Task 19: `JsonPatch` class
+- [x] Task 12: Transport helpers (`toSimpleInput` extension, `_isDecodeError` method)
+- [x] Task 13: Tool result strings → enum
+- [x] Task 14: `ToolSchema` extension type + key enums
+- [x] Task 15: Nullable `copyWith` via getter closures (remove `_unset`)
+- [x] Task 16: `uuid` for ids (remove `_randomId`, `_sentCount`)
+- [x] Task 17: `Equatable` on core value models + public `ToolCallView.copyWith`
+- [x] Task 18: `PartialJsonParser` class
+- [x] Task 19: `JsonPatch` class
 
 ### Checkpoint C: Refactors done
 - [ ] No top-level functions or variables left except where the redesign removes them (`reducer.dart`, the client's `part` link)
