@@ -20,20 +20,28 @@ import 'package:copilotkit/src/transport/agent_transport.dart';
 
 part '../agent/copilot_agent.dart';
 
-/// Result sent to the agent for a tool call cut short by a stop.
-const _cancelledResult = 'Tool call cancelled.';
+/// Results sent to the agent for tool calls that never ran to completion.
+enum _FallbackToolResult {
+  /// A tool call cut short by a stop.
+  cancelled('Tool call cancelled.'),
 
-/// Result sent to the agent for a tool call left open by a failed run.
-const _failedResult = 'Tool call failed: the run ended early.';
+  /// A tool call left open by a failed run.
+  failed('Tool call failed: the run ended early.'),
 
-/// Result sent to the agent for a call to a tool that isn't registered, e.g.
-/// because its `CopilotTool` was unmounted. Backend tool calls never get it:
-/// the runtime sends their results within the run.
-const _unavailableResult = 'Tool is not available.';
+  /// A call to a tool that isn't registered, e.g. because its `CopilotTool`
+  /// was unmounted. Backend tool calls never get it: the runtime sends their
+  /// results within the run.
+  unavailable('Tool is not available.'),
 
-/// Result sent to the agent when a handler throws. The error itself goes to
-/// `onError` only, so exception details never reach the model.
-const _handlerErrorResult = 'Tool failed.';
+  /// A handler threw. The error itself goes to `onError` only, so exception
+  /// details never reach the model.
+  handlerError('Tool failed.');
+
+  new(this.message);
+
+  /// The result text sent to the agent.
+  final String message;
+}
 
 /// Connects an app to a Copilot Runtime.
 ///
@@ -90,7 +98,7 @@ class CopilotKitClient({
         final pending = _pendingToolCalls(agent);
         _closeOpenToolCalls(
           agent,
-          _unavailableResult,
+          _FallbackToolResult.unavailable,
           where: (call) => !_tools.containsKey(call.name),
         );
         if (pending.isEmpty) return;
@@ -183,7 +191,7 @@ class CopilotKitClient({
     turn.run = null;
     if (turn.stopped) return false;
     if (agent.snapshot.error == null) return true;
-    _closeOpenToolCalls(agent, _failedResult);
+    _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
   }
 
@@ -228,7 +236,7 @@ class CopilotKitClient({
       return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
       onError?.call(error, stackTrace);
-      return _handlerErrorResult;
+      return _FallbackToolResult.handlerError.message;
     } finally {
       turn.signal = null;
     }
@@ -251,7 +259,7 @@ class CopilotKitClient({
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    _closeOpenToolCalls(agent, _cancelledResult);
+    _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
     agent._update(agent.snapshot.copyWith(isRunning: false));
     if (run == null) return;
     run.finish();
@@ -310,16 +318,16 @@ class CopilotKitClient({
   }
 
   /// Gives every tool call without a result (and matching [where], if set)
-  /// the result [content], so the conversation stays valid for the next run.
+  /// the message of [result], so the conversation stays valid for the next run.
   void _closeOpenToolCalls(
     CopilotAgent agent,
-    String content, {
+    _FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
   }) {
     for (final call in agent.toolCalls) {
       if (call.status != ToolCallStatus.complete &&
           (where?.call(call) ?? true)) {
-        _addToolResult(agent, call, content);
+        _addToolResult(agent, call, result.message);
       }
     }
   }
