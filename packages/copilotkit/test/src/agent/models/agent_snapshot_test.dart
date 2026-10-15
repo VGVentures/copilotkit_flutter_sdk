@@ -37,6 +37,19 @@ void main() {
       expect(snapshot.error, same(error));
     });
 
+    test('supports value equality', () {
+      final message = UserMessage(id: 'u1', content: 'Hi');
+      AgentSnapshot snapshot({bool isRunning = false}) => AgentSnapshot(
+        messages: [message],
+        state: const {'a': 1},
+        isRunning: isRunning,
+        error: 'boom',
+      );
+
+      expect(snapshot(), snapshot());
+      expect(snapshot(), isNot(snapshot(isRunning: true)));
+    });
+
     group('copyWith', () {
       test('keeps every field when nothing is passed', () {
         final error = StateError('boom');
