@@ -3,7 +3,7 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-import '../helpers/fixtures.dart';
+import '../../helpers/fixtures.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
 
