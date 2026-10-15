@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:equatable/equatable.dart';
 
 /// Immutable view of an agent's state at one point in time.
 ///
@@ -26,9 +27,12 @@ class const AgentSnapshot({
   /// A [RunErrorEvent] when the runtime reported the error; otherwise the
   /// transport or client error.
   final Object? error,
-}) {
+}) extends Equatable {
   /// Creates a snapshot of an agent's state.
   this;
+
+  @override
+  List<Object?> get props => [messages, state, isRunning, toolCalls, error];
 
   /// Returns a copy with the given fields replaced.
   ///

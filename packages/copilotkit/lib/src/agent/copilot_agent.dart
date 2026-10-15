@@ -77,11 +77,11 @@ class CopilotAgent({
   void _reduce(BaseEvent event) => _update(reduceAgentEvent(_snapshot, event));
 
   void _update(AgentSnapshot next) {
-    if (identical(next, _snapshot)) return;
+    if (next == _snapshot) return;
     final previous = _snapshot;
     _snapshot = next;
     _changes.add(next);
-    if (!identical(next.state, previous.state)) _stateChanges.add(next.state);
+    if (next.state != previous.state) _stateChanges.add(next.state);
   }
 
   Future<void> _close() async {

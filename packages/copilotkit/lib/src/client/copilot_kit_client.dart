@@ -110,6 +110,7 @@ class CopilotKitClient({
       }
     } finally {
       // A stop or dispose already ended the turn otherwise.
+      // This turn, not an equal one: a newer turn may have replaced it.
       if (identical(_turns[agent], turn)) {
         _turns.remove(agent);
         agent._update(agent.snapshot.copyWith(isRunning: false));
@@ -282,6 +283,8 @@ class CopilotKitClient({
   void Function() registerTool(FrontendTool tool) {
     _tools[tool.name] = tool;
     return () {
+      // Only unregister the instance this call registered; an equal tool
+      // registered later must stay.
       if (identical(_tools[tool.name], tool)) _tools.remove(tool.name);
     };
   }
