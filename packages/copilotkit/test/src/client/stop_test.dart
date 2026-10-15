@@ -263,5 +263,54 @@ void main() {
       expect(agent.state.isRunning, isFalse);
       expect(agent.state.messages.map((m) => m.content), ['Hal', 'Again']);
     });
+
+    test('tracks the turn and its run in the client state', () async {
+      expect(client.state.turns, isEmpty);
+
+      await startStreaming();
+
+      final turn = client.state.turns[agent.agentId]!;
+      expect(turn.signal.isCancelled, isFalse);
+      expect(turn.run?.headers, {'Authorization': 'Bearer token'});
+
+      await client.stopAgent(agent);
+      await run;
+
+      expect(client.state.turns, isEmpty);
+      expect(turn.signal.isCancelled, isTrue);
+    });
+
+    test('stops one agent while another keeps running', () async {
+      final otherEvents = StreamController<BaseEvent>();
+      final other = await client.openAgent('other');
+      when(
+        () => transport.run(
+          agentId: 'other',
+          input: any(named: 'input'),
+          headers: any(named: 'headers'),
+        ),
+      ).thenAnswer((_) => otherEvents.stream);
+      await startStreaming();
+      final otherRun = client.runAgent(other);
+      await pumpEventQueue();
+      expect(client.state.turns.keys, ['default', 'other']);
+
+      await client.stopAgent(agent);
+      await run;
+
+      expect(client.state.turns.keys, ['other']);
+      expect(agent.state.isRunning, isFalse);
+      expect(other.state.isRunning, isTrue);
+
+      otherEvents
+        ..add(RunStartedEvent(threadId: other.threadId, runId: 'o'))
+        ..add(RunFinishedEvent(threadId: other.threadId, runId: 'o'));
+      await otherEvents.close();
+      await otherRun;
+
+      expect(client.state.turns, isEmpty);
+      expect(other.state.isRunning, isFalse);
+      expect(errors, isEmpty);
+    });
   });
 }

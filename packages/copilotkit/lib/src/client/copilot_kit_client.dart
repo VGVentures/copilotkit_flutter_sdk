@@ -12,6 +12,8 @@ import 'package:copilotkit/src/client/copilot_error_handler.dart';
 import 'package:copilotkit/src/client/copilot_kit_event.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
 import 'package:copilotkit/src/client/models/copilot_kit_state.dart';
+import 'package:copilotkit/src/client/models/run_state.dart';
+import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -85,7 +87,6 @@ class CopilotKitClient({
   final AgentTransport _transport =
       transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
   final CopilotErrorHandler? _onError = onError;
-  final Map<CopilotAgent, _Turn> _turns = {};
 
   /// Events added through [handled] whose handler hasn't completed.
   final List<(CopilotKitEvent, Completer<void>)> _awaited = [];
@@ -181,24 +182,12 @@ class CopilotKitClient({
     Emitter<CopilotKitState> emit,
   ) async {
     final agent = state.agents[event.agentId];
-    if (agent != null) await _runAgent(agent);
-  }
-
-  Future<void> _onAgentStopRequested(
-    AgentStopRequested event,
-    Emitter<CopilotKitState> emit,
-  ) async {
-    final agent = state.agents[event.agentId];
-    if (agent != null) await _stopAgent(agent);
-  }
-
-  Future<void> _runAgent(CopilotAgent agent) async {
-    if (_turns.containsKey(agent)) return;
-    final turn = _Turn();
-    _turns[agent] = turn;
+    if (agent == null || state.turns.containsKey(event.agentId)) return;
+    final signal = CancellationSignal();
+    emit(_withTurn(event.agentId, TurnState(signal: signal)));
     agent.add(const AgentTurnStarted());
     try {
-      while (await _runOnce(agent, turn)) {
+      while (await _runOnce(agent, signal, emit)) {
         final pending = _pendingToolCalls(agent);
         await _closeOpenToolCalls(
           agent,
@@ -207,25 +196,69 @@ class CopilotKitClient({
         );
         if (pending.isEmpty) return;
         for (final (call, tool) in pending) {
-          final result = await _runHandler(tool, call, turn);
-          if (turn.stopped) return;
+          final result = await _runHandler(tool, call, signal);
+          if (signal.isCancelled) return;
           await _addToolResult(agent, call, result);
         }
       }
     } finally {
-      // A stop or dispose already ended the turn otherwise.
-      // This turn, not an equal one: a newer turn may have replaced it.
-      if (identical(_turns[agent], turn)) {
-        _turns.remove(agent);
+      // A stop or close already ended the turn otherwise. This turn's
+      // signal, not an equal one: a newer turn may have replaced it.
+      if (!agent.isClosed &&
+          identical(state.turns[event.agentId]?.signal, signal)) {
+        emit(_withTurn(event.agentId, null));
         agent.add(const AgentTurnEnded());
         await agent.settled;
       }
     }
   }
 
-  /// Streams one run of [agent]. Returns whether it finished successfully
-  /// and wasn't stopped.
-  Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
+  Future<void> _onAgentStopRequested(
+    AgentStopRequested event,
+    Emitter<CopilotKitState> emit,
+  ) async {
+    final agent = state.agents[event.agentId];
+    final turn = state.turns[event.agentId];
+    if (agent == null || turn == null) return;
+    emit(_withTurn(event.agentId, null));
+    turn.signal.cancel();
+    final run = turn.run;
+    if (run != null) await run.subscription.cancel();
+
+    await agent.settled;
+    await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+    agent.add(const AgentTurnEnded());
+    await agent.settled;
+    if (run == null) return;
+    try {
+      await _transport.stop(
+        agentId: agent.agentId,
+        threadId: agent.threadId,
+        runId: run.runId,
+        headers: run.headers,
+      );
+    } on Object catch (error, stackTrace) {
+      _onError?.call(error, stackTrace);
+    }
+  }
+
+  /// The state with the turn of [agentId] replaced by [turn], or removed
+  /// when [turn] is `null`.
+  CopilotKitState _withTurn(String agentId, TurnState? turn) => state.copyWith(
+    turns: {
+      for (final MapEntry(:key, :value) in state.turns.entries)
+        if (key != agentId) key: value,
+      agentId: ?turn,
+    },
+  );
+
+  /// Streams one run of [agent] within the turn [signal] belongs to.
+  /// Returns whether it finished successfully and wasn't stopped.
+  Future<bool> _runOnce(
+    CopilotAgent agent,
+    CancellationSignal signal,
+    Emitter<CopilotKitState> emit,
+  ) async {
     final RunAgentInput input;
     final Map<String, String> requestHeaders;
     final Stream<BaseEvent> events;
@@ -253,8 +286,8 @@ class CopilotKitClient({
         forwardedProps: properties,
       );
       requestHeaders = await headers?.call() ?? const {};
-      // Stopped or disposed while the headers were being built.
-      if (turn.stopped) return false;
+      // Stopped or closed while the headers were being built.
+      if (signal.isCancelled) return false;
       events = _transport.run(
         agentId: agent.agentId,
         input: input,
@@ -265,36 +298,55 @@ class CopilotKitClient({
       return false;
     }
 
-    final run = _StreamRun(runId: input.runId, headers: requestHeaders);
-    turn.run = run;
-    run.subscription = events.listen(
+    // The stream ending and a stop can race; only the first completes it.
+    final streamDone = Completer<void>();
+    void finish() {
+      if (!streamDone.isCompleted) streamDone.complete();
+    }
+
+    // Whether the runtime sent RUN_FINISHED or RUN_ERROR.
+    var ended = false;
+    // Cancelled on error (cancelOnError), by a stop and by close().
+    // ignore: cancel_subscriptions
+    final subscription = events.listen(
       (event) {
-        if (event is RunFinishedEvent || event is RunErrorEvent) {
-          run.ended = true;
-        }
+        if (event is RunFinishedEvent || event is RunErrorEvent) ended = true;
         agent.add(AgentEventReceived(event));
         if (event is RunErrorEvent) _onError?.call(event, StackTrace.current);
       },
       onError: (Object error, StackTrace stackTrace) {
         _fail(agent, error, stackTrace);
-        run.finish();
+        finish();
       },
       onDone: () {
-        if (!run.ended) {
+        if (!ended) {
           _fail(
             agent,
             StateError('The connection closed before the run finished.'),
             StackTrace.current,
           );
         }
-        run.finish();
+        finish();
       },
       cancelOnError: true,
     );
-    await run.done.future;
+    emit(
+      _withTurn(
+        agent.agentId,
+        TurnState(
+          signal: signal,
+          run: RunState(
+            runId: input.runId,
+            headers: requestHeaders,
+            subscription: subscription,
+          ),
+        ),
+      ),
+    );
+    await Future.any([streamDone.future, signal.whenCancelled]);
     await agent.settled;
-    turn.run = null;
-    if (turn.stopped) return false;
+    if (signal.isCancelled) return false;
+    emit(_withTurn(agent.agentId, TurnState(signal: signal)));
     if (agent.state.error == null) return true;
     await _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
@@ -311,8 +363,8 @@ class CopilotKitClient({
         (call, tool),
   ];
 
-  /// Runs the handler of [tool] for [call] and returns the result for the
-  /// agent.
+  /// Runs the handler of [tool] for [call] with the turn's [signal] and
+  /// returns the result for the agent.
   ///
   /// Arguments that don't match `FrontendTool.parameters` never reach the
   /// handler: the agent gets a result listing the problems, and they are
@@ -320,7 +372,7 @@ class CopilotKitClient({
   Future<String> _runHandler(
     FrontendTool tool,
     ToolCallView call,
-    _Turn turn,
+    CancellationSignal signal,
   ) async {
     final Map<String, Object?> args;
     switch (tool.parameters.safeParse(call.args)) {
@@ -336,41 +388,11 @@ class CopilotKitClient({
         );
         return result;
     }
-    final signal = turn.signal = CancellationSignal();
     try {
       return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
       _onError?.call(error, stackTrace);
       return _FallbackToolResult.handlerError.message;
-    } finally {
-      turn.signal = null;
-    }
-  }
-
-  Future<void> _stopAgent(CopilotAgent agent) async {
-    final turn = _turns.remove(agent);
-    if (turn == null) return;
-    turn
-      ..stopped = true
-      ..signal?.cancel();
-    final run = turn.run;
-    if (run != null) await run.subscription.cancel();
-
-    await agent.settled;
-    await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
-    agent.add(const AgentTurnEnded());
-    await agent.settled;
-    if (run == null) return;
-    run.finish();
-    try {
-      await _transport.stop(
-        agentId: agent.agentId,
-        threadId: agent.threadId,
-        runId: run.runId,
-        headers: run.headers,
-      );
-    } on Object catch (error, stackTrace) {
-      _onError?.call(error, stackTrace);
     }
   }
 
@@ -379,16 +401,10 @@ class CopilotKitClient({
   /// The client and its agents can't be used afterwards.
   @override
   Future<void> close() async {
-    for (final turn in _turns.values) {
-      turn
-        ..stopped = true
-        ..signal?.cancel();
-      final run = turn.run;
-      if (run == null) continue;
-      await run.subscription.cancel();
-      run.finish();
+    for (final turn in state.turns.values) {
+      turn.signal.cancel();
+      await turn.run?.subscription.cancel();
     }
-    _turns.clear();
     for (final agent in state.agents.values) {
       await agent.close();
     }
@@ -431,32 +447,5 @@ class CopilotKitClient({
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
     agent.add(AgentRunFailed(error));
     _onError?.call(error, stackTrace);
-  }
-}
-
-/// One `runAgent` call: stream runs plus the tool handlers between them.
-class _Turn {
-  bool stopped = false;
-  _StreamRun? run;
-  CancellationSignal? signal;
-}
-
-/// One streamed request to the runtime.
-class _StreamRun({
-  required final String runId,
-  required final Map<String, String> headers,
-}) {
-  // Cancelled on error (cancelOnError), on stop and on dispose.
-  // ignore: cancel_subscriptions
-  late StreamSubscription<BaseEvent> subscription;
-  final done = Completer<void>();
-
-  /// Whether the runtime sent `RUN_FINISHED` or `RUN_ERROR`.
-  bool ended = false;
-
-  /// Completes [done]; the stream ending and a stop or dispose can race, so
-  /// only the first call has an effect.
-  void finish() {
-    if (!done.isCompleted) done.complete();
   }
 }
