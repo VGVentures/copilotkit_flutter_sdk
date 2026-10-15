@@ -122,7 +122,7 @@ class CopilotKitClient({
   /// Streams one run of [agent]. Returns whether it finished successfully
   /// and wasn't stopped.
   Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
-    agent._update(agent.snapshot.copyWith(error: null));
+    agent._update(agent.snapshot.copyWith(error: () => null));
 
     final RunAgentInput input;
     final Map<String, String> requestHeaders;
@@ -345,7 +345,7 @@ class CopilotKitClient({
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
-    agent._update(agent.snapshot.copyWith(error: error));
+    agent._update(agent.snapshot.copyWith(error: () => error));
     onError?.call(error, stackTrace);
   }
 }

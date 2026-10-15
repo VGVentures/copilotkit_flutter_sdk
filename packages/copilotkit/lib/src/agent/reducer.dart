@@ -15,9 +15,9 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 /// emitting when `identical(previous, next)`.
 AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
   return switch (event) {
-    RunStartedEvent() => snapshot.copyWith(error: null),
+    RunStartedEvent() => snapshot.copyWith(error: () => null),
     RunFinishedEvent() => _finishToolArgs(snapshot),
-    RunErrorEvent() => snapshot.copyWith(error: event),
+    RunErrorEvent() => snapshot.copyWith(error: () => event),
     TextMessageStartEvent(:final messageId, :final role, :final name) =>
       snapshot.copyWith(
         messages: [
@@ -55,7 +55,7 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
     ToolCallResultEvent(:final messageId, :final toolCallId, :final content) =>
       _completeToolCall(snapshot, messageId, toolCallId, content),
     StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-      state: state,
+      state: () => state,
     ),
     StateDeltaEvent(:final delta) => _applyStateDelta(snapshot, delta),
     MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
@@ -72,7 +72,9 @@ AgentSnapshot _applyStateDelta(
   List<Map<String, Object?>> delta,
 ) {
   try {
-    return snapshot.copyWith(state: applyJsonPatch(snapshot.state, delta));
+    return snapshot.copyWith(
+      state: () => applyJsonPatch(snapshot.state, delta),
+    );
   } on FormatException {
     return snapshot;
   }
