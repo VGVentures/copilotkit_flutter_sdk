@@ -2,7 +2,8 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/json_patch.dart';
 import 'package:copilotkit/src/partial_json.dart';
-import 'package:copilotkit/src/tools.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
+import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 
 /// Applies [event] to [snapshot] and returns the resulting snapshot.
 ///

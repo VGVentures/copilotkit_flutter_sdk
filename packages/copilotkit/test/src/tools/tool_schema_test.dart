@@ -1,5 +1,5 @@
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/tool_schema.dart';
+import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:test/test.dart';
 
 void main() {
