@@ -6,34 +6,32 @@ import 'dart:convert';
 /// dropped; a number keeps its valid digits; a literal cut mid-way (`tr`,
 /// `nu`) is completed. Complete JSON gives the same result as [jsonDecode].
 /// Never throws: input that isn't a JSON object prefix gives an empty map.
-Map<String, Object?> parsePartialJson(String input) {
-  try {
-    final decoded = jsonDecode(input);
-    return decoded is Map<String, Object?> ? decoded : {};
-  } on FormatException {
-    // Incomplete or invalid; fall through to the tolerant parser.
-  }
-  try {
-    final parser = _PartialJsonParser(input).._skipWhitespace();
-    if (parser._atEnd || parser._peek != '{') return {};
-    return parser._object();
-  } on _Garbage {
-    return {};
-  }
-}
+class PartialJsonParser._(final String _input) {
+  static final _numberPattern = RegExp(
+    r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?',
+  );
 
-class _Garbage implements Exception;
+  /// A fraction or exponent cut off at the end of the input, e.g. `1.`.
+  static final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
 
-final _numberPattern = RegExp(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?');
-
-/// A fraction or exponent cut off at the end of the input, e.g. `1.`.
-final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
-
-/// Marks a value cut off before any usable content, e.g. `-` or `"\u00`.
-const Object _incomplete = Object();
-
-class _PartialJsonParser(final String _input) {
   int _index = 0;
+
+  /// Parses [input] into the map it describes so far.
+  static Map<String, Object?> parse(String input) {
+    try {
+      final decoded = jsonDecode(input);
+      return decoded is Map<String, Object?> ? decoded : {};
+    } on FormatException {
+      // Incomplete or invalid; fall through to the tolerant parser.
+    }
+    try {
+      final parser = PartialJsonParser._(input).._skipWhitespace();
+      if (parser._atEnd || parser._peek != '{') return {};
+      return parser._object();
+    } on _Garbage {
+      return {};
+    }
+  }
 
   bool get _atEnd => _index >= _input.length;
 
@@ -45,16 +43,18 @@ class _PartialJsonParser(final String _input) {
     }
   }
 
-  Object? _value() {
+  /// Parses the next value. Returns `null` when the value is cut off before
+  /// any usable content, e.g. `-` or `"\u00`.
+  _Parsed? _value() {
     _skipWhitespace();
-    if (_atEnd) return _incomplete;
+    if (_atEnd) return null;
     return switch (_peek) {
-      '{' => _object(),
-      '[' => _array(),
-      '"' => _string(),
-      't' => _literal('true', true),
-      'f' => _literal('false', false),
-      'n' => _literal('null', null),
+      '{' => (value: _object()),
+      '[' => (value: _array()),
+      '"' => (value: _string()),
+      't' => (value: _literal('true', true)),
+      'f' => (value: _literal('false', false)),
+      'n' => (value: _literal('null', null)),
       _ => _number(),
     };
   }
@@ -71,9 +71,9 @@ class _PartialJsonParser(final String _input) {
       }
       final key = _key();
       if (key == null) return result;
-      final value = _value();
-      if (identical(value, _incomplete)) return result;
-      result[key] = value;
+      final parsed = _value();
+      if (parsed == null) return result;
+      result[key] = parsed.value;
       if (!_separator('}')) return result;
     }
   }
@@ -100,9 +100,9 @@ class _PartialJsonParser(final String _input) {
         _index++;
         return result;
       }
-      final value = _value();
-      if (identical(value, _incomplete)) return result;
-      result.add(value);
+      final parsed = _value();
+      if (parsed == null) return result;
+      result.add(parsed.value);
       if (!_separator(']')) return result;
     }
   }
@@ -171,12 +171,12 @@ class _PartialJsonParser(final String _input) {
     return value;
   }
 
-  Object _number() {
+  _Parsed? _number() {
     final match = _numberPattern.matchAsPrefix(_input, _index);
     if (match == null) {
       if (_peek == '-' && _index + 1 == _input.length) {
         _index++;
-        return _incomplete;
+        return null;
       }
       throw _Garbage();
     }
@@ -184,6 +184,11 @@ class _PartialJsonParser(final String _input) {
     // Skip a dangling fraction or exponent cut off at the end, e.g. `1.`.
     final tail = _danglingNumberTail.matchAsPrefix(_input, _index);
     if (tail != null) _index = tail.end;
-    return num.parse(match[0]!);
+    return (value: num.parse(match[0]!));
   }
 }
+
+/// A value the parser could read; `null` in its place means it was cut off.
+typedef _Parsed = ({Object? value});
+
+class _Garbage implements Exception;
