@@ -9,17 +9,8 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
-class _MockAgentContextEntry extends Mock implements AgentContextEntry;
-
-FrontendTool _fallbackTool() => FrontendTool(
-  name: 'x',
-  description: 'x',
-  parameters: Ack.object({}),
-  handler: (args, {required signal}) async => '',
-);
-
 void main() {
-  setUpAll(() => registerFallbackValue(_fallbackTool()));
+  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
 
   group('lookUpWeather', () {
     test('returns a deterministic forecast for the city', () async {
@@ -210,9 +201,6 @@ void main() {
   group(WeatherDemo, () {
     testWidgets('registers the tool and the user context', (tester) async {
       final client = _MockCopilotKitClient();
-      when(() => client.registerTool(any())).thenReturn(() {});
-      when(() => client.addContext(any(), any()))
-          .thenReturn(_MockAgentContextEntry());
 
       await tester.pumpWidget(
         CopilotKit.value(
@@ -223,12 +211,13 @@ void main() {
         ),
       );
 
-      final tool =
-          verify(() => client.registerTool(captureAny())).captured.single
-              as FrontendTool;
+      final events = verify(() => client.add(captureAny())).captured;
+      final tool = events.whereType<ToolRegistered>().single.tool;
       expect(tool.name, 'showWeather');
       expect(tool.parameters.toJsonSchema()['required'], ['city']);
-      verify(() => client.addContext('Current user', demoUser)).called(1);
+      final entry = events.whereType<ContextAdded>().single.entry;
+      expect(entry.description, 'Current user');
+      expect(entry.value, demoUser);
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
   });

@@ -5,6 +5,7 @@ import 'package:bloc/bloc.dart';
 import 'package:copilotkit/src/agent/copilot_agent_event.dart';
 import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/client/copilot_kit_client.dart';
+import 'package:copilotkit/src/client/copilot_kit_event.dart';
 import 'package:copilotkit/src/json_patch.dart';
 import 'package:copilotkit/src/partial_json_parser.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -35,7 +36,8 @@ class CopilotAgent({
     on<CopilotAgentEvent>(_onEvent);
   }
 
-  /// Events added and not yet applied, and who is waiting for that.
+  /// Events added and not yet applied, and who is waiting for that
+  /// (ADR 0008, exception 4).
   int _pending = 0;
   Completer<void>? _settled;
 
@@ -64,39 +66,43 @@ class CopilotAgent({
 
   /// Runs the agent on the current messages.
   ///
-  /// Same as `CopilotKitClient.runAgent(this)`. Completes when the run ends;
-  /// errors go to `CopilotKitClient.onError` instead of being thrown.
-  Future<void> run() => _client.runAgent(this);
+  /// Same as adding `AgentRunRequested(agentId)` to the client. [state]
+  /// reports `isRunning` until the whole turn ends; errors go to
+  /// `CopilotKitClient.onError`.
+  void run() => _client.add(AgentRunRequested(agentId));
 
   /// Stops the current run, if any.
   ///
-  /// Same as `CopilotKitClient.stopAgent(this)`.
-  Future<void> stop() => _client.stopAgent(this);
+  /// Same as adding `AgentStopRequested(agentId)` to the client.
+  void stop() => _client.add(AgentStopRequested(agentId));
+
+  @override
+  void onDone(
+    CopilotAgentEvent event, [
+    Object? error,
+    StackTrace? stackTrace,
+  ]) {
+    super.onDone(event, error, stackTrace);
+    if (--_pending == 0) {
+      _settled?.complete();
+      _settled = null;
+    }
+  }
 
   void _onEvent(CopilotAgentEvent event, Emitter<AgentState> emit) {
-    try {
-      final next = switch (event) {
-        AgentEventReceived(:final event) => _reduce(state, event),
-        AgentMessageAdded(:final message) => state.copyWith(
-          messages: [...state.messages, message],
-        ),
-        AgentTurnStarted() => state.copyWith(
-          isRunning: true,
-          error: () => null,
-        ),
-        AgentTurnEnded() => state.copyWith(isRunning: false),
-        AgentRunFailed(:final error) => state.copyWith(error: () => error),
-      };
-      // Bloc emits the first state even when it equals the initial one;
-      // consumers only want changes.
-      if (next == state) return;
-      emit(next);
-    } finally {
-      if (--_pending == 0) {
-        _settled?.complete();
-        _settled = null;
-      }
-    }
+    final next = switch (event) {
+      AgentEventReceived(:final event) => _reduce(state, event),
+      AgentMessageAdded(:final message) => state.copyWith(
+        messages: [...state.messages, message],
+      ),
+      AgentTurnStarted() => state.copyWith(isRunning: true, error: () => null),
+      AgentTurnEnded() => state.copyWith(isRunning: false),
+      AgentRunFailed(:final error) => state.copyWith(error: () => error),
+    };
+    // Bloc emits the first state even when it equals the initial one;
+    // consumers only want changes.
+    if (next == state) return;
+    emit(next);
   }
 
   /// Applies an AG-UI [event] to [snapshot] and returns the resulting state.

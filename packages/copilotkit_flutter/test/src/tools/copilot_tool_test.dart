@@ -13,25 +13,16 @@ FrontendTool _tool(String name) => FrontendTool(
 );
 
 void main() {
-  setUpAll(() => registerFallbackValue(_tool('fallback')));
+  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
 
   group(CopilotTool, () {
     late _MockCopilotKitClient client;
-    late List<String> unregistered;
 
-    _MockCopilotKitClient mockClient() {
-      final mock = _MockCopilotKitClient();
-      when(() => mock.registerTool(any())).thenAnswer((invocation) {
-        final tool = invocation.positionalArguments.single as FrontendTool;
-        return () => unregistered.add(tool.name);
-      });
-      return mock;
-    }
+    /// The events added to [mock], in order.
+    List<CopilotKitEvent> eventsOf(_MockCopilotKitClient mock) =>
+        verify(() => mock.add(captureAny())).captured.cast<CopilotKitEvent>();
 
-    setUp(() {
-      unregistered = [];
-      client = mockClient();
-    });
+    setUp(() => client = _MockCopilotKitClient());
 
     testWidgets('registers the tool on mount', (tester) async {
       final tool = _tool('showWeather');
@@ -43,18 +34,15 @@ void main() {
         ),
       );
 
-      verify(() => client.registerTool(tool)).called(1);
-      expect(unregistered, isEmpty);
+      expect(eventsOf(client), [ToolRegistered(tool)]);
     });
 
     testWidgets('unregisters the tool on dispose', (tester) async {
+      final tool = _tool('showWeather');
       await tester.pumpWidget(
         CopilotKit.value(
           client: client,
-          child: CopilotTool(
-            tool: _tool('showWeather'),
-            child: const SizedBox(),
-          ),
+          child: CopilotTool(tool: tool, child: const SizedBox()),
         ),
       );
 
@@ -62,7 +50,7 @@ void main() {
         CopilotKit.value(client: client, child: const SizedBox()),
       );
 
-      expect(unregistered, ['showWeather']);
+      expect(eventsOf(client), [ToolRegistered(tool), ToolUnregistered(tool)]);
     });
 
     testWidgets('re-registers when the tool changes', (tester) async {
@@ -77,13 +65,15 @@ void main() {
       await tester.pumpWidget(build(first));
       await tester.pumpWidget(build(second));
 
-      verify(() => client.registerTool(first)).called(1);
-      verify(() => client.registerTool(second)).called(1);
-      expect(unregistered, ['first']);
+      expect(eventsOf(client), [
+        ToolRegistered(first),
+        ToolUnregistered(first),
+        ToolRegistered(second),
+      ]);
     });
 
     testWidgets('moves the tool when the client changes', (tester) async {
-      final other = mockClient();
+      final other = _MockCopilotKitClient();
       final tool = _tool('showWeather');
       Widget build(CopilotKitClient c) => CopilotKit.value(
         client: c,
@@ -93,8 +83,8 @@ void main() {
       await tester.pumpWidget(build(client));
       await tester.pumpWidget(build(other));
 
-      expect(unregistered, ['showWeather']);
-      verify(() => other.registerTool(tool)).called(1);
+      expect(eventsOf(client), [ToolRegistered(tool), ToolUnregistered(tool)]);
+      expect(eventsOf(other), [ToolRegistered(tool)]);
     });
 
     testWidgets('renders its calls with its builder', (tester) async {

@@ -4,11 +4,14 @@ import 'dart:developer' as developer;
 
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
+import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/src/agent/copilot_agent.dart';
 import 'package:copilotkit/src/agent/copilot_agent_event.dart';
 import 'package:copilotkit/src/client/copilot_error_handler.dart';
+import 'package:copilotkit/src/client/copilot_kit_event.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
-import 'package:copilotkit/src/context/agent_context_entry.dart';
+import 'package:copilotkit/src/client/models/copilot_kit_state.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -16,6 +19,7 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
+import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
 /// Results sent to the agent for tool calls that never ran to completion.
@@ -44,8 +48,9 @@ enum _FallbackToolResult {
 /// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
-/// Owns the agents, the registered frontend tools and the context entries,
-/// and attaches the tools and context to every run.
+/// Owns the agents it opened, the registered frontend tools and the context
+/// entries, all in its [state], and attaches the tools and context to every
+/// run. Drive it by adding a [CopilotKitEvent].
 /// {@endtemplate}
 class CopilotKitClient({
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
@@ -58,37 +63,136 @@ class CopilotKitClient({
   final Map<String, Object?> properties = const {},
 
   /// Called with errors instead of throwing them.
-  final CopilotErrorHandler? onError,
+  CopilotErrorHandler? onError,
   AgentTransport? transport,
-}) {
+}) extends Bloc<CopilotKitEvent, CopilotKitState> {
   /// {@macro copilot_kit_client}
   ///
   /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
-  this;
+  this : super(const CopilotKitState()) {
+    on<AgentOpened>(_onAgentOpened);
+    on<ToolRegistered>(_onToolRegistered);
+    on<ToolUnregistered>(_onToolUnregistered);
+    on<ContextAdded>(_onContextAdded);
+    on<ContextUpdated>(_onContextUpdated);
+    on<ContextRemoved>(_onContextRemoved);
+    // A run handler lasts a whole turn; stops and other agents' runs must
+    // be handled while it waits.
+    on<AgentRunRequested>(_onAgentRunRequested, transformer: concurrent());
+    on<AgentStopRequested>(_onAgentStopRequested, transformer: concurrent());
+  }
 
   final AgentTransport _transport =
       transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
-  final Map<String, CopilotAgent> _agents = {};
-  final Map<String, FrontendTool> _tools = {};
-  final List<_ContextEntry> _context = [];
+  final CopilotErrorHandler? _onError = onError;
   final Map<CopilotAgent, _Turn> _turns = {};
 
-  /// Returns the agent with [agentId], creating it on first use.
-  CopilotAgent agent(String agentId) => _agents.putIfAbsent(
-    agentId,
-    () => CopilotAgent(agentId: agentId, client: this),
-  );
+  /// Events added through [handled] whose handler hasn't completed.
+  final List<(CopilotKitEvent, Completer<void>)> _awaited = [];
 
-  /// Runs [agent] with all registered tools and context entries.
+  /// Adds [event] and completes once its handler has, which for
+  /// [AgentRunRequested] is the end of the whole turn.
   ///
-  /// When the agent calls registered frontend tools, their handlers run and
-  /// the agent runs again with the results, until it stops calling them.
-  /// Completes when that whole turn ends. Errors go to [onError] instead of
-  /// being thrown. Tool calls that will never get a result (the run failed,
-  /// or no registered tool handles them) are closed with a result saying so,
-  /// so the next run sends a valid conversation. Does nothing if [agent] is
-  /// already running.
-  Future<void> runAgent(CopilotAgent agent) async {
+  /// Bloc delivers events asynchronously; tests use this to read [state]
+  /// or an agent's state right after an event.
+  @internal
+  Future<void> handled(CopilotKitEvent event) {
+    final completer = Completer<void>();
+    _awaited.add((event, completer));
+    add(event);
+    return completer.future;
+  }
+
+  @override
+  void onDone(CopilotKitEvent event, [Object? error, StackTrace? stackTrace]) {
+    super.onDone(event, error, stackTrace);
+    // The instance that was added, not an equal event added elsewhere.
+    _awaited.removeWhere((entry) {
+      if (!identical(entry.$1, event)) return false;
+      entry.$2.complete();
+      return true;
+    });
+  }
+
+  void _onAgentOpened(AgentOpened event, Emitter<CopilotKitState> emit) {
+    if (state.agents.containsKey(event.agentId)) return;
+    emit(
+      state.copyWith(
+        agents: {
+          ...state.agents,
+          event.agentId: CopilotAgent(agentId: event.agentId, client: this),
+        },
+      ),
+    );
+  }
+
+  void _onToolRegistered(ToolRegistered event, Emitter<CopilotKitState> emit) {
+    emit(state.copyWith(tools: {...state.tools, event.tool.name: event.tool}));
+  }
+
+  void _onToolUnregistered(
+    ToolUnregistered event,
+    Emitter<CopilotKitState> emit,
+  ) {
+    // Only unregister the instance that was registered; an equal tool
+    // registered later must stay.
+    if (!identical(state.tools[event.tool.name], event.tool)) return;
+    emit(
+      state.copyWith(
+        tools: {
+          for (final MapEntry(:key, :value) in state.tools.entries)
+            if (key != event.tool.name) key: value,
+        },
+      ),
+    );
+  }
+
+  void _onContextAdded(ContextAdded event, Emitter<CopilotKitState> emit) {
+    emit(state.copyWith(context: [...state.context, event.entry]));
+  }
+
+  void _onContextUpdated(ContextUpdated event, Emitter<CopilotKitState> emit) {
+    emit(
+      state.copyWith(
+        context: [
+          for (final entry in state.context)
+            if (entry.id == event.id)
+              entry.copyWith(value: event.value)
+            else
+              entry,
+        ],
+      ),
+    );
+  }
+
+  void _onContextRemoved(ContextRemoved event, Emitter<CopilotKitState> emit) {
+    emit(
+      state.copyWith(
+        context: [
+          for (final entry in state.context)
+            if (entry.id != event.id) entry,
+        ],
+      ),
+    );
+  }
+
+  Future<void> _onAgentRunRequested(
+    AgentRunRequested event,
+    Emitter<CopilotKitState> emit,
+  ) async {
+    final agent = state.agents[event.agentId];
+    if (agent != null) await _runAgent(agent);
+  }
+
+  Future<void> _onAgentStopRequested(
+    AgentStopRequested event,
+    Emitter<CopilotKitState> emit,
+  ) async {
+    final agent = state.agents[event.agentId];
+    if (agent != null) await _stopAgent(agent);
+  }
+
+  Future<void> _runAgent(CopilotAgent agent) async {
     if (_turns.containsKey(agent)) return;
     final turn = _Turn();
     _turns[agent] = turn;
@@ -99,7 +203,7 @@ class CopilotKitClient({
         await _closeOpenToolCalls(
           agent,
           _FallbackToolResult.unavailable,
-          where: (call) => !_tools.containsKey(call.name),
+          where: (call) => !state.tools.containsKey(call.name),
         );
         if (pending.isEmpty) return;
         for (final (call, tool) in pending) {
@@ -132,7 +236,7 @@ class CopilotKitClient({
         state: agent.state.sharedState,
         messages: agent.state.messages,
         tools: [
-          for (final tool in _tools.values)
+          for (final tool in state.tools.values)
             Tool(
               name: tool.name,
               description: tool.description,
@@ -140,7 +244,7 @@ class CopilotKitClient({
             ),
         ],
         context: [
-          for (final entry in _context)
+          for (final entry in state.context)
             Context(
               description: entry.description,
               value: jsonEncode(entry.value),
@@ -169,7 +273,7 @@ class CopilotKitClient({
           run.ended = true;
         }
         agent.add(AgentEventReceived(event));
-        if (event is RunErrorEvent) onError?.call(event, StackTrace.current);
+        if (event is RunErrorEvent) _onError?.call(event, StackTrace.current);
       },
       onError: (Object error, StackTrace stackTrace) {
         _fail(agent, error, stackTrace);
@@ -200,7 +304,7 @@ class CopilotKitClient({
   /// tool that handles each.
   List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
     for (final call in agent.state.toolCalls)
-      if ((call.status, _tools[call.name]) case (
+      if ((call.status, state.tools[call.name]) case (
         ToolCallStatus.executing,
         final tool?,
       ))
@@ -212,7 +316,7 @@ class CopilotKitClient({
   ///
   /// Arguments that don't match `FrontendTool.parameters` never reach the
   /// handler: the agent gets a result listing the problems, and they are
-  /// logged rather than sent to [onError], since the agent is at fault.
+  /// logged rather than sent to `onError`, since the agent is at fault.
   Future<String> _runHandler(
     FrontendTool tool,
     ToolCallView call,
@@ -236,22 +340,14 @@ class CopilotKitClient({
     try {
       return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
-      onError?.call(error, stackTrace);
+      _onError?.call(error, stackTrace);
       return _FallbackToolResult.handlerError.message;
     } finally {
       turn.signal = null;
     }
   }
 
-  /// Stops the current run of [agent], closing its connection.
-  ///
-  /// The partial reply is kept and no further events are applied. Running
-  /// tool handlers get their signal cancelled, and any tool call without a
-  /// result is closed as cancelled so the conversation stays valid. If a
-  /// stream was open, the runtime is also asked to stop the run; if that
-  /// fails the error goes to [onError]. Does nothing if [agent] is not
-  /// running.
-  Future<void> stopAgent(CopilotAgent agent) async {
+  Future<void> _stopAgent(CopilotAgent agent) async {
     final turn = _turns.remove(agent);
     if (turn == null) return;
     turn
@@ -274,38 +370,15 @@ class CopilotKitClient({
         headers: run.headers,
       );
     } on Object catch (error, stackTrace) {
-      onError?.call(error, stackTrace);
+      _onError?.call(error, stackTrace);
     }
   }
 
-  /// Makes [tool] available to the agent on every run.
-  ///
-  /// A tool with the same name replaces the previous one. Returns a function
-  /// that unregisters [tool]; it does nothing once [tool] was replaced.
-  void Function() registerTool(FrontendTool tool) {
-    _tools[tool.name] = tool;
-    return () {
-      // Only unregister the instance this call registered; an equal tool
-      // registered later must stay.
-      if (identical(_tools[tool.name], tool)) _tools.remove(tool.name);
-    };
-  }
-
-  /// Shares [value] with the agent, described by [description].
-  ///
-  /// [value] must be JSON-encodable; it is encoded on every run, and a run
-  /// with a value that can't be encoded fails through [onError]. Use the
-  /// returned entry to update or remove it.
-  AgentContextEntry addContext(String description, Object? value) {
-    final entry = _ContextEntry(this, description, value);
-    _context.add(entry);
-    return entry;
-  }
-
-  /// Stops all runs and releases the transport.
+  /// Stops all runs, closes the agents and releases the transport.
   ///
   /// The client and its agents can't be used afterwards.
-  Future<void> dispose() async {
+  @override
+  Future<void> close() async {
     for (final turn in _turns.values) {
       turn
         ..stopped = true
@@ -316,10 +389,11 @@ class CopilotKitClient({
       run.finish();
     }
     _turns.clear();
-    for (final agent in _agents.values) {
+    for (final agent in state.agents.values) {
       await agent.close();
     }
     await _transport.close();
+    await super.close();
   }
 
   /// Gives every tool call without a result (and matching [where], if set)
@@ -356,20 +430,8 @@ class CopilotKitClient({
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
     agent.add(AgentRunFailed(error));
-    onError?.call(error, stackTrace);
+    _onError?.call(error, stackTrace);
   }
-}
-
-class _ContextEntry(
-  final CopilotKitClient _client,
-  @override final String description,
-  @override var Object? value,
-) implements AgentContextEntry {
-  @override
-  void update(Object? value) => this.value = value;
-
-  @override
-  void remove() => _client._context.remove(this);
 }
 
 /// One `runAgent` call: stream runs plus the tool handlers between them.

@@ -16,21 +16,28 @@ Future<void> main() async {
 
   // A frontend tool. In Flutter, `CopilotTool` registers it for the
   // lifetime of a widget and renders `ToolCallView`s with a builder.
-  final unregisterTool = client.registerTool(
-    FrontendTool(
-      name: 'showWeather',
-      description: 'Show the weather for a city',
-      parameters: Ack.object({'city': Ack.string()}),
-      handler: (args, {required signal}) async =>
-          jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
-    ),
+  final showWeather = FrontendTool(
+    name: 'showWeather',
+    description: 'Show the weather for a city',
+    parameters: Ack.object({'city': Ack.string()}),
+    handler: (args, {required signal}) async =>
+        jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
   );
 
   // App data the agent can answer from. In Flutter, `CopilotContext`.
-  final user = client.addContext('Current user', {'name': 'Ada'});
+  final user = AgentContextEntry(
+    description: 'Current user',
+    value: const {'name': 'Ada'},
+  );
 
-  final agent = client.agent('default');
-  final subscription = agent.stream.listen((state) {
+  client
+    ..add(ToolRegistered(showWeather))
+    ..add(ContextAdded(user))
+    ..add(const AgentOpened('default'));
+  final agent = await client.stream
+      .map((state) => state.agents['default'])
+      .firstWhere((agent) => agent != null);
+  final subscription = agent!.stream.listen((state) {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
@@ -48,10 +55,12 @@ Future<void> main() async {
   await agent.addMessage(
     UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
   );
-  await agent.run();
+  agent.run();
+  await agent.stream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();
-  user.remove();
-  unregisterTool();
-  await client.dispose();
+  client
+    ..add(ContextRemoved(user.id))
+    ..add(ToolUnregistered(showWeather));
+  await client.close();
 }

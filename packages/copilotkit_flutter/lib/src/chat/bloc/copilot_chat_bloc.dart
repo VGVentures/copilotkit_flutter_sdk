@@ -38,7 +38,7 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     final text = event.text.trim();
     if (text.isEmpty || _agent.state.isRunning) return;
     await _agent.addMessage(UserMessage(id: const Uuid().v4(), content: text));
-    await _agent.run();
+    _agent.run();
   }
 
   @override

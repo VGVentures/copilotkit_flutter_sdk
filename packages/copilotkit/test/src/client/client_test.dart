@@ -6,6 +6,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../helpers/client_x.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 final Uri _runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
@@ -28,7 +30,7 @@ void main() {
     late List<(Object, StackTrace)> errors;
     late CopilotKitClient client;
 
-    setUp(() {
+    setUp(() async {
       transport = _MockAgentTransport();
       when(() => transport.close()).thenAnswer((_) async {});
       errors = [];
@@ -51,30 +53,30 @@ void main() {
       ).thenAnswer((_) => events);
     }
 
-    test('exposes its configuration', () {
+    test('exposes its configuration', () async {
       expect(client.runtimeUrl, _runtimeUrl);
       expect(client.properties, {'userId': '42'});
       expect(client.headers, isNotNull);
-      expect(client.onError, isNotNull);
+      expect(client.state, const CopilotKitState());
     });
 
     test('creates a default transport when none is given', () async {
       final defaultClient = CopilotKitClient(runtimeUrl: _runtimeUrl);
 
-      await expectLater(defaultClient.dispose(), completes);
+      await expectLater(defaultClient.close(), completes);
     });
 
     group('agent', () {
-      test('returns the same agent for the same id', () {
-        final agent = client.agent('default');
+      test('returns the same agent for the same id', () async {
+        final agent = await client.openAgent('default');
 
-        expect(client.agent('default'), same(agent));
+        expect(await client.openAgent('default'), same(agent));
         expect(agent.agentId, 'default');
       });
 
-      test('gives each agent its own thread', () {
-        final a = client.agent('a');
-        final b = client.agent('b');
+      test('gives each agent its own thread', () async {
+        final a = await client.openAgent('a');
+        final b = await client.openAgent('b');
 
         expect(Uuid.isValidUUID(fromString: a.threadId), isTrue);
         expect(a.threadId, isNot(b.threadId));
@@ -84,7 +86,7 @@ void main() {
     group('runAgent', () {
       test('sends messages, state, properties and headers', () async {
         stubRun(const Stream.empty());
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final message = UserMessage(id: 'u1', content: 'Hi');
         await agent.addMessage(message);
 
@@ -109,7 +111,7 @@ void main() {
 
       test('uses a new run id for every run', () async {
         stubRun(const Stream.empty());
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await client.runAgent(agent);
         await client.runAgent(agent);
@@ -131,7 +133,7 @@ void main() {
         );
         stubRun(const Stream.empty());
 
-        await client.runAgent(client.agent('default'));
+        await client.runAgent(await client.openAgent('default'));
 
         verify(
           () => transport.run(
@@ -142,7 +144,7 @@ void main() {
       });
 
       test('streams the assistant reply into messages', () async {
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         stubRun(
           Stream.fromIterable([
             RunStartedEvent(threadId: agent.threadId, runId: 'r'),
@@ -155,7 +157,7 @@ void main() {
         final texts = <String?>[];
         agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
 
-        await agent.run();
+        await client.runAgent(agent);
         await pumpEventQueue();
 
         expect(agent.state.messages.single.content, 'Hello');
@@ -164,10 +166,32 @@ void main() {
         expect(errors, isEmpty);
       });
 
+      test('run and stop add the client events', () async {
+        final events = StreamController<BaseEvent>();
+        stubRun(events.stream);
+        when(
+          () => transport.stop(
+            agentId: any(named: 'agentId'),
+            threadId: any(named: 'threadId'),
+            runId: any(named: 'runId'),
+            headers: any(named: 'headers'),
+          ),
+        ).thenAnswer((_) async {});
+        final agent = await client.openAgent('default');
+
+        agent.run();
+        await agent.stream.firstWhere((state) => state.isRunning);
+        agent.stop();
+        await agent.stream.firstWhere((state) => !state.isRunning);
+
+        expect(agent.state.isRunning, isFalse);
+        await events.close();
+      });
+
       test('is running as soon as the run starts', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         final run = client.runAgent(agent);
         await pumpEventQueue();
@@ -182,7 +206,7 @@ void main() {
       test('ignores a run while one is in progress', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final first = client.runAgent(agent);
         await pumpEventQueue();
 
@@ -203,7 +227,7 @@ void main() {
       test('reports transport errors and ends the run', () async {
         final failure = Exception('connection refused');
         stubRun(Stream.error(failure));
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await expectLater(client.runAgent(agent), completes);
 
@@ -221,7 +245,7 @@ void main() {
             headers: any(named: 'headers'),
           ),
         ).thenThrow(failure);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await expectLater(client.runAgent(agent), completes);
 
@@ -230,7 +254,7 @@ void main() {
       });
 
       test('reports a stream that ends before the run finishes', () async {
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         stubRun(
           Stream.value(RunStartedEvent(threadId: agent.threadId, runId: 'r')),
         );
@@ -250,7 +274,7 @@ void main() {
           onError: (error, stackTrace) => errors.add((error, stackTrace)),
           transport: transport,
         );
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await client.runAgent(agent);
 
@@ -272,16 +296,19 @@ void main() {
         );
         stubRun(Stream.error(Exception('boom')));
 
-        await expectLater(client.runAgent(client.agent('default')), completes);
+        await expectLater(
+          client.runAgent(await client.openAgent('default')),
+          completes,
+        );
       });
     });
 
     group('dispose', () {
       test('closes the transport and the agent streams', () async {
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final changesDone = agent.stream.drain<void>();
 
-        await client.dispose();
+        await client.close();
 
         verify(() => transport.close()).called(1);
         await expectLater(changesDone, completes);
@@ -294,11 +321,11 @@ void main() {
           onCancel: () => cancelled = true,
         );
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final run = client.runAgent(agent);
         await pumpEventQueue();
 
-        await client.dispose();
+        await client.close();
         await run;
 
         expect(cancelled, isTrue);
@@ -309,15 +336,15 @@ void main() {
   group(CopilotAgent, () {
     late CopilotKitClient client;
 
-    setUp(() {
+    setUp(() async {
       client = CopilotKitClient(
         runtimeUrl: _runtimeUrl,
         transport: _MockAgentTransport(),
       );
     });
 
-    test('starts idle and empty', () {
-      final agent = client.agent('default');
+    test('starts idle and empty', () async {
+      final agent = await client.openAgent('default');
 
       expect(agent.state.messages, isEmpty);
       expect(agent.state.sharedState, isNull);
@@ -326,7 +353,7 @@ void main() {
       expect(agent.state.error, isNull);
     });
 
-    test('uses the given thread id', () {
+    test('uses the given thread id', () async {
       final agent = CopilotAgent(
         agentId: 'default',
         client: client,
@@ -337,7 +364,7 @@ void main() {
     });
 
     test('addMessage appends the message and emits a change', () async {
-      final agent = client.agent('default');
+      final agent = await client.openAgent('default');
       final message = UserMessage(id: 'u1', content: 'Hi');
       final change = agent.stream.first;
 

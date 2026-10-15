@@ -3,6 +3,7 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
@@ -23,16 +24,18 @@ void main() {
   group('resilience', () {
     late _MockAgentTransport transport;
     late List<Object> errors;
+    late CopilotKitClient client;
     late CopilotAgent agent;
 
-    setUp(() {
+    setUp(() async {
       transport = _MockAgentTransport();
       errors = [];
-      agent = CopilotKitClient(
+      client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         onError: (error, _) => errors.add(error),
         transport: transport,
-      ).agent('default');
+      );
+      agent = await client.openAgent('default');
     });
 
     void stubRun(List<BaseEvent> events) {
@@ -66,7 +69,7 @@ void main() {
           RunFinishedEvent(threadId: agent.threadId, runId: 'r'),
         ]);
 
-        await agent.run();
+        await client.runAgent(agent);
 
         expect(agent.state.messages.single.content, 'Hello');
         expect(agent.state.isRunning, isFalse);
@@ -83,7 +86,7 @@ void main() {
         runError,
       ]);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors, [same(runError)]);
       expect(agent.state.isRunning, isFalse);
@@ -94,7 +97,7 @@ void main() {
     test('unknown_events fixture keeps the text reply', () async {
       stubRun(loadFixture('unknown_events').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(
         agent.state.messages.single.content,
@@ -107,7 +110,7 @@ void main() {
     test('recorded run_error fixture reports the runtime error', () async {
       stubRun(loadFixture('run_error').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors.single, isA<RunErrorEvent>());
       expect(
@@ -125,7 +128,7 @@ void main() {
         'reply', () async {
       stubRun(loadFixture('dropped_connection').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors.single, isA<StateError>());
       expect(agent.state.messages.single.content, 'Hello! Wonderful to');
