@@ -17,7 +17,8 @@ you install it through FVM.
 - [FVM](https://fvm.app) (Flutter Version Management).
 - Xcode for iOS, Android Studio (Android SDK) for Android, or both.
 - Node.js 20 or later, for the local Copilot Runtime.
-- An OpenAI API key.
+- An OpenAI API key, or a key for another supported provider such as Google
+  Gemini. See [Use a Gemini key](example/README.md#use-a-gemini-key).
 
 ## Quick start
 
@@ -87,6 +88,10 @@ Send these prompts to see each part of the SDK:
   that the app shares as context (Ada, from Lima).
 - **Stop:** Tap the stop button while a reply streams. The partial reply stays,
   and you can send the next message.
+
+For the full list of checks, see the
+[manual test checklist](example/README.md#manual-test-checklist). If messages
+fail, see [Troubleshooting](example/README.md#troubleshooting).
 
 ## Repository layout
 
