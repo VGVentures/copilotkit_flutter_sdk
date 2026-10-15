@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:math';
 
+import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/agent_transport.dart';
@@ -202,14 +204,34 @@ class CopilotKitClient({
         (call, tool),
   ];
 
+  /// Runs the handler of [tool] for [call] and returns the result for the
+  /// agent.
+  ///
+  /// Arguments that don't match `FrontendTool.parameters` never reach the
+  /// handler: the agent gets a result listing the problems, and they are
+  /// logged rather than sent to [onError], since the agent is at fault.
   Future<String> _runHandler(
     FrontendTool tool,
     ToolCallView call,
     _Turn turn,
   ) async {
+    final Map<String, Object?> args;
+    switch (tool.parameters.safeParse(call.args)) {
+      case Ok(:final value):
+        args = value ?? const {};
+      case Fail(:final error):
+        final result = invalidArgumentsResult(error);
+        developer.log(
+          'Invalid arguments for tool "${call.name}":\n$result',
+          name: 'copilotkit',
+          level: 900, // WARNING
+          error: error,
+        );
+        return result;
+    }
     final signal = turn.signal = CancellationSignal();
     try {
-      return await tool.handler(call.args, signal: signal);
+      return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
       onError?.call(error, stackTrace);
       return _handlerErrorResult;
