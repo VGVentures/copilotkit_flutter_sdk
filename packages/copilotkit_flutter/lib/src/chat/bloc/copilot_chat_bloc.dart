@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/chat/models/chat_row.dart';
 import 'package:equatable/equatable.dart';
+import 'package:uuid/uuid.dart';
 
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
@@ -29,7 +30,6 @@ class CopilotChatBloc({required final CopilotAgent _agent})
   }
 
   late final StreamSubscription<AgentSnapshot> _subscription;
-  int _sentCount = 0;
 
   Future<void> _onMessageSent(
     ChatMessageSent event,
@@ -37,8 +37,7 @@ class CopilotChatBloc({required final CopilotAgent _agent})
   ) async {
     final text = event.text.trim();
     if (text.isEmpty || _agent.isRunning) return;
-    final id = 'user-${DateTime.now().microsecondsSinceEpoch}-${_sentCount++}';
-    await _agent.addMessage(UserMessage(id: id, content: text));
+    await _agent.addMessage(UserMessage(id: const Uuid().v4(), content: text));
     await _agent.run();
   }
 
