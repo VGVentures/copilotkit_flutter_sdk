@@ -31,3 +31,40 @@ Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
 
 Object? _subschema(Object? value) =>
     value is Map<String, Object?> ? _withProperties(value) : value;
+
+/// The tool result sent instead of running a handler whose arguments failed
+/// validation with [error].
+///
+/// Lists one problem per line, by argument path, so the agent can fix the
+/// arguments and call the tool again.
+String invalidArgumentsResult(SchemaError error) => [
+  _invalidArgumentsSummary,
+  for (final problem in _problems(error)) '- ${_describe(problem)}',
+].join('\n');
+
+const _invalidArgumentsSummary =
+    "The tool didn't run: its arguments don't match its parameters. "
+    'Fix them and call it again.';
+
+/// The innermost errors under [error].
+Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
+  SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
+    _problems,
+  ),
+  _ => [error],
+};
+
+/// Describes [error] as `path: message`, e.g. `unit.step: Expected integer,
+/// got string.`; root errors have no path.
+String _describe(SchemaError error) {
+  final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
+  var message = error.message.replaceFirst(_constraintsPrefix, '');
+  if (!message.endsWith('.')) message = '$message.';
+  return path.isEmpty ? message : '$path: $message';
+}
+
+/// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
+final _rootPointer = RegExp('^#/?');
+
+/// Ack's prefix on constraint errors; the path already says what failed.
+const _constraintsPrefix = 'Constraints not met: ';

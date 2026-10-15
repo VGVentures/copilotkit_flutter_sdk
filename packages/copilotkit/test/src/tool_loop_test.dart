@@ -2,178 +2,29 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
-class _MockAgentTransport extends Mock implements AgentTransport;
-
-List<BaseEvent> _toolCallRun(String threadId, {String name = 'showWeather'}) {
-  return [
-    RunStartedEvent(threadId: threadId, runId: 'r1'),
-    ToolCallStartEvent(
-      toolCallId: 'c1',
-      toolCallName: name,
-      parentMessageId: 'a1',
-    ),
-    const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Lima"}'),
-    const ToolCallEndEvent(toolCallId: 'c1'),
-    RunFinishedEvent(threadId: threadId, runId: 'r1'),
-  ];
-}
-
-List<BaseEvent> _replyRun(String threadId) {
-  return [
-    RunStartedEvent(threadId: threadId, runId: 'r2'),
-    const TextMessageStartEvent(messageId: 'a2'),
-    const TextMessageContentEvent(messageId: 'a2', delta: 'Sunny in Lima'),
-    RunFinishedEvent(threadId: threadId, runId: 'r2'),
-  ];
-}
+import '../helpers/tool_loop_harness.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(ToolLoopHarness.registerFallbacks);
 
   group('frontend tools', () {
-    late _MockAgentTransport transport;
-    late List<Object> errors;
+    late ToolLoopHarness harness;
     late CopilotKitClient client;
     late CopilotAgent agent;
     late List<Stream<BaseEvent>> runs;
+    late List<Object> errors;
 
     setUp(() {
-      transport = _MockAgentTransport();
-      errors = [];
-      runs = [];
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => runs.removeAt(0));
-      when(
-        () => transport.stop(
-          agentId: any(named: 'agentId'),
-          threadId: any(named: 'threadId'),
-          runId: any(named: 'runId'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) async {});
-      client = CopilotKitClient(
-        runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
-        onError: (error, _) => errors.add(error),
-        transport: transport,
-      );
-      agent = client.agent('default');
+      harness = ToolLoopHarness();
+      client = harness.client;
+      agent = harness.agent;
+      runs = harness.runs;
+      errors = harness.errors;
     });
 
-    List<RunAgentInput> sentInputs() {
-      return verify(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: captureAny(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).captured.cast<RunAgentInput>();
-    }
-
-    FrontendTool weatherTool(FrontendToolHandler handler) {
-      return FrontendTool(
-        name: 'showWeather',
-        description: 'Show the weather for a city',
-        parameters: Ack.object({
-          'city': Ack.string().describe('City name'),
-          'days': Ack.integer().optional(),
-        }),
-        handler: handler,
-      );
-    }
-
-    group('registerTool', () {
-      test('sends registered tools with their JSON Schema', () async {
-        client.registerTool(weatherTool((_, {required signal}) async => ''));
-        runs.add(const Stream.empty());
-
-        await agent.run();
-
-        final tool = sentInputs().single.tools.single;
-        expect(tool.name, 'showWeather');
-        expect(tool.description, 'Show the weather for a city');
-        expect(tool.parameters, {
-          'type': 'object',
-          'properties': {
-            'city': {'type': 'string', 'description': 'City name'},
-            'days': {'type': 'integer'},
-          },
-          'required': ['city'],
-          'additionalProperties': false,
-        });
-      });
-
-      test('sends empty properties for empty object schemas', () async {
-        client.registerTool(
-          FrontendTool(
-            name: 'refresh',
-            description: 'Refresh the screen',
-            parameters: Ack.object({'options': Ack.object({})}),
-            handler: (_, {required signal}) async => '',
-          ),
-        );
-        runs.add(const Stream.empty());
-
-        await agent.run();
-
-        expect(sentInputs().single.tools.single.parameters, {
-          'type': 'object',
-          'properties': {
-            'options': {
-              'type': 'object',
-              'additionalProperties': false,
-              'properties': <String, Object?>{},
-            },
-          },
-          'required': ['options'],
-          'additionalProperties': false,
-        });
-      });
-
-      test('the returned function unregisters the tool', () async {
-        client.registerTool(weatherTool((_, {required signal}) async => ''))();
-        runs.add(const Stream.empty());
-
-        await agent.run();
-
-        expect(sentInputs().single.tools, isEmpty);
-      });
-
-      test(
-        'a stale unregister keeps a newer tool with the same name',
-        () async {
-          final unregisterOld = client.registerTool(
-            weatherTool((_, {required signal}) async => 'old'),
-          );
-          client.registerTool(
-            weatherTool((_, {required signal}) async => 'new'),
-          );
-          unregisterOld();
-          runs.add(const Stream.empty());
-
-          await agent.run();
-
-          expect(sentInputs().single.tools, hasLength(1));
-        },
-      );
-    });
+    List<RunAgentInput> sentInputs() => harness.sentInputs();
 
     test('runs the handler, sends the result and runs again', () async {
       Map<String, Object?>? receivedArgs;
@@ -186,8 +37,8 @@ void main() {
         }),
       );
       runs
-        ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
       final statuses = <ToolCallStatus>[];
       agent.changes.listen((s) {
         final status = s.toolCalls.firstOrNull?.status;
@@ -229,8 +80,8 @@ void main() {
         weatherTool((_, {required signal}) => handlerDone.future),
       );
       runs
-        ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
 
       final run = agent.run();
       await pumpEventQueue();
@@ -245,8 +96,8 @@ void main() {
     test('stays running from the first run to the end of the turn', () async {
       client.registerTool(weatherTool((_, {required signal}) async => 'ok'));
       runs
-        ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
       final running = <bool>[];
       agent.changes.listen((snapshot) => running.add(snapshot.isRunning));
 
@@ -283,8 +134,8 @@ void main() {
           weatherTool((_, {required signal}) async => throw failure),
         );
         runs
-          ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
-          ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+          ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+          ..add(Stream.fromIterable(replyRun(agent.threadId)));
 
         await agent.run();
 
@@ -295,8 +146,68 @@ void main() {
       },
     );
 
+    test('passes the handler the args parsed by the schema', () async {
+      Map<String, Object?>? receivedArgs;
+      client.registerTool(
+        FrontendTool(
+          name: 'showWeather',
+          description: 'Show the weather for a city',
+          parameters: Ack.object({
+            'city': Ack.string(),
+            'days': Ack.integer().withDefault(3),
+          }),
+          handler: (args, {required signal}) async {
+            receivedArgs = args;
+            return 'ok';
+          },
+        ),
+      );
+      runs
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+
+      await agent.run();
+
+      expect(receivedArgs, {'city': 'Lima', 'days': 3});
+    });
+
+    test('answers invalid args without running the handler', () async {
+      var called = false;
+      client.registerTool(
+        weatherTool((_, {required signal}) async {
+          called = true;
+          return '';
+        }),
+      );
+      final events = toolCallRun(agent.threadId)
+        ..[2] = const ToolCallArgsEvent(
+          toolCallId: 'c1',
+          delta: '{"days": "3"}',
+        );
+      runs
+        ..add(Stream.fromIterable(events))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+
+      await agent.run();
+
+      expect(called, isFalse);
+      expect(errors, isEmpty);
+      final result = agent.toolCalls.single.result;
+      expect(
+        result,
+        allOf(
+          startsWith("The tool didn't run"),
+          contains('- city: Required property "city" is missing.'),
+          contains('- days: Expected integer, got string.'),
+        ),
+      );
+      final toolMessage = sentInputs().last.messages.last as ToolMessage;
+      expect(toolMessage.content, result);
+      expect(agent.messages.last.content, 'Sunny in Lima');
+    });
+
     test('closes calls to unregistered tools as unavailable', () async {
-      runs.add(Stream.fromIterable(_toolCallRun(agent.threadId)));
+      runs.add(Stream.fromIterable(toolCallRun(agent.threadId)));
 
       await agent.run();
 
@@ -309,7 +220,7 @@ void main() {
 
     test('closes unregistered calls before running again', () async {
       client.registerTool(weatherTool((_, {required signal}) async => 'ok'));
-      final events = _toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.threadId)
         ..insertAll(4, const [
           ToolCallStartEvent(
             toolCallId: 'c2',
@@ -320,7 +231,7 @@ void main() {
         ]);
       runs
         ..add(Stream.fromIterable(events))
-        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
 
       await agent.run();
 
@@ -340,7 +251,7 @@ void main() {
           return '';
         }),
       );
-      final events = _toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.threadId)
         ..insert(
           4,
           const ToolCallResultEvent(
@@ -366,7 +277,7 @@ void main() {
           return '';
         }),
       );
-      final events = _toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.threadId)
         ..[4] = const RunErrorEvent(message: 'model error');
       runs.add(Stream.fromIterable(events));
 
@@ -376,121 +287,14 @@ void main() {
       expect(sentInputs(), hasLength(1));
     });
 
-    group('a failed run closes open calls', () {
-      void expectClosedAsFailed() {
-        final view = agent.toolCalls.single;
-        expect(view.status, ToolCallStatus.complete);
-        expect(view.result, 'Tool call failed: the run ended early.');
-        final message = agent.messages.whereType<ToolMessage>().single;
-        expect(message.toolCallId, 'c1');
-        expect(message.content, view.result);
-      }
-
-      test('when the connection drops after the call ended', () async {
-        client.registerTool(weatherTool((_, {required signal}) async => ''));
-        runs.add(
-          Stream.fromIterable(_toolCallRun(agent.threadId)..removeLast()),
-        );
-
-        await agent.run();
-
-        expect(sentInputs(), hasLength(1));
-        expectClosedAsFailed();
-      });
-
-      test('when the runtime reports an error mid-args', () async {
-        runs.add(
-          Stream.fromIterable([
-            ..._toolCallRun(agent.threadId).take(3),
-            const RunErrorEvent(message: 'model error'),
-          ]),
-        );
-
-        await agent.run();
-
-        expectClosedAsFailed();
-      });
-
-      test('so the next run sends a valid conversation', () async {
-        runs
-          ..add(Stream.fromIterable(_toolCallRun(agent.threadId)..removeLast()))
-          ..add(Stream.fromIterable(_replyRun(agent.threadId)));
-        await agent.run();
-
-        await agent.run();
-
-        final messages = sentInputs().last.messages;
-        expect(messages.last, isA<ToolMessage>());
-      });
-    });
-
-    group('stop', () {
-      test('while the handler runs cancels its signal and does not run '
-          'again', () async {
-        final handlerDone = Completer<String>();
-        late CancellationSignal receivedSignal;
-        client.registerTool(
-          weatherTool((_, {required signal}) {
-            receivedSignal = signal;
-            return handlerDone.future;
-          }),
-        );
-        runs.add(Stream.fromIterable(_toolCallRun(agent.threadId)));
-        final run = agent.run();
-        await pumpEventQueue();
-
-        await agent.stop();
-        handlerDone.complete('late result');
-        await run;
-
-        expect(receivedSignal.isCancelled, isTrue);
-        expect(sentInputs(), hasLength(1));
-        expect(agent.isRunning, isFalse);
-        final view = agent.toolCalls.single;
-        expect(view.status, ToolCallStatus.complete);
-        expect(view.result, 'Tool call cancelled.');
-        expect(
-          agent.messages.whereType<ToolMessage>().single.content,
-          'Tool call cancelled.',
-        );
-        verifyNever(
-          () => transport.stop(
-            agentId: any(named: 'agentId'),
-            threadId: any(named: 'threadId'),
-            runId: any(named: 'runId'),
-            headers: any(named: 'headers'),
-          ),
-        );
-      });
-
-      test('while args stream closes the call as cancelled', () async {
-        final events = StreamController<BaseEvent>();
-        runs.add(events.stream);
-        final run = agent.run();
-        events
-          ..add(RunStartedEvent(threadId: agent.threadId, runId: 'r1'))
-          ..add(
-            const ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
-          )
-          ..add(const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"ci'));
-        await pumpEventQueue();
-
-        await agent.stop();
-        await run;
-
-        expect(agent.toolCalls.single.status, ToolCallStatus.complete);
-        expect(agent.messages.last, isA<ToolMessage>());
-      });
-    });
-
     test('ignores a run while handlers are running', () async {
       final handlerDone = Completer<String>();
       client.registerTool(
         weatherTool((_, {required signal}) => handlerDone.future),
       );
       runs
-        ..add(Stream.fromIterable(_toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(_replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
       final run = agent.run();
       await pumpEventQueue();
 
