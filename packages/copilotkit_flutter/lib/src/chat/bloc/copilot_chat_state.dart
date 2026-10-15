@@ -49,36 +49,3 @@ List<ChatRow> _rowsFor(Message message, Map<String, ToolCallView> calls) => [
 bool _hasText(Message message) =>
     (message is UserMessage || message is AssistantMessage) &&
     (message.content ?? '').isNotEmpty;
-
-/// One row of a chat UI.
-sealed class ChatRow extends Equatable {
-  const new();
-}
-
-/// {@template chat_message_row}
-/// A user or assistant text [message].
-/// {@endtemplate}
-final class const ChatMessageRow(
-  /// The message to show; its `content` is the text.
-  final Message message,
-) extends ChatRow {
-  /// {@macro chat_message_row}
-  this;
-
-  @override
-  List<Object?> get props => [message];
-}
-
-/// {@template chat_tool_call_row}
-/// A tool [call]; render it with `ToolCallWidget`.
-/// {@endtemplate}
-final class const ChatToolCallRow(
-  /// The tool call to show.
-  final ToolCallView call,
-) extends ChatRow {
-  /// {@macro chat_tool_call_row}
-  this;
-
-  @override
-  List<Object?> get props => [call];
-}

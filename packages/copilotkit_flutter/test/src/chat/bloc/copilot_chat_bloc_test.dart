@@ -213,14 +213,12 @@ void main() {
       expect(changes.hasListener, isFalse);
     });
 
-    test('events and rows support value equality', () {
+    test('events support value equality', () {
       // Non-const instances, so equality goes through props.
       // ignore_for_file: prefer_const_constructors
       expect(ChatMessageSent('a'), ChatMessageSent('a'));
       expect(ChatMessageSent('a'), isNot(ChatMessageSent('b')));
       expect(ChatStopRequested(), ChatStopRequested());
-      expect(ChatMessageRow(_user), ChatMessageRow(_user));
-      expect(ChatToolCallRow(_call), ChatToolCallRow(_call));
     });
   });
 }
