@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:bloc/bloc.dart';
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit_flutter/src/chat/models/chat_row.dart';
 import 'package:equatable/equatable.dart';
 
 part 'copilot_chat_event.dart';
