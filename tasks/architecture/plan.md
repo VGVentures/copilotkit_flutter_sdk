@@ -11,7 +11,7 @@ Give both packages a clear, consistent architecture: a hybrid folder layout (fea
 
 Each decision gets an ADR in `docs/adr/` (Tasks 2–3), linked here once written.
 
-Written so far: [0001](../../docs/adr/0001-hybrid-feature-layout.md), [0002](../../docs/adr/0002-agent-bloc-and-immutability.md), [0003](../../docs/adr/0003-nullable-copy-with-closures.md).
+Written so far: [0001](../../docs/adr/0001-hybrid-feature-layout.md), [0002](../../docs/adr/0002-agent-bloc-and-immutability.md), [0003](../../docs/adr/0003-nullable-copy-with-closures.md), [0004](../../docs/adr/0004-uuid-for-ids.md), [0005](../../docs/adr/0005-equatable-value-models.md), [0006](../../docs/adr/0006-partial-json-in-house.md).
 
 | # | Decision | ADR |
 |---|---|---|

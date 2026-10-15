@@ -35,3 +35,6 @@ What becomes easier, what becomes harder, and what follows from it.
 | [0001](0001-hybrid-feature-layout.md) | Hybrid feature layout, moved before refactoring |
 | [0002](0002-agent-bloc-and-immutability.md) | `CopilotAgent` as a bloc, immutability everywhere |
 | [0003](0003-nullable-copy-with-closures.md) | Nullable `copyWith` fields take getter closures |
+| [0004](0004-uuid-for-ids.md) | `uuid` for run, thread, message and tool-result ids |
+| [0005](0005-equatable-value-models.md) | `Equatable` on every value model |
+| [0006](0006-partial-json-in-house.md) | Partial JSON parsing stays in-house |
