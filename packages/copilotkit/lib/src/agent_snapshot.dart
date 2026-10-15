@@ -1,5 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/tools.dart';
+import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 
 /// Immutable view of an agent's state at one point in time.
 ///

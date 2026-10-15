@@ -1,7 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/reducer.dart';
-import 'package:copilotkit/src/tools.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
 import '../helpers/fixtures.dart';

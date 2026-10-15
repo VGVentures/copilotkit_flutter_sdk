@@ -9,8 +9,11 @@ import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/agent_transport.dart';
 import 'package:copilotkit/src/context.dart';
 import 'package:copilotkit/src/reducer.dart';
-import 'package:copilotkit/src/tool_schema.dart';
-import 'package:copilotkit/src/tools.dart';
+import 'package:copilotkit/src/tools/cancellation_signal.dart';
+import 'package:copilotkit/src/tools/frontend_tool.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
+import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 
 part 'agent.dart';
