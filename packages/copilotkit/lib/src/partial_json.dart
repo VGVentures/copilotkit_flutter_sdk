@@ -69,17 +69,25 @@ class _PartialJsonParser(final String _input) {
         _index++;
         return result;
       }
-      if (_peek != '"') throw _Garbage();
-      final key = _string();
-      _skipWhitespace();
-      if (_atEnd) return result;
-      if (_peek != ':') throw _Garbage();
-      _index++;
+      final key = _key();
+      if (key == null) return result;
       final value = _value();
       if (identical(value, _incomplete)) return result;
       result[key] = value;
       if (!_separator('}')) return result;
     }
+  }
+
+  /// Consumes an object key and its `:`. Returns `null` when the input ends
+  /// before the `:`.
+  String? _key() {
+    if (_peek != '"') throw _Garbage();
+    final key = _string();
+    _skipWhitespace();
+    if (_atEnd) return null;
+    if (_peek != ':') throw _Garbage();
+    _index++;
+    return key;
   }
 
   List<Object?> _array() {
@@ -121,42 +129,39 @@ class _PartialJsonParser(final String _input) {
     while (!_atEnd) {
       final char = _input[_index++];
       if (char == '"') return buffer.toString();
-      if (char != r'\') {
-        buffer.write(char);
-        continue;
-      }
-      if (_atEnd) break;
-      final escape = _input[_index++];
-      switch (escape) {
-        case '"' || r'\' || '/':
-          buffer.write(escape);
-        case 'b':
-          buffer.write('\b');
-        case 'f':
-          buffer.write('\f');
-        case 'n':
-          buffer.write('\n');
-        case 'r':
-          buffer.write('\r');
-        case 't':
-          buffer.write('\t');
-        case 'u':
-          if (_index + 4 > _input.length) {
-            _index = _input.length;
-            break;
-          }
-          final code = int.tryParse(
-            _input.substring(_index, _index + 4),
-            radix: 16,
-          );
-          if (code == null) throw _Garbage();
-          buffer.writeCharCode(code);
-          _index += 4;
-        default:
-          throw _Garbage();
-      }
+      buffer.write(char == r'\' ? _escape() : char);
     }
     return buffer.toString();
+  }
+
+  /// Decodes the escape after a `\`. Returns `''` when the input ends inside
+  /// it.
+  String _escape() {
+    if (_atEnd) return '';
+    final escape = _input[_index++];
+    return switch (escape) {
+      '"' || r'\' || '/' => escape,
+      'b' => '\b',
+      'f' => '\f',
+      'n' => '\n',
+      'r' => '\r',
+      't' => '\t',
+      'u' => _unicodeEscape(),
+      _ => throw _Garbage(),
+    };
+  }
+
+  /// Decodes the four hex digits of a `\u` escape. Returns `''` when the
+  /// input ends before all four.
+  String _unicodeEscape() {
+    if (_index + 4 > _input.length) {
+      _index = _input.length;
+      return '';
+    }
+    final code = int.tryParse(_input.substring(_index, _index + 4), radix: 16);
+    if (code == null) throw _Garbage();
+    _index += 4;
+    return String.fromCharCode(code);
   }
 
   Object? _literal(String word, Object? value) {

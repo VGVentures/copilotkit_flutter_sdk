@@ -26,14 +26,7 @@ final class const CopilotChatState({
     final calls = {for (final call in snapshot.toolCalls) call.id: call};
     return CopilotChatState(
       rows: [
-        for (final message in snapshot.messages) ...[
-          if ((message is UserMessage || message is AssistantMessage) &&
-              (message.content ?? '').isNotEmpty)
-            ChatMessageRow(message),
-          if (message is AssistantMessage)
-            for (final toolCall in message.toolCalls ?? const <ToolCall>[])
-              if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
-        ],
+        for (final message in snapshot.messages) ..._rowsFor(message, calls),
       ],
       isRunning: snapshot.isRunning,
       error: snapshot.error,
@@ -43,6 +36,19 @@ final class const CopilotChatState({
   @override
   List<Object?> get props => [rows, isRunning, error];
 }
+
+/// The rows shown for [message]: its text, then each of its tool calls found
+/// in [calls].
+List<ChatRow> _rowsFor(Message message, Map<String, ToolCallView> calls) => [
+  if (_hasText(message)) ChatMessageRow(message),
+  if (message is AssistantMessage)
+    for (final toolCall in message.toolCalls ?? const <ToolCall>[])
+      if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
+];
+
+bool _hasText(Message message) =>
+    (message is UserMessage || message is AssistantMessage) &&
+    (message.content ?? '').isNotEmpty;
 
 /// One row of a chat UI.
 sealed class ChatRow extends Equatable {
