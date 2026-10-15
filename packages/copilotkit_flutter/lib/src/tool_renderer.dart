@@ -7,14 +7,12 @@ typedef ToolCallWidgetBuilder = Widget Function(
   ToolCallView call,
 );
 
-/// {@template tool_renderer}
 /// Registers how calls to the tool [name] render in its subtree.
 ///
 /// Use `'*'` as [name] for a fallback that renders any tool without its own
 /// builder. Nested renderers for the same name override outer ones. Use it
 /// for tools the agent runs elsewhere (backend tools); `CopilotTool` does the
 /// same for frontend tools.
-/// {@endtemplate}
 class const ToolRenderer({
   /// Name of the tool, or `'*'` for the fallback.
   required final String name,
@@ -26,7 +24,7 @@ class const ToolRenderer({
   required final Widget child,
   super.key,
 }) extends StatelessWidget {
-  /// {@macro tool_renderer}
+  /// Creates a renderer for calls to the tool [name].
   this;
 
   @override
@@ -36,15 +34,13 @@ class const ToolRenderer({
   }
 }
 
-/// {@template tool_call_widget}
 /// Renders [call] with the nearest builder registered for its tool name,
 /// falling back to the `'*'` builder, or nothing.
 ///
 /// Keyed by the call id and kept alive inside lists, so builder state
 /// survives status updates, rebuilds and scrolling.
-/// {@endtemplate}
 class ToolCallWidget extends StatefulWidget {
-  /// {@macro tool_call_widget}
+  /// Creates a widget that renders [call].
   new({required this.call}) : super(key: ValueKey(call.id));
 
   /// The call to render.

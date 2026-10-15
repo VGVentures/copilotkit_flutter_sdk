@@ -3,13 +3,11 @@ import 'dart:async';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:flutter/widgets.dart';
 
-/// {@template copilot_kit}
 /// Provides a [CopilotKitClient] to the widget tree.
 ///
 /// Place it near the app root and read the client with [CopilotKit.of].
-/// {@endtemplate}
 class CopilotKit extends StatefulWidget {
-  /// {@macro copilot_kit}
+  /// Creates a provider that owns its client.
   ///
   /// Creates a client for the runtime at [_runtimeUrl] once and disposes it
   /// when this widget is removed. The configuration is read when the client
@@ -23,7 +21,7 @@ class CopilotKit extends StatefulWidget {
     super.key,
   }) : _client = null;
 
-  /// {@macro copilot_kit}
+  /// Creates a provider around an existing client.
   ///
   /// Provides an existing [_client]. The caller owns it: this widget never
   /// disposes it.

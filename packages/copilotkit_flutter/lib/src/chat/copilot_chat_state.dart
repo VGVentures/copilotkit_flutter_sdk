@@ -1,9 +1,7 @@
 part of 'copilot_chat_bloc.dart';
 
-/// {@template copilot_chat_state}
 /// What a chat UI shows: ordered [rows], whether the agent [isRunning] and
 /// the [error] that ended the last run.
-/// {@endtemplate}
 final class const CopilotChatState({
   /// Rows to render, oldest first.
   final List<ChatRow> rows = const [],
@@ -14,7 +12,7 @@ final class const CopilotChatState({
   /// Error that ended the last run, or `null`.
   final Object? error,
 }) extends Equatable {
-  /// {@macro copilot_chat_state}
+  /// Creates the state a chat UI shows.
   this;
 
   /// Builds the state shown for [snapshot].
@@ -55,28 +53,24 @@ sealed class ChatRow extends Equatable {
   const new();
 }
 
-/// {@template chat_message_row}
 /// A user or assistant text [message].
-/// {@endtemplate}
 final class const ChatMessageRow(
   /// The message to show; its `content` is the text.
   final Message message,
 ) extends ChatRow {
-  /// {@macro chat_message_row}
+  /// Creates a row for a text [message].
   this;
 
   @override
   List<Object?> get props => [message];
 }
 
-/// {@template chat_tool_call_row}
 /// A tool [call]; render it with `ToolCallWidget`.
-/// {@endtemplate}
 final class const ChatToolCallRow(
   /// The tool call to show.
   final ToolCallView call,
 ) extends ChatRow {
-  /// {@macro chat_tool_call_row}
+  /// Creates a row for a tool [call].
   this;
 
   @override

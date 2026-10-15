@@ -3,13 +3,11 @@ import 'package:copilotkit_flutter/src/copilot_kit.dart';
 import 'package:copilotkit_flutter/src/tool_renderer.dart';
 import 'package:flutter/widgets.dart';
 
-/// {@template copilot_tool}
 /// Makes [tool] available to the agent while this widget is mounted.
 ///
 /// Registers [tool] on the nearest `CopilotKit` client and unregisters it on
 /// dispose. If [builder] is set, calls to the tool render with it in
 /// [child] (see `ToolCallWidget`).
-/// {@endtemplate}
 class const CopilotTool({
   /// The tool to register.
   required final FrontendTool tool,
@@ -21,7 +19,7 @@ class const CopilotTool({
   final ToolCallWidgetBuilder? builder,
   super.key,
 }) extends StatefulWidget {
-  /// {@macro copilot_tool}
+  /// Creates a widget that registers [tool] while mounted.
   this;
 
   @override
