@@ -1,70 +1,74 @@
 import 'package:ack/ack.dart';
 
-/// Encodes [schema] as the JSON Schema sent in `RunAgentInput.tools`.
-///
-/// Ack omits `properties` on empty objects, at any depth, and some providers
-/// reject object schemas without it, so every object schema gets an empty
-/// `properties` map when it has none.
-Map<String, Object?> toolParametersJson(ObjectSchema schema) =>
-    _withProperties(schema.toJsonSchema());
+/// The parameter schema of a frontend tool, as sent to the agent.
+extension type const ToolSchema(ObjectSchema schema) {
+  /// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
+  static final _rootPointer = RegExp('^#/?');
 
-/// Keys whose value is a subschema.
-const _schemaKeys = {'items', 'additionalProperties', 'not'};
+  /// Ack's prefix on constraint errors; the path already says what failed.
+  static const _constraintsPrefix = 'Constraints not met: ';
 
-/// Keys whose value is a list of subschemas.
-const _schemaListKeys = {'anyOf', 'oneOf', 'allOf'};
+  static const _invalidArgumentsSummary =
+      "The tool didn't run: its arguments don't match its parameters. "
+      'Fix them and call it again.';
 
-Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
-  for (final MapEntry(:key, :value) in schema.entries)
-    key: switch (value) {
-      final Map<String, Object?> properties when key == 'properties' =>
-        properties.map((name, schema) => MapEntry(name, _subschema(schema))),
-      _ when _schemaKeys.contains(key) => _subschema(value),
-      final List<Object?> schemas when _schemaListKeys.contains(key) => [
-        for (final item in schemas) _subschema(item),
-      ],
-      _ => value,
-    },
-  if (schema['type'] == 'object' && !schema.containsKey('properties'))
-    'properties': <String, Object?>{},
-};
+  /// Encodes [schema] as the JSON Schema sent in `RunAgentInput.tools`.
+  ///
+  /// Ack omits `properties` on empty objects, at any depth, and some
+  /// providers reject object schemas without it, so every object schema gets
+  /// an empty `properties` map when it has none.
+  Map<String, Object?> toJson() => _withProperties(schema.toJsonSchema());
 
-Object? _subschema(Object? value) =>
-    value is Map<String, Object?> ? _withProperties(value) : value;
+  /// The tool result sent instead of running a handler whose arguments
+  /// failed validation with [error].
+  ///
+  /// Lists one problem per line, by argument path, so the agent can fix the
+  /// arguments and call the tool again.
+  static String invalidArgumentsResult(SchemaError error) => [
+    _invalidArgumentsSummary,
+    for (final problem in _problems(error)) '- ${_describe(problem)}',
+  ].join('\n');
 
-/// The tool result sent instead of running a handler whose arguments failed
-/// validation with [error].
-///
-/// Lists one problem per line, by argument path, so the agent can fix the
-/// arguments and call the tool again.
-String invalidArgumentsResult(SchemaError error) => [
-  _invalidArgumentsSummary,
-  for (final problem in _problems(error)) '- ${_describe(problem)}',
-].join('\n');
+  static Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
+    for (final MapEntry(:key, :value) in schema.entries)
+      key: switch (value) {
+        final Map<String, Object?> properties when key == 'properties' =>
+          properties.map((name, schema) => MapEntry(name, _subschema(schema))),
+        _ when _SubschemaKey.values.asNameMap().containsKey(key) => _subschema(
+          value,
+        ),
+        final List<Object?> schemas
+            when _SubschemaListKey.values.asNameMap().containsKey(key) =>
+          [for (final item in schemas) _subschema(item)],
+        _ => value,
+      },
+    if (schema['type'] == 'object' && !schema.containsKey('properties'))
+      'properties': <String, Object?>{},
+  };
 
-const _invalidArgumentsSummary =
-    "The tool didn't run: its arguments don't match its parameters. "
-    'Fix them and call it again.';
+  static Object? _subschema(Object? value) =>
+      value is Map<String, Object?> ? _withProperties(value) : value;
 
-/// The innermost errors under [error].
-Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
-  SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
-    _problems,
-  ),
-  _ => [error],
-};
+  /// The innermost errors under [error].
+  static Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
+    SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
+      _problems,
+    ),
+    _ => [error],
+  };
 
-/// Describes [error] as `path: message`, e.g. `unit.step: Expected integer,
-/// got string.`; root errors have no path.
-String _describe(SchemaError error) {
-  final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
-  var message = error.message.replaceFirst(_constraintsPrefix, '');
-  if (!message.endsWith('.')) message = '$message.';
-  return path.isEmpty ? message : '$path: $message';
+  /// Describes [error] as `path: message`, e.g. `unit.step: Expected
+  /// integer, got string.`; root errors have no path.
+  static String _describe(SchemaError error) {
+    final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
+    var message = error.message.replaceFirst(_constraintsPrefix, '');
+    if (!message.endsWith('.')) message = '$message.';
+    return path.isEmpty ? message : '$path: $message';
+  }
 }
 
-/// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
-final _rootPointer = RegExp('^#/?');
+/// JSON Schema keys whose value is a subschema.
+enum _SubschemaKey { items, additionalProperties, not }
 
-/// Ack's prefix on constraint errors; the path already says what failed.
-const _constraintsPrefix = 'Constraints not met: ';
+/// JSON Schema keys whose value is a list of subschemas.
+enum _SubschemaListKey { anyOf, oneOf, allOf }

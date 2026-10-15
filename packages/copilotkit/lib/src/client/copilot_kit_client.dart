@@ -138,7 +138,7 @@ class CopilotKitClient({
             Tool(
               name: tool.name,
               description: tool.description,
-              parameters: toolParametersJson(tool.parameters),
+              parameters: ToolSchema(tool.parameters).toJson(),
             ),
         ],
         context: [
@@ -224,7 +224,7 @@ class CopilotKitClient({
       case Ok(:final value):
         args = value ?? const {};
       case Fail(:final error):
-        final result = invalidArgumentsResult(error);
+        final result = ToolSchema.invalidArgumentsResult(error);
         developer.log(
           'Invalid arguments for tool "${call.name}":\n$result',
           name: 'copilotkit',
