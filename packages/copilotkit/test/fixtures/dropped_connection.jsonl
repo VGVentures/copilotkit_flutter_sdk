@@ -1,0 +1,5 @@
+{"fixture":{"source":"synthetic","basedOn":"text_stream.jsonl","note":"The connection drops mid-message: no TEXT_MESSAGE_END and no RUN_FINISHED or RUN_ERROR before the stream ends."}}
+{"type":"RUN_STARTED","threadId":"thread-dropped","runId":"run-dropped","protocolVersion":"1.0","input":{"threadId":"thread-dropped","runId":"run-dropped","messages":[{"id":"user-1","role":"user","content":"Say hello in five words."}],"tools":[],"context":[]}}
+{"type":"TEXT_MESSAGE_START","messageId":"message-1","role":"assistant"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"message-1","delta":"Hello"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"message-1","delta":"! Wonderful to"}

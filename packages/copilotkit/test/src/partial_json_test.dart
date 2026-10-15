@@ -1,7 +1,10 @@
 import 'dart:convert';
 
+import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/partial_json.dart';
 import 'package:test/test.dart';
+
+import '../helpers/fixtures.dart';
 
 const _args =
     '{"city": "San José", "days": 3, "units": {"temp": "C", "wind": null}, '
@@ -113,6 +116,22 @@ void main() {
 
     test('ignores anything after the closing brace', () {
       expect(parsePartialJson('{"a": 1} trailing'), {'a': 1});
+    });
+
+    test('every prefix of recorded tool args parses', () {
+      final delta = loadFixture('frontend_tool_call').events
+          .whereType<ToolCallArgsEvent>()
+          .map((event) => event.delta)
+          .join();
+
+      for (var i = 0; i < delta.length; i++) {
+        expect(
+          () => parsePartialJson(delta.substring(0, i)),
+          returnsNormally,
+          reason: 'prefix of length $i',
+        );
+      }
+      expect(parsePartialJson(delta), {'city': 'Lima'});
     });
   });
 }

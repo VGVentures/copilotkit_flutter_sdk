@@ -3,6 +3,8 @@ import 'package:copilotkit/src/agent_snapshot.dart';
 import 'package:copilotkit/src/reducer.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fixtures.dart';
+
 AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
     events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);
 
@@ -284,6 +286,38 @@ void main() {
         ),
         same(snapshot),
       );
+    });
+
+    group('recorded fixtures', () {
+      test('text_stream builds one assistant message', () {
+        final snapshot = _replay(loadFixture('text_stream').events);
+
+        final message = snapshot.messages.single;
+        expect(message, isA<AssistantMessage>());
+        expect(message.content, 'Hello! Wonderful to meet you.');
+        expect(snapshot.error, isNull);
+      });
+
+      test('run_error keeps the runtime error', () {
+        final snapshot = _replay(loadFixture('run_error').events);
+
+        expect(snapshot.messages, isEmpty);
+        expect(
+          snapshot.error,
+          isA<RunErrorEvent>().having(
+            (error) => error.message,
+            'message',
+            contains('gemini-2.5-flash'),
+          ),
+        );
+      });
+
+      test('dropped_connection keeps the partial reply', () {
+        final snapshot = _replay(loadFixture('dropped_connection').events);
+
+        expect(snapshot.messages.single.content, 'Hello! Wonderful to');
+        expect(snapshot.error, isNull);
+      });
     });
   });
 }

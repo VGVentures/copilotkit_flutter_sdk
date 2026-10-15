@@ -5,6 +5,8 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fixtures.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 List<BaseEvent> _toolCallRun(String threadId, {String name = 'showWeather'}) {
@@ -499,6 +501,46 @@ void main() {
       await run;
 
       expect(sentInputs(), hasLength(2));
+    });
+
+    group('recorded fixtures', () {
+      test('runs the handler and sends its result in the next run', () async {
+        final calls = <Map<String, Object?>>[];
+        client.registerTool(
+          weatherTool((args, {required signal}) async {
+            calls.add(args);
+            return 'Sunny, 24°C';
+          }),
+        );
+        runs
+          ..add(Stream.fromIterable(loadFixture('frontend_tool_call').events))
+          ..add(Stream.fromIterable(loadFixture('text_stream').events));
+
+        await agent.run();
+
+        expect(calls, [
+          {'city': 'Lima'},
+        ]);
+        final result = sentInputs().last.messages.whereType<ToolMessage>();
+        expect(result.single.content, 'Sunny, 24°C');
+        expect(agent.messages.last.content, 'Hello! Wonderful to meet you.');
+        expect(errors, isEmpty);
+      });
+
+      test('leaves backend tool calls with a runtime result alone', () async {
+        runs.add(
+          Stream.fromIterable(loadFixture('state_snapshot_delta').events),
+        );
+
+        await agent.run();
+
+        final call = agent.toolCalls.single;
+        expect(call.name, 'AGUISendStateDelta');
+        expect(call.status, ToolCallStatus.complete);
+        expect(call.result, contains('"success":true'));
+        expect(sentInputs(), hasLength(1));
+        expect(errors, isEmpty);
+      });
     });
   });
 }
