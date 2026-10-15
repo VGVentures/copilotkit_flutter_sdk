@@ -39,12 +39,10 @@ const _unavailableResult = 'Tool is not available.';
 /// `onError` only, so exception details never reach the model.
 const _handlerErrorResult = 'Tool failed.';
 
-/// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
 /// Owns the agents, the registered frontend tools and the context entries,
 /// and attaches the tools and context to every run.
-/// {@endtemplate}
 class CopilotKitClient({
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
   required final Uri runtimeUrl,
@@ -59,7 +57,7 @@ class CopilotKitClient({
   final CopilotErrorHandler? onError,
   AgentTransport? transport,
 }) {
-  /// {@macro copilot_kit_client}
+  /// Creates a client for the runtime at [runtimeUrl].
   ///
   /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
   this;

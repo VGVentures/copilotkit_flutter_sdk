@@ -17,13 +17,11 @@ typedef FrontendToolHandler = Future<String> Function(
   required CancellationSignal signal,
 });
 
-/// {@template frontend_tool}
 /// A tool the agent can call that runs in the app.
 ///
 /// Register it with `CopilotKitClient.registerTool`. When the agent calls it,
 /// [handler] runs, its result is appended as a tool message, and the agent
 /// continues in the same turn.
-/// {@endtemplate}
 class const FrontendTool({
   /// Unique tool name the agent calls the tool by.
   required final String name,
@@ -41,7 +39,7 @@ class const FrontendTool({
   /// Runs the tool when the agent calls it.
   required final FrontendToolHandler handler,
 }) {
-  /// {@macro frontend_tool}
+  /// Creates a tool the agent can call.
   this;
 }
 
@@ -58,9 +56,7 @@ enum ToolCallStatus {
   complete,
 }
 
-/// {@template tool_call_view}
 /// A tool call made by the agent, shaped for rendering.
-/// {@endtemplate}
 class const ToolCallView({
   /// Tool call id; stable for the whole call, use it as a widget key.
   required final String id,
@@ -78,18 +74,16 @@ class const ToolCallView({
   /// Result string; set once [status] is [ToolCallStatus.complete].
   final String? result,
 }) {
-  /// {@macro tool_call_view}
+  /// Creates a view of a tool call.
   this;
 }
 
-/// {@template cancellation_signal}
 /// Tells a tool handler that its run was stopped.
 ///
 /// The client creates one per tool call and cancels it when the run stops.
 /// Handlers check [isCancelled] or await [whenCancelled] to stop early.
-/// {@endtemplate}
 class CancellationSignal() {
-  /// {@macro cancellation_signal}
+  /// Creates a signal that has not been cancelled yet.
   this;
 
   final _cancelled = Completer<void>();

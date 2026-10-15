@@ -1,19 +1,17 @@
 part of 'client.dart';
 
-/// {@template copilot_agent}
 /// A conversation with one agent on a Copilot Runtime.
 ///
 /// Holds the messages, shared state and tool calls of a thread, and exposes
 /// them through synchronous getters and the [changes] stream. Get one with
 /// `CopilotKitClient.agent`.
-/// {@endtemplate}
 class CopilotAgent({
   /// Id of the agent on the runtime, e.g. `default`.
   required final String agentId,
   required final CopilotKitClient _client,
   String? threadId,
 }) {
-  /// {@macro copilot_agent}
+  /// Creates a conversation with the agent [agentId].
   ///
   /// Prefer `CopilotKitClient.agent`, which caches agents by id. A random
   /// [threadId] is generated when none is given.

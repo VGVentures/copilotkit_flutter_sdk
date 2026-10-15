@@ -1,12 +1,10 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/tools.dart';
 
-/// {@template agent_snapshot}
 /// Immutable view of an agent's state at one point in time.
 ///
 /// `CopilotAgent.changes` emits a new snapshot every time an event changes
 /// the agent.
-/// {@endtemplate}
 class const AgentSnapshot({
   /// Conversation messages, oldest first. The last assistant message grows
   /// while text streams in.
@@ -29,7 +27,7 @@ class const AgentSnapshot({
   /// transport or client error.
   final Object? error,
 }) {
-  /// {@macro agent_snapshot}
+  /// Creates a snapshot of an agent's state.
   this;
 
   /// Returns a copy with the given fields replaced.
