@@ -7,16 +7,16 @@ import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
 import 'package:copilotkit/src/agent/reducer.dart';
-import 'package:copilotkit/src/agent_transport.dart';
 import 'package:copilotkit/src/client/copilot_error_handler.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
-import 'package:copilotkit/src/context.dart';
+import 'package:copilotkit/src/context/agent_context_entry.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
+import 'package:copilotkit/src/transport/agent_transport.dart';
 
 part '../agent/copilot_agent.dart';
 

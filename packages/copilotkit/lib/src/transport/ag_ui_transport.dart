@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent_transport.dart';
-import 'package:copilotkit/src/transport/stop_request.dart';
+import 'package:copilotkit/src/transport/agent_transport.dart';
+import 'package:copilotkit/src/transport/models/stop_request.dart';
 import 'package:http/http.dart' as http;
 
 /// [AgentTransport] over a Copilot Runtime v2 using `ag_ui`'s SSE client.
