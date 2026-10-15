@@ -39,3 +39,4 @@ What becomes easier, what becomes harder, and what follows from it.
 | [0005](0005-equatable-value-models.md) | `Equatable` on every value model |
 | [0006](0006-partial-json-in-house.md) | Partial JSON parsing stays in-house |
 | [0007](0007-stream-chat-practices.md) | Practices borrowed from Stream Chat Flutter |
+| [0008](0008-immutable-client.md) | The immutable client |

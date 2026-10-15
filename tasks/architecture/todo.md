@@ -488,51 +488,53 @@ Plan: `tasks/architecture/plan.md`. Commands run from the repo root with `fvm`. 
 
 ---
 
-## Task 24: Client tools and context as immutable state
+## Task 24: Client cubit with tools and context as immutable state
 
-**Description:** Implement the ADR 0008 design for registered tools and context entries: immutable state models in `client/models/`, `registerTool` / `addContext` / `update` / `remove` going through the client bloc, and `_ContextEntry`'s `var value` removed. Migrate `CopilotTool` and `CopilotContext`.
+**Description:** Implement ADR 0008 for tools and context. Add `client/models/copilot_kit_state.dart` and `client/models/context_entry_state.dart` (`Equatable`). `CopilotKitClient extends Cubit<CopilotKitState>`; `_agents` and `_tools` become `state.agents` / `state.tools`, `_context` becomes `state.context` with uuid-keyed `ContextEntryState`s. `registerTool`'s closure calls a private `_unregisterTool`; `AgentContextEntry.update` / `remove` call private `_updateContext` / `_removeContext`; `value` reads from `state`. `dispose()` becomes `close()` (breaking). Turns stay as they are until Task 25. Migrate the `CopilotKit` widget, the example and the README.
 
 **Acceptance criteria:**
-- [ ] No mutable fields for tools or context
+- [ ] No mutable fields for agents, tools or context; `_ContextEntry` has no `var`
+- [ ] `CopilotKitState` and `ContextEntryState` have equality tests
 - [ ] Runs still send the current tools and context (existing client tests pass)
-- [ ] `CopilotTool` / `CopilotContext` widget tests pass
+- [ ] `CopilotTool` / `CopilotContext` widget tests pass; `CopilotKit` calls `close()`
 
 **Verification:**
 - [ ] All tests pass at 100%
 
 **Dependencies:** Task 23
 
-**Files likely touched:** per ADR 0008 (`client/copilot_kit_client.dart`, `client/models/*`, `context/agent_context_entry.dart`, `tools/copilot_tool.dart`, `context/copilot_context.dart`)
+**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/copilot_kit_state.dart`, `client/models/context_entry_state.dart`, `client/copilot_kit.dart` (Flutter), `example/`, `README.md` (+ tests)
 
 **Estimated scope:** M
 
 ---
 
-## Task 25: Agents and turn bookkeeping as immutable state
+## Task 25: Turns as immutable state
 
-**Description:** Implement the ADR 0008 design for the agents cache and `_Turn` / `_StreamRun`: immutable values replaced through state transitions, with subscriptions and completers handled as the ADR specifies.
+**Description:** Implement ADR 0008 for turns. Add `client/models/turn_state.dart` (`signal`, `run`) and `client/models/run_state.dart` (`runId`, `headers`, `subscription`). `_turns` becomes `state.turns`; `stopped` becomes `turn.signal.isCancelled`; the per-handler signal becomes the turn signal; `_StreamRun.done` / `ended` become locals of `_runOnce`, which awaits `Future.any([streamDone, signal.whenCancelled])`. Delete `_Turn` and `_StreamRun`.
 
 **Acceptance criteria:**
-- [ ] `_Turn` / `_StreamRun` have no mutable fields (or match the ADR's documented exceptions)
-- [ ] Stop, dispose, the tool loop and resilience tests pass unchanged in behavior
+- [ ] `_Turn` and `_StreamRun` are gone; `TurnState` and `RunState` have equality tests
+- [ ] Stop, close, the tool loop and resilience tests pass unchanged in behavior
+- [ ] A handler running when the turn is stopped sees its signal cancelled
 
 **Verification:**
 - [ ] Core tests pass at 100%
 
 **Dependencies:** Task 24
 
-**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/*`, `test/src/client/**`
+**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/turn_state.dart`, `client/models/run_state.dart`, `test/src/client/**`
 
 **Estimated scope:** M
 
 ---
 
-## Task 26: Remaining mutable classes
+## Task 26: Documented exceptions
 
-**Description:** Apply ADR 0008 to `CancellationSignal` and `AgUiTransport`'s `_activeClients`: make them immutable, or keep them as documented exceptions with a code comment pointing at the ADR.
+**Description:** Apply the ADR 0008 exception list: a code comment pointing at ADR 0008 on `CancellationSignal`'s completer and `AgUiTransport._activeClients`. Audit `lib/` of both packages for any other non-`final` field or in-place collection mutation; fix or add to the ADR's list. Link ADR 0008 from the immutability section of `CONTRIBUTING.md` and mark the ADR **Accepted**.
 
 **Acceptance criteria:**
-- [ ] Every mutable field left in `lib/` is listed as an exception in ADR 0008
+- [ ] Every mutable field left in `lib/` is in ADR 0008's exception list, with a comment at the field
 - [ ] `CONTRIBUTING.md` immutability section links ADR 0008
 
 **Verification:**
@@ -540,7 +542,7 @@ Plan: `tasks/architecture/plan.md`. Commands run from the repo root with `fvm`. 
 
 **Dependencies:** Task 25
 
-**Files likely touched:** `tools/cancellation_signal.dart`, `transport/ag_ui_transport.dart`, `CONTRIBUTING.md` (+ tests)
+**Files likely touched:** `tools/cancellation_signal.dart`, `transport/ag_ui_transport.dart`, `CONTRIBUTING.md`, `docs/adr/0008-*.md`
 
 **Estimated scope:** S
 

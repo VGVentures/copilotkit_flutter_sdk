@@ -11,7 +11,7 @@ Give both packages a clear, consistent architecture: a hybrid folder layout (fea
 
 Each decision gets an ADR in `docs/adr/` (Tasks 2–3), linked here once written.
 
-Written so far: [0001](../../docs/adr/0001-hybrid-feature-layout.md), [0002](../../docs/adr/0002-agent-bloc-and-immutability.md), [0003](../../docs/adr/0003-nullable-copy-with-closures.md), [0004](../../docs/adr/0004-uuid-for-ids.md), [0005](../../docs/adr/0005-equatable-value-models.md), [0006](../../docs/adr/0006-partial-json-in-house.md), [0007](../../docs/adr/0007-stream-chat-practices.md).
+Written so far: [0001](../../docs/adr/0001-hybrid-feature-layout.md), [0002](../../docs/adr/0002-agent-bloc-and-immutability.md), [0003](../../docs/adr/0003-nullable-copy-with-closures.md), [0004](../../docs/adr/0004-uuid-for-ids.md), [0005](../../docs/adr/0005-equatable-value-models.md), [0006](../../docs/adr/0006-partial-json-in-house.md), [0007](../../docs/adr/0007-stream-chat-practices.md), [0008](../../docs/adr/0008-immutable-client.md).
 
 | # | Decision | ADR |
 |---|---|---|
@@ -120,7 +120,7 @@ Tests mirror `lib/src/`.
 - [ ] No top-level functions or variables left except where the redesign removes them (`reducer.dart`, the client's `part` link)
 
 ### Phase 3: Immutability and blocs
-- [ ] Task 20: Rename `AgentSnapshot` → `AgentState`, `state` → `sharedState`
+- [x] Task 20: Rename `AgentSnapshot` → `AgentState`, `state` → `sharedState`
 - [ ] Task 21: ADR 0008, the immutable client design (**human review gate**)
 - [ ] Task 22: `CopilotAgent` becomes a bloc with `CopilotAgentEvent`
 - [ ] Task 23: Remove `changes` / `stateStream` / `events` / getters; migrate Flutter and the example
