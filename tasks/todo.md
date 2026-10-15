@@ -44,11 +44,11 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 
 **Acceptance criteria:**
 - [x] Contract findings recorded (endpoint, body, headers, info endpoint, open gaps for the CopilotKit call)
-- [ ] CLI prints a full `RunStarted` … `RunFinished` sequence against the local runtime (blocked on a model key; with a dummy key it prints `RUN_STARTED` then `RUN_ERROR`)
+- [x] CLI prints a full `RunStarted` … `RunFinished` sequence against the local runtime (Gemini `google:gemini-3.8-flash`)
 - [ ] Same round trip succeeds from a physical iOS **and** Android device on LAN (manual, done by the team)
 
 **Verification:**
-- [ ] `fvm dart run packages/copilotkit/tool/round_trip.dart --url http://localhost:<port>/api/copilotkit`
+- [x] `fvm dart run packages/copilotkit/tool/round_trip.dart --url http://localhost:<port>/api/copilotkit`
 - [ ] Manual: on-device log shows `RunFinished`
 
 **Dependencies:** T0, B1 (or a hand-started quickstart server until B1 lands)
@@ -69,7 +69,7 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 - [x] One command starts the runtime; it prints the LAN URL
 - [x] No secrets committed; the required environment variable is documented in `example/README.md`
 - [x] Running the script without the variable exits with a clear error
-- [ ] A1's CLI round trip works against it (works up to `RUN_ERROR` with a dummy key; needs a real key for `RUN_FINISHED`)
+- [x] A1's CLI round trip works against it (Gemini key from `example/tool/.env`)
 
 **Verification:**
 - [x] `./example/tool/start_runtime.sh` then `curl` the info endpoint
@@ -92,12 +92,12 @@ Commands assume the repo root and `fvm`. `core` = `packages/copilotkit`, `flutte
 Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `state_snapshot_delta.jsonl`, `run_error.jsonl`, `unknown_events.jsonl` (reasoning/activity/custom), `dropped_connection.jsonl`.
 
 **Acceptance criteria:**
-- [ ] All six fixture files exist and parse line by line as JSON
-- [ ] Each one decodes through `ag_ui`'s event decoder, or is listed as a known gap for A9
-- [ ] A `loadFixture(name)` test helper (under `core/test/helpers/`, not in `lib/`) returns the decoded events
+- [x] All six fixture files exist and parse line by line as JSON
+- [x] Each one decodes through `ag_ui`'s event decoder, or is listed as a known gap for A9 (only the made-up `SUBAGENT_STARTED` in `unknown_events` doesn't decode)
+- [x] A `loadFixture(name)` test helper (under `core/test/helpers/`, not in `lib/`) returns the decoded events
 
 **Verification:**
-- [ ] `cd packages/copilotkit && fvm dart test test/fixtures_test.dart`
+- [x] `cd packages/copilotkit && fvm dart test test/fixtures_test.dart`
 
 **Dependencies:** A1
 
@@ -140,7 +140,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Implement the pure `AgentEventReducer`, starting with lifecycle (`RunStarted`, `RunFinished`, `RunError`, `StepStarted/Finished`) and text (`TextMessageStart/Content/End`, `TextMessageChunk`). `isRunning`, `messages` and the last assistant message's growing text are all derived through it.
 
 **Acceptance criteria:**
-- [ ] Replaying `text_stream.jsonl` yields one assistant message whose text grows on every `Content` event (covered with hand-built events in `reducer_text_test.dart`; fixture replay added with A2)
+- [x] Replaying `text_stream.jsonl` yields one assistant message whose text grows on every `Content` event (fixture replay in `reducer_text_test.dart`)
 - [x] `isRunning` is true between `RunStarted` and `RunFinished`/`RunError` (now owned by the client for the whole turn, including tool handlers; the reducer no longer toggles it)
 - [x] Reducer is pure (no I/O, no clocks); unknown events return the snapshot unchanged
 
@@ -202,13 +202,13 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Implement the `ag_ui`-backed `AgentTransport` and `CopilotKitClient`: `runtimeUrl`, async `headers()` called once per run, `properties` sent as forwarded props, and `onError`. `client.agent(id)` returns a cached `CopilotAgent`. `client.runAgent(agent)` builds a `RunAgentInput` (thread id, run id, messages, state) and feeds the event stream through the reducer. `agent.run()` delegates to it, and `addMessage` appends.
 
 **Acceptance criteria:**
-- [ ] A user message plus `run()` against the local runtime streams an assistant reply into `messages`
+- [x] A user message plus `run()` against the local runtime streams an assistant reply into `messages`
 - [x] Custom headers reach the server (asserted in a unit test with a mock `http.Client`)
 - [x] Transport or HTTP errors call `onError`, set `isRunning` false, and never throw out of `run()` uncaught
 
 **Verification:**
 - [x] `fvm dart test test/client_test.dart` (mocked transport)
-- [ ] `fvm dart run core/tool/round_trip.dart --via-client` against the local runtime
+- [x] `fvm dart run core/tool/round_trip.dart --via-client` against the local runtime
 
 **Dependencies:** A4
 
@@ -248,7 +248,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Add `client.registerTool(FrontendTool)`, which returns an unregister handle, and send the registered tools as JSON Schema in `RunAgentInput.tools`. Reduce `ToolCallStart/Args/End/Result` (and `Chunk`) into `ToolCallView`s with status `inProgress` → `executing` → `complete`, using B4's parser for partial args. On `ToolCallEnd` for a frontend tool: run the handler with a cancellation signal, append a `ToolMessage` with the result, and re-run the agent in the same turn. Handler exceptions become an error result string and are reported to `onError`.
 
 **Acceptance criteria:**
-- [ ] Replaying `frontend_tool_call.jsonl` with a stub handler yields a `ToolMessage` and triggers exactly one follow-up run (covered with hand-built events in `tool_loop_test.dart`; fixture replay added with A2)
+- [x] Replaying `frontend_tool_call.jsonl` with a stub handler yields a `ToolMessage` and triggers exactly one follow-up run (fixture replay in `tool_loop_test.dart`)
 - [x] `ToolCallView.status` moves through all three states; `result` is set on `complete`
 - [x] `stop()` during `executing` cancels the handler's signal and doesn't re-run
 
@@ -293,9 +293,9 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Make decoding tolerant: unknown or partially-supported events (reasoning, activity, subagent, raw, custom) are parsed and ignored, never thrown. A dropped SSE connection ends the run cleanly, with `isRunning` false and `onError` called once. `RunError` surfaces to `onError`. Apply `StateSnapshot` and `StateDelta` (RFC 6902 via `ag_ui`) and `MessagesSnapshot` to `agent.state` / `messages`, and expose `stateStream`.
 
 **Acceptance criteria:**
-- [ ] `unknown_events.jsonl` replays without error and leaves text intact (covered with hand-built events; fixture replay added with A2)
-- [ ] `dropped_connection.jsonl` and `run_error.jsonl` end the run with one `onError` call each (covered with hand-built events; fixture replay added with A2)
-- [ ] `state_snapshot_delta.jsonl` yields the expected final `agent.state` (covered with hand-built events; fixture replay added with A2)
+- [x] `unknown_events.jsonl` replays without error and leaves text intact
+- [x] `dropped_connection.jsonl` and `run_error.jsonl` end the run with one `onError` call each
+- [x] `state_snapshot_delta.jsonl` yields the expected final `agent.state`
 
 **Verification:**
 - [x] `fvm dart test test/resilience_test.dart test/state_test.dart`
@@ -315,7 +315,7 @@ Fixtures: `text_stream.jsonl`, `frontend_tool_call.jsonl` (streamed args), `stat
 **Description:** Write a pure Dart `parsePartialJson(String)` that turns a streamed, incomplete JSON object prefix into the best-effort `Map<String, Object?>`. It closes open strings, arrays and objects, and drops dangling keys. It never throws; on garbage it returns the last good result or `{}`.
 
 **Acceptance criteria:**
-- [ ] Every prefix of the args in `frontend_tool_call.jsonl` parses without throwing (covered on a hand-written args string; fixture run added with A2)
+- [x] Every prefix of the args in `frontend_tool_call.jsonl` parses without throwing
 - [x] Complete JSON gives the same result as `jsonDecode`
 - [x] Covers nested objects, arrays, escaped quotes, numbers cut mid-digit, and `true`/`null` cut mid-literal
 

@@ -12,7 +12,7 @@ Confirmed Oct 14.
 
 - **Repo:** `git@github.com:VeryGoodOpenSource/copilotkit_flutter_sdk.git`.
 - **Package names:** `copilotkit` (pure Dart core) and `copilotkit_flutter`.
-- **Secrets:** the runtime's model key is an environment variable set in each engineer's shell (documented in `example/README.md`); never a committed file.
+- **Secrets:** the runtime's model key is an environment variable set in each engineer's shell or in the git-ignored `example/tool/.env` (documented in `example/README.md`); never a committed file.
 - **Manual device steps** (physical iOS/Android round trips, profile checks, rehearsal) are done by the team; they stay in the plan as explicit manual verification.
 - **Repo layout:** one repo, Dart pub workspace (root `pubspec.yaml` with `workspace:`), `.fvmrc` pinned to Flutter 3.47.0.
   - `packages/copilotkit`: pure Dart; depends on `ag_ui` (pinned `0.3.0`), `http`, `meta`.
@@ -53,9 +53,9 @@ T0 scaffold ─┬─ B3 CI + coverage reporting (every later PR depends on it)
 ### Phase 1a: Foundation and contract (Oct 14–16)
 - [x] T0: Workspace scaffold (shared). Pending: launch on a simulator (iOS and Android builds pass).
 - [x] B3: CI with coverage reporting. Workflows written; unverified until the first push. Pending: branch protection (repo admin). Since replaced by a hard 100% coverage gate plus spell check and Dependabot.
-- [ ] A1: Runtime v2 contract research + P1-1 round trip on device. Contract recorded below; the `RUN_FINISHED` round trip needs a model key; device run is manual.
+- [ ] A1: Runtime v2 contract research + P1-1 round trip on device. Contract recorded below; the CLI round trip reaches `RUN_FINISHED` with Gemini (raw and `--via-client`); device run is manual.
 - [x] B1: Local quickstart runtime script (`example/tool/`)
-- [ ] A2: Record AG-UI fixtures. Blocked on a model key.
+- [x] A2: Record AG-UI fixtures. Four recorded with Gemini (`text_stream`, `frontend_tool_call`, `state_snapshot_delta`, `run_error`), two synthetic (`unknown_events`, `dropped_connection`); replays added to the reducer, tool loop, partial-JSON, resilience and state tests.
 - [x] A3: Public API contract skeleton. Pending: engineer B's sign-off on the deviations under "A3 contract notes".
 - [x] A4: Event reducer: lifecycle + text messages
 
@@ -81,7 +81,7 @@ Track B (Flutter):
 - [x] B8: `CopilotChatBloc` + message list with streaming text
 - [x] B9: Composer with send / stop
 
-All A5–A9 and B4–B9 tests use hand-built events; switch them to A2's fixtures once recorded. Device checks are manual.
+A5–A9 and B4 tests replay A2's fixtures alongside the hand-built events. Device checks are manual.
 
 ### Checkpoint: Core usable (Oct 20)
 - [ ] P1-1, P1-3, P1-4 pass against the quickstart runtime on device
@@ -163,7 +163,7 @@ Skeleton: `packages/copilotkit/lib/`. Core half of the API sketch: `packages/cop
 
 ## Handoff (status as of Oct 14, 2026)
 
-Everything below is committed on local `main`; **nothing has been pushed** (push only when the user asks). Working tree is clean.
+The A1/A2 work and the provider-aware runtime script are committed on branch `feat/record-agui-fixtures`; **nothing has been pushed** (push only when the user asks). Open PR #5 also edits `README.md` and `example/README.md` (Gemini setup), so whichever lands second resolves the overlap.
 
 ### Verify the current state
 
@@ -173,16 +173,15 @@ Run from the repo root (Flutter comes from `.fvmrc` via `fvm`):
 fvm flutter pub get
 fvm flutter analyze                       # 0 issues
 fvm dart format --set-exit-if-changed .   # 0 changed
-very_good test --coverage --recursive     # core 155, flutter 38, example 27; all 100%
+very_good test --coverage --recursive     # core 190, flutter 38, example 49; all 100%
 ```
 
 ### Next steps for the next agent
 
-1. **Model key (user provides it).** `export OPENAI_API_KEY=...` in the agent's shell, or the user starts `./example/tool/start_runtime.sh` and shares the URL. For another provider, make `start_runtime.sh` check the key that matches the `COPILOTKIT_MODEL` provider first, and update `example/README.md` and `README.md`. Supported: `openai`, `anthropic` (`ANTHROPIC_API_KEY`), `google` (`GOOGLE_API_KEY`), `vertex` (GCP credentials), `minimax`, or any OpenAI-compatible server through `OPENAI_BASE_URL` (Azure, OpenRouter, Ollama).
-2. **A1:** `cd packages/copilotkit && fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit` must print `RUN_STARTED` … `RUN_FINISHED`; also try `--via-client true`.
-3. **A2:** add `--record <file>` to `tool/round_trip.dart` (raw events as JSONL). Record `text_stream`, `frontend_tool_call` (needs a tool in the request: register one or send `tools`), and `state_snapshot_delta` (BuiltInAgent may not emit state; mark it `synthetic` if handwritten). Handwrite `run_error`, `unknown_events` and `dropped_connection` from real shapes with a `synthetic` header line. Add `test/helpers/fixtures.dart` (`loadFixture`) and `test/fixtures_test.dart`, then add fixture replays to the reducer, tool loop, partial-JSON, resilience and state tests. Fix any mismatch with real model output.
-4. Run the README demo prompts end to end on a simulator, then tick the remaining items in `tasks/todo.md`.
-5. Push when the user asks; check that CI (`.github/workflows/main.yaml`) passes and reports coverage.
+1. **Runtime:** the Gemini key lives in `example/tool/.env` (git-ignored; never read or print it). `./example/tool/start_runtime.sh` loads it; shell variables win over the file, so `COPILOTKIT_MODEL=google:gemini-3.8-flash ./example/tool/start_runtime.sh` overrides the model. Re-record a fixture with `cd packages/copilotkit && fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit --record test/fixtures/<name>.jsonl [--tool true] [--state '{...}'] --message '...'`.
+2. Run the README demo prompts end to end on a simulator, then tick the remaining items in `tasks/todo.md`.
+3. Device checks for A1 (P1-1) and the manual items in A5–A9 and B6–B9.
+4. Push when the user asks; check that CI (`.github/workflows/main.yaml`) passes and reports coverage.
 
 Blocked on people, not code: B10 scenario (leadership), B11 hosting (CopilotKit), branch protection (repo admin), the A3 sign-off (engineer B), device checks and the I3 timed run and I4 rehearsal (team).
 
@@ -195,6 +194,8 @@ Blocked on people, not code: B10 scenario (leadership), B11 hosting (CopilotKit)
 
 ### Gotchas learned this session
 
+- **Gemini:** `gemini-2.5-flash` is retired for new keys (in-stream `RUN_ERROR`); use `google:gemini-3.8-flash`. It sends tool args in one `TOOL_CALL_ARGS` delta and sometimes an empty `TEXT_MESSAGE_CONTENT` delta (ag_ui decodes it). With app state in the request, BuiltInAgent changes it through backend tools (`AGUISendStateDelta`) that arrive with their own `TOOL_CALL_RESULT`, then emits `STATE_SNAPSHOT` + `STATE_DELTA`, and the run can end there (`finishReason: tool-calls`) with no text reply.
+- **Raw vs ag_ui events:** the runtime sends fields ag_ui drops on re-encode (`protocolVersion`, `RUN_FINISHED.metadata.finishReason`, `usage`), so fixtures store the raw SSE payloads.
 - **Dart 3.13 + very_good_analysis 11:** constructors use the new syntax (`const new(...)`, `new raw(...)`); private named params work (`required this._client` exposes `client:`). `fvm dart fix --apply` converts them, but it also strips closure parameter types, which broke `context.select`; use `context.select<Bloc, T>(...)`.
 - **Workspace resolution:** core's `test` is held at `^1.31.0` because `flutter_test` pins `test_api`.
 - **ag_ui 0.3.0:** posts to `baseUrl/endpoint`, so use `runAgent('agent/$id/run', ...)`. Its cancel doesn't abort the socket, so the transport uses one `http.Client` per run and closes it. Its subscription cancel waits for the body to end, so it isn't awaited. It emits a `DecodingError` or `AGUIValidationError` per undecodable event and keeps going, so the transport skips those. It has no JSON Patch apply (core has its own) and messages have no value `==`.
