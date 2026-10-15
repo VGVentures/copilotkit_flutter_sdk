@@ -11,6 +11,8 @@ Give both packages a clear, consistent architecture: a hybrid folder layout (fea
 
 Each decision gets an ADR in `docs/adr/` (Tasks 2–3), linked here once written.
 
+Written so far: [0001](../../docs/adr/0001-hybrid-feature-layout.md), [0002](../../docs/adr/0002-agent-bloc-and-immutability.md), [0003](../../docs/adr/0003-nullable-copy-with-closures.md), [0004](../../docs/adr/0004-uuid-for-ids.md), [0005](../../docs/adr/0005-equatable-value-models.md), [0006](../../docs/adr/0006-partial-json-in-house.md), [0007](../../docs/adr/0007-stream-chat-practices.md), [0008](../../docs/adr/0008-immutable-client.md).
+
 | # | Decision | ADR |
 |---|---|---|
 | D1 | **Plan location:** `tasks/architecture/`. | — |
@@ -84,10 +86,10 @@ Tests mirror `lib/src/`.
 ## Task List
 
 ### Phase 0: Conventions and decisions
-- [ ] Task 1: `CONTRIBUTING.md` + `AGENTS.md` with conventions
-- [ ] Task 2: ADRs 0001–0003 (layout, agent bloc and immutability, nullable `copyWith`)
-- [ ] Task 3: ADRs 0004–0006 (uuid, equatable, partial JSON)
-- [ ] Task 4: Stream Chat research → ADR 0007 + follow-up plan
+- [x] Task 1: `CONTRIBUTING.md` + `AGENTS.md` with conventions
+- [x] Task 2: ADRs 0001–0003 (layout, agent bloc and immutability, nullable `copyWith`)
+- [x] Task 3: ADRs 0004–0006 (uuid, equatable, partial JSON)
+- [x] Task 4: Stream Chat research → ADR 0007 + follow-up plan
 
 ### Checkpoint A: Decisions reviewed
 - [ ] ADRs and conventions reviewed with the user before code moves
