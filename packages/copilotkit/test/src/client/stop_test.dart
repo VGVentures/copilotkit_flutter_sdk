@@ -120,7 +120,7 @@ void main() {
       await startStreaming();
       await agent.stop();
       await run;
-      final changes = <AgentSnapshot>[];
+      final changes = <AgentState>[];
       agent.changes.listen(changes.add);
 
       events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));

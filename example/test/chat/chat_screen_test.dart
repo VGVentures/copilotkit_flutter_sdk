@@ -22,7 +22,7 @@ void main() {
       final agent = _MockCopilotAgent();
       when(() => client.agent('default')).thenReturn(agent);
       when(() => agent.snapshot).thenReturn(
-        AgentSnapshot(
+        AgentState(
           messages: [UserMessage(id: 'u1', content: 'Hi')],
         ),
       );

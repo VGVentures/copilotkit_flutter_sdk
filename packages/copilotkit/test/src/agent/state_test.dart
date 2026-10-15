@@ -8,8 +8,8 @@ import '../../helpers/fixtures.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
 
-AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
-    events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);
+AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
+    events.fold(initial ?? const AgentState(), reduceAgentEvent);
 
 void main() {
   setUpAll(() {
@@ -31,7 +31,7 @@ void main() {
         StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
 
-      expect(snapshot.state, {'items': <Object?>[]});
+      expect(snapshot.sharedState, {'items': <Object?>[]});
     });
 
     test('StateDelta applies a JSON Patch to the state', () {
@@ -50,7 +50,7 @@ void main() {
         ),
       ]);
 
-      expect(snapshot.state, {
+      expect(snapshot.sharedState, {
         'count': 2,
         'items': ['a', 'b'],
       });
@@ -58,7 +58,7 @@ void main() {
 
     test('StateDelta does not mutate the previous state', () {
       final before = reduceAgentEvent(
-        const AgentSnapshot(),
+        const AgentState(),
         const StateSnapshotEvent(
           snapshot: {
             'items': ['a'],
@@ -75,13 +75,13 @@ void main() {
         ),
       );
 
-      expect(before.state, {
+      expect(before.sharedState, {
         'items': ['a'],
       });
     });
 
     test('a StateDelta that does not apply leaves the snapshot unchanged', () {
-      const snapshot = AgentSnapshot(state: {'count': 1});
+      const snapshot = AgentState(sharedState: {'count': 1});
 
       expect(
         reduceAgentEvent(
@@ -104,7 +104,7 @@ void main() {
       ];
 
       final snapshot = reduceAgentEvent(
-        AgentSnapshot(messages: [old]),
+        AgentState(messages: [old]),
         MessagesSnapshotEvent(messages: fresh),
       );
 

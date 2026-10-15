@@ -1,5 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/json_patch.dart';
 import 'package:copilotkit/src/partial_json_parser.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -13,7 +13,7 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
 /// don't change the agent return [snapshot] itself, so callers can skip
 /// emitting when `previous == next`.
-AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
+AgentState reduceAgentEvent(AgentState snapshot, BaseEvent event) {
   return switch (event) {
     RunStartedEvent() => snapshot.copyWith(error: () => null),
     RunFinishedEvent() => _finishToolArgs(snapshot),
@@ -55,7 +55,7 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
     ToolCallResultEvent(:final messageId, :final toolCallId, :final content) =>
       _completeToolCall(snapshot, messageId, toolCallId, content),
     StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-      state: () => state,
+      sharedState: () => state,
     ),
     StateDeltaEvent(:final delta) => _applyStateDelta(snapshot, delta),
     MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
@@ -67,21 +67,21 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
 
 /// A delta that doesn't apply (e.g. it was computed against a state this
 /// client never saw) is dropped; the next snapshot resyncs the state.
-AgentSnapshot _applyStateDelta(
-  AgentSnapshot snapshot,
+AgentState _applyStateDelta(
+  AgentState snapshot,
   List<Map<String, Object?>> delta,
 ) {
   try {
     return snapshot.copyWith(
-      state: () => JsonPatch.apply(snapshot.state, delta),
+      sharedState: () => JsonPatch.apply(snapshot.sharedState, delta),
     );
   } on FormatException {
     return snapshot;
   }
 }
 
-AgentSnapshot _startToolCall(
-  AgentSnapshot snapshot,
+AgentState _startToolCall(
+  AgentState snapshot,
   String toolCallId,
   String name,
   String? parentMessageId,
@@ -124,8 +124,8 @@ AgentSnapshot _startToolCall(
   );
 }
 
-AgentSnapshot _appendToolArgs(
-  AgentSnapshot snapshot,
+AgentState _appendToolArgs(
+  AgentState snapshot,
   String toolCallId,
   String delta,
 ) {
@@ -162,10 +162,7 @@ AgentSnapshot _appendToolArgs(
   );
 }
 
-AgentSnapshot _applyToolChunk(
-  AgentSnapshot snapshot,
-  ToolCallChunkEvent event,
-) {
+AgentState _applyToolChunk(AgentState snapshot, ToolCallChunkEvent event) {
   final id = event.toolCallId ?? snapshot.toolCalls.lastOrNull?.id;
   if (id == null) return snapshot;
   var next = snapshot;
@@ -178,8 +175,8 @@ AgentSnapshot _applyToolChunk(
   return delta == null ? next : _appendToolArgs(next, id, delta);
 }
 
-AgentSnapshot _completeToolCall(
-  AgentSnapshot snapshot,
+AgentState _completeToolCall(
+  AgentState snapshot,
   String messageId,
   String toolCallId,
   String content,
@@ -202,7 +199,7 @@ AgentSnapshot _completeToolCall(
 
 /// Calls streamed as chunks have no End event; once the run finishes their
 /// arguments are complete.
-AgentSnapshot _finishToolArgs(AgentSnapshot snapshot) {
+AgentState _finishToolArgs(AgentState snapshot) {
   if (!snapshot.toolCalls.any((v) => v.status == ToolCallStatus.inProgress)) {
     return snapshot;
   }
@@ -217,8 +214,8 @@ AgentSnapshot _finishToolArgs(AgentSnapshot snapshot) {
   );
 }
 
-AgentSnapshot _updateToolCall(
-  AgentSnapshot snapshot,
+AgentState _updateToolCall(
+  AgentState snapshot,
   String toolCallId,
   ToolCallView Function(ToolCallView view) update,
 ) {
@@ -238,8 +235,8 @@ AgentSnapshot _updateToolCall(
 
 /// A chunk without [messageId] continues the last message, but only when it
 /// has the chunk's role, so assistant text never lands in a user message.
-AgentSnapshot _appendChunk(
-  AgentSnapshot snapshot,
+AgentState _appendChunk(
+  AgentState snapshot,
   String? messageId,
   TextMessageRole? role,
   String delta,
@@ -263,8 +260,8 @@ TextMessageRole? _roleOf(Message message) => switch (message) {
 
 /// Appends [delta] to message [messageId], creating it with [role] when it
 /// doesn't exist yet.
-AgentSnapshot _appendText(
-  AgentSnapshot snapshot,
+AgentState _appendText(
+  AgentState snapshot,
   String messageId,
   TextMessageRole role,
   String delta,
