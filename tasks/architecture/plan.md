@@ -86,10 +86,10 @@ Tests mirror `lib/src/`.
 ## Task List
 
 ### Phase 0: Conventions and decisions
-- [ ] Task 1: `CONTRIBUTING.md` + `AGENTS.md` with conventions
-- [ ] Task 2: ADRs 0001–0003 (layout, agent bloc and immutability, nullable `copyWith`)
-- [ ] Task 3: ADRs 0004–0006 (uuid, equatable, partial JSON)
-- [ ] Task 4: Stream Chat research → ADR 0007 + follow-up plan
+- [x] Task 1: `CONTRIBUTING.md` + `AGENTS.md` with conventions
+- [x] Task 2: ADRs 0001–0003 (layout, agent bloc and immutability, nullable `copyWith`)
+- [x] Task 3: ADRs 0004–0006 (uuid, equatable, partial JSON)
+- [x] Task 4: Stream Chat research → ADR 0007 + follow-up plan
 
 ### Checkpoint A: Decisions reviewed
 - [ ] ADRs and conventions reviewed with the user before code moves
