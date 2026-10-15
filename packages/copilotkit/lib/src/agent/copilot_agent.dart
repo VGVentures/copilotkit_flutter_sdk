@@ -23,7 +23,7 @@ class CopilotAgent({
   AgentSnapshot _snapshot = const AgentSnapshot();
 
   /// Id of the conversation thread sent with every run.
-  final String threadId = threadId ?? _randomId();
+  final String threadId = threadId ?? const Uuid().v4();
 
   /// Current state of the agent.
   AgentSnapshot get snapshot => _snapshot;

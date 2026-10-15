@@ -4,6 +4,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
+import 'package:uuid/uuid.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
 
@@ -75,7 +76,7 @@ void main() {
         final a = client.agent('a');
         final b = client.agent('b');
 
-        expect(a.threadId, isNotEmpty);
+        expect(Uuid.isValidUUID(fromString: a.threadId), isTrue);
         expect(a.threadId, isNot(b.threadId));
       });
     });
@@ -99,7 +100,7 @@ void main() {
                 ).captured.single
                 as RunAgentInput;
         expect(input.threadId, agent.threadId);
-        expect(input.runId, isNotEmpty);
+        expect(Uuid.isValidUUID(fromString: input.runId), isTrue);
         expect(input.messages, [message]);
         expect(input.tools, isEmpty);
         expect(input.context, isEmpty);

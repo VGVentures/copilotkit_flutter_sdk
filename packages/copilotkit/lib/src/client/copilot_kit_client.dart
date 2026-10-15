@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:math';
 
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
@@ -17,6 +16,7 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
+import 'package:uuid/uuid.dart';
 
 part '../agent/copilot_agent.dart';
 
@@ -128,7 +128,7 @@ class CopilotKitClient({
     try {
       input = RunAgentInput(
         threadId: agent.threadId,
-        runId: _randomId(),
+        runId: const Uuid().v4(),
         state: agent.state,
         messages: agent.messages,
         tools: [
@@ -335,7 +335,7 @@ class CopilotKitClient({
   void _addToolResult(CopilotAgent agent, ToolCallView call, String content) {
     agent._reduce(
       ToolCallResultEvent(
-        messageId: _randomId(),
+        messageId: const Uuid().v4(),
         toolCallId: call.id,
         content: content,
       ),
@@ -386,10 +386,3 @@ class _StreamRun({
     if (!done.isCompleted) done.complete();
   }
 }
-
-final _random = Random.secure();
-
-String _randomId() => List.generate(
-  16,
-  (_) => _random.nextInt(256).toRadixString(16).padLeft(2, '0'),
-).join();
