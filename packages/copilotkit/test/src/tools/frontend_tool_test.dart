@@ -20,5 +20,22 @@ void main() {
         'sunny in Lima',
       );
     });
+
+    test('supports value equality', () {
+      final parameters = Ack.object({'city': Ack.string()});
+      Future<String> handler(
+        Map<String, Object?> args, {
+        required CancellationSignal signal,
+      }) async => 'sunny';
+      FrontendTool tool({String name = 'showWeather'}) => FrontendTool(
+        name: name,
+        description: 'Show the weather',
+        parameters: parameters,
+        handler: handler,
+      );
+
+      expect(tool(), tool());
+      expect(tool(), isNot(tool(name: 'other')));
+    });
   });
 }

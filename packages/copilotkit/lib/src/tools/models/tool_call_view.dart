@@ -1,4 +1,5 @@
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
+import 'package:equatable/equatable.dart';
 
 /// A tool call made by the agent, shaped for rendering.
 class const ToolCallView({
@@ -17,7 +18,28 @@ class const ToolCallView({
 
   /// Result string; set once [status] is [ToolCallStatus.complete].
   final String? result,
-}) {
+}) extends Equatable {
   /// Creates a view of a tool call.
   this;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// [result] is a getter so a caller can set it (`result: () => text`),
+  /// clear it (`result: () => null`) or leave it alone by not passing it.
+  ToolCallView copyWith({
+    ToolCallStatus? status,
+    Map<String, Object?>? args,
+    String? Function()? result,
+  }) {
+    return ToolCallView(
+      id: id,
+      name: name,
+      status: status ?? this.status,
+      args: args ?? this.args,
+      result: result == null ? this.result : result(),
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, status, args, result];
 }

@@ -1,5 +1,6 @@
 import 'package:ack/ack.dart';
 import 'package:copilotkit/src/tools/frontend_tool_handler.dart';
+import 'package:equatable/equatable.dart';
 
 /// A tool the agent can call that runs in the app.
 ///
@@ -22,7 +23,10 @@ class const FrontendTool({
 
   /// Runs the tool when the agent calls it.
   required final FrontendToolHandler handler,
-}) {
+}) extends Equatable {
   /// Creates a tool the agent can call.
   this;
+
+  @override
+  List<Object?> get props => [name, description, parameters, handler];
 }
