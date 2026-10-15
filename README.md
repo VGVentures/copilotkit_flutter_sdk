@@ -114,43 +114,5 @@ Planning documents live in `docs/requirements.md` and `tasks/`.
 
 ## Development
 
-Run these commands from the repository root unless noted. CI runs the same
-checks on every pull request: tests, formatting, analysis, 100% line coverage in
-every package, and spelling all block merges.
-
-- Analyze the whole workspace:
-
-  ```sh
-  fvm flutter analyze
-  ```
-
-- Check formatting:
-
-  ```sh
-  fvm dart format --set-exit-if-changed .
-  ```
-
-- Run every package's tests with coverage (requires
-  [Very Good CLI](https://cli.vgv.dev)):
-
-  ```sh
-  very_good test --coverage --min-coverage 100 --recursive
-  ```
-
-- Check spelling (add project terms to `.github/.cspell/project_words.txt`):
-
-  ```sh
-  npx cspell --config .github/cspell.json '**/*.{md,dart,yml,yaml}'
-  ```
-
-- Probe the runtime contract from the command line:
-
-  ```sh
-  cd packages/copilotkit
-  fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit
-  ```
-
-  Add `--via-client true` to run the same request through `CopilotKitClient`.
-
-Commits and pull request titles follow
-[Conventional Commits](https://www.conventionalcommits.org).
+Conventions, the checks CI runs and how to run them locally are in
+[`CONTRIBUTING.md`](CONTRIBUTING.md).

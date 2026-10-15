@@ -18,3 +18,4 @@ subschemas
 themable
 workstreams
 worktree
+jsonrepair
