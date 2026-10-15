@@ -3,6 +3,8 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fixtures.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 void main() {
@@ -87,6 +89,44 @@ void main() {
       expect(agent.isRunning, isFalse);
       expect(agent.snapshot.error, same(runError));
       expect(agent.messages.single.content, 'Par');
+    });
+
+    test('unknown_events fixture keeps the text reply', () async {
+      stubRun(loadFixture('unknown_events').events);
+
+      await agent.run();
+
+      expect(agent.messages.single.content, 'Hello! Wonderful to meet you.');
+      expect(agent.isRunning, isFalse);
+      expect(errors, isEmpty);
+    });
+
+    test('recorded run_error fixture reports the runtime error', () async {
+      stubRun(loadFixture('run_error').events);
+
+      await agent.run();
+
+      expect(errors.single, isA<RunErrorEvent>());
+      expect(
+        agent.snapshot.error,
+        isA<RunErrorEvent>().having(
+          (error) => error.message,
+          'message',
+          contains('gemini-2.5-flash'),
+        ),
+      );
+      expect(agent.isRunning, isFalse);
+    });
+
+    test('dropped_connection fixture fails the run and keeps the partial '
+        'reply', () async {
+      stubRun(loadFixture('dropped_connection').events);
+
+      await agent.run();
+
+      expect(errors.single, isA<StateError>());
+      expect(agent.messages.single.content, 'Hello! Wonderful to');
+      expect(agent.isRunning, isFalse);
     });
   });
 }

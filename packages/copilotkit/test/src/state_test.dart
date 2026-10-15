@@ -4,6 +4,8 @@ import 'package:copilotkit/src/reducer.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fixtures.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
@@ -147,6 +149,29 @@ void main() {
         {'count': 1},
         {'count': 2},
       ]);
+    });
+
+    test('state_snapshot_delta fixture applies the recorded patch', () async {
+      final transport = _MockAgentTransport();
+      final agent = CopilotKitClient(
+        runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+        transport: transport,
+      ).agent('default');
+      when(
+        () => transport.run(
+          agentId: any(named: 'agentId'),
+          input: any(named: 'input'),
+          headers: any(named: 'headers'),
+        ),
+      ).thenAnswer(
+        (_) => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
+      );
+
+      await agent.run();
+
+      expect(agent.state, {
+        'todos': ['buy milk', 'walk dog'],
+      });
     });
   });
 }

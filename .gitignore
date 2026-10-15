@@ -12,7 +12,7 @@ coverage/
 # Node (local runtime under example/tool/)
 node_modules/
 
-# Secrets: model keys come from shell environment variables, never files
+# Secrets: model keys come from the shell or the untracked example/tool/.env
 .env
 .env.*
 !.env.example

@@ -17,8 +17,8 @@ you install it through FVM.
 - [FVM](https://fvm.app) (Flutter Version Management).
 - Xcode for iOS, Android Studio (Android SDK) for Android, or both.
 - Node.js 20 or later, for the local Copilot Runtime.
-- An OpenAI API key, or a key for another supported provider such as Google
-  Gemini. See [Use a Gemini key](example/README.md#use-a-gemini-key).
+- An API key for a supported model provider: OpenAI (the default), Google
+  Gemini, Anthropic, or MiniMax.
 
 ## Quick start
 
@@ -40,6 +40,13 @@ separate terminals.
    ./example/tool/start_runtime.sh
    ```
 
+   To use Gemini instead, export `GOOGLE_API_KEY` and pick a Google model:
+
+   ```sh
+   export GOOGLE_API_KEY=<your key>
+   COPILOTKIT_MODEL=google:gemini-3.8-flash ./example/tool/start_runtime.sh
+   ```
+
    The first run installs the runtime's Node dependencies. The script then
    prints the runtime URLs, including one with your LAN address.
 
@@ -59,8 +66,8 @@ separate terminals.
 
 <!-- prettier-ignore -->
 > [!IMPORTANT]
-> The key lives only in your shell. Never commit it, and never put it in a file
-> inside this repository.
+> The key lives only in your shell or in the git-ignored `example/tool/.env`.
+> Never commit it, and never put it in any other file inside this repository.
 
 If you run the app without `RUNTIME_URL`, it shows a setup screen with the
 command to use instead of the chat. For runtime options, such as the port and

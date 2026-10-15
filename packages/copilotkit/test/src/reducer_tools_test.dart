@@ -4,6 +4,8 @@ import 'package:copilotkit/src/reducer.dart';
 import 'package:copilotkit/src/tools.dart';
 import 'package:test/test.dart';
 
+import '../helpers/fixtures.dart';
+
 AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
     events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);
 
@@ -233,6 +235,16 @@ void main() {
         ToolCallStatus.executing,
         ToolCallStatus.complete,
       ]);
+    });
+
+    test('frontend_tool_call fixture leaves the call executing', () {
+      final snapshot = _replay(loadFixture('frontend_tool_call').events);
+
+      final view = snapshot.toolCalls.single;
+      expect(view.name, 'showWeather');
+      expect(view.status, ToolCallStatus.executing);
+      expect(view.args, {'city': 'Lima'});
+      expect(view.result, isNull);
     });
   });
 }
