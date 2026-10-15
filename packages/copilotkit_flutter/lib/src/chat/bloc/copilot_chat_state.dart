@@ -33,17 +33,20 @@ final class const CopilotChatState({
 
   @override
   List<Object?> get props => [rows, isRunning, error];
+
+  /// The rows shown for [message]: its text, then each of its tool calls
+  /// found in [calls].
+  static List<ChatRow> _rowsFor(
+    Message message,
+    Map<String, ToolCallView> calls,
+  ) => [
+    if (_hasText(message)) ChatMessageRow(message),
+    if (message is AssistantMessage)
+      for (final toolCall in message.toolCalls ?? const <ToolCall>[])
+        if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
+  ];
+
+  static bool _hasText(Message message) =>
+      (message is UserMessage || message is AssistantMessage) &&
+      (message.content ?? '').isNotEmpty;
 }
-
-/// The rows shown for [message]: its text, then each of its tool calls found
-/// in [calls].
-List<ChatRow> _rowsFor(Message message, Map<String, ToolCallView> calls) => [
-  if (_hasText(message)) ChatMessageRow(message),
-  if (message is AssistantMessage)
-    for (final toolCall in message.toolCalls ?? const <ToolCall>[])
-      if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
-];
-
-bool _hasText(Message message) =>
-    (message is UserMessage || message is AssistantMessage) &&
-    (message.content ?? '').isNotEmpty;
