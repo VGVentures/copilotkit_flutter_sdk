@@ -4,6 +4,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:uuid/uuid.dart';
 
 class _MockCopilotAgent extends Mock implements CopilotAgent;
 
@@ -173,6 +174,7 @@ void main() {
             .cast<UserMessage>()
             .map((m) => m.id);
         expect(ids.toSet(), hasLength(2));
+        expect(ids.every((id) => Uuid.isValidUUID(fromString: id!)), isTrue);
       },
     );
 
