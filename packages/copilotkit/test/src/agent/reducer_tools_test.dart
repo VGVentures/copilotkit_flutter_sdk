@@ -1,10 +1,10 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent_snapshot.dart';
-import 'package:copilotkit/src/reducer.dart';
+import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
-import '../helpers/fixtures.dart';
+import '../../helpers/fixtures.dart';
 
 AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
     events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);

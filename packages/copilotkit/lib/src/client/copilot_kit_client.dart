@@ -5,10 +5,12 @@ import 'dart:math';
 
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:copilotkit/src/agent_transport.dart';
+import 'package:copilotkit/src/client/copilot_error_handler.dart';
+import 'package:copilotkit/src/client/headers_builder.dart';
 import 'package:copilotkit/src/context.dart';
-import 'package:copilotkit/src/reducer.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -16,16 +18,7 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 
-part 'agent.dart';
-
-/// Returns the headers sent with a run; called once per run.
-typedef HeadersBuilder = Future<Map<String, String>> Function();
-
-/// Receives errors from runs, transports and tool handlers.
-typedef CopilotErrorHandler = void Function(
-  Object error,
-  StackTrace stackTrace,
-);
+part '../agent/copilot_agent.dart';
 
 /// Result sent to the agent for a tool call cut short by a stop.
 const _cancelledResult = 'Tool call cancelled.';
