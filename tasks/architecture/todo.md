@@ -488,42 +488,43 @@ Plan: `tasks/architecture/plan.md`. Commands run from the repo root with `fvm`. 
 
 ---
 
-## Task 24: Client cubit with tools and context as immutable state
+## Task 24: Client bloc with tools and context as immutable state
 
-**Description:** Implement ADR 0008 for tools and context. Add `client/models/copilot_kit_state.dart` and `client/models/context_entry_state.dart` (`Equatable`). `CopilotKitClient extends Cubit<CopilotKitState>`; `_agents` and `_tools` become `state.agents` / `state.tools`, `_context` becomes `state.context` with uuid-keyed `ContextEntryState`s. `registerTool`'s closure calls a private `_unregisterTool`; `AgentContextEntry.update` / `remove` call private `_updateContext` / `_removeContext`; `value` reads from `state`. `dispose()` becomes `close()` (breaking). Turns stay as they are until Task 25. Migrate the `CopilotKit` widget, the example and the README.
+**Description:** Implement ADR 0008 for tools and context. Add `client/copilot_kit_event.dart` (sealed `CopilotKitEvent`: `AgentOpened`, `ToolRegistered`, `ToolUnregistered`, `ContextAdded`, `ContextUpdated`, `ContextRemoved`, `AgentRunRequested`, `AgentStopRequested`), `client/models/copilot_kit_state.dart` and the `AgentContextEntry` value model (replacing the interface and `_ContextEntry`). `CopilotKitClient extends Bloc<CopilotKitEvent, CopilotKitState>`; `registerTool`, `addContext`, `agent`, `runAgent`, `stopAgent` and `dispose` are removed (breaking); `AgentOpened` puts the agent in `state.agents`; `AgentRunRequested` / `AgentStopRequested` call the existing turn code for now (turns become state in Task 25). `CopilotAgent.run()` / `stop()` add the events and return `void`. Migrate `CopilotTool`, `CopilotContext`, `CopilotKit`, the example's chat page, `round_trip.dart` and the README.
 
 **Acceptance criteria:**
-- [ ] No mutable fields for agents, tools or context; `_ContextEntry` has no `var`
-- [ ] `CopilotKitState` and `ContextEntryState` have equality tests
-- [ ] Runs still send the current tools and context (existing client tests pass)
+- [ ] No mutable fields for agents, tools or context; `_ContextEntry` and the `_agents` map are gone
+- [ ] `CopilotKitState`, `AgentContextEntry` and every event have equality tests
+- [ ] Runs still send the current tools and context (existing client tests pass, driven through events)
 - [ ] `CopilotTool` / `CopilotContext` widget tests pass; `CopilotKit` calls `close()`
 
 **Verification:**
 - [ ] All tests pass at 100%
 
-**Dependencies:** Task 23
+**Dependencies:** Task 23, ADR 0008 approved
 
-**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/copilot_kit_state.dart`, `client/models/context_entry_state.dart`, `client/copilot_kit.dart` (Flutter), `example/`, `README.md` (+ tests)
+**Files likely touched:** `client/copilot_kit_client.dart`, `client/copilot_kit_event.dart`, `client/models/copilot_kit_state.dart`, `context/agent_context_entry.dart`, `agent/copilot_agent.dart`, Flutter `tools/copilot_tool.dart`, `context/copilot_context.dart`, `client/copilot_kit.dart`, `example/`, `README.md` (+ tests)
 
-**Estimated scope:** M
+**Estimated scope:** L
 
 ---
 
 ## Task 25: Turns as immutable state
 
-**Description:** Implement ADR 0008 for turns. Add `client/models/turn_state.dart` (`signal`, `run`) and `client/models/run_state.dart` (`runId`, `headers`, `subscription`). `_turns` becomes `state.turns`; `stopped` becomes `turn.signal.isCancelled`; the per-handler signal becomes the turn signal; `_StreamRun.done` / `ended` become locals of `_runOnce`, which awaits `Future.any([streamDone, signal.whenCancelled])`. Delete `_Turn` and `_StreamRun`.
+**Description:** Implement ADR 0008 for turns. Add `client/models/turn_state.dart` (`signal`, `run`) and `client/models/run_state.dart` (`runId`, `headers`, `subscription`). `_turns` becomes `state.turns` keyed by agent id; the `AgentRunRequested` handler runs the whole turn with the `concurrent` transformer and emits each `RunState` change; `stopped` becomes `turn.signal.isCancelled`; the per-handler signal becomes the turn signal; `_StreamRun.done` / `ended` become locals. Delete `_Turn` and `_StreamRun`.
 
 **Acceptance criteria:**
 - [ ] `_Turn` and `_StreamRun` are gone; `TurnState` and `RunState` have equality tests
 - [ ] Stop, close, the tool loop and resilience tests pass unchanged in behavior
 - [ ] A handler running when the turn is stopped sees its signal cancelled
+- [ ] Two agents can run concurrently and a stop is handled mid-run
 
 **Verification:**
 - [ ] Core tests pass at 100%
 
 **Dependencies:** Task 24
 
-**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/turn_state.dart`, `client/models/run_state.dart`, `test/src/client/**`
+**Files likely touched:** `client/copilot_kit_client.dart`, `client/models/turn_state.dart`, `client/models/run_state.dart`, `packages/copilotkit/pubspec.yaml` (`bloc_concurrency`), `test/src/client/**`
 
 **Estimated scope:** M
 
