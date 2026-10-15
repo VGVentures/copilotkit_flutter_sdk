@@ -29,6 +29,8 @@ class AgUiTransport({
   );
   final http.Client Function() _httpClientFactory =
       httpClientFactory ?? http.Client.new;
+  // Resource bookkeeping for close(): the documented mutable exception 2 in
+  // ADR 0008.
   final Set<http.Client> _activeClients = {};
 
   @override

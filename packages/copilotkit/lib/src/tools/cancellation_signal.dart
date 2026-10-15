@@ -8,6 +8,7 @@ class CancellationSignal() {
   /// Creates a signal that has not been cancelled yet.
   this;
 
+  // A one-shot latch: the documented mutable exception 1 in ADR 0008.
   final _cancelled = Completer<void>();
 
   /// Whether [cancel] has been called.

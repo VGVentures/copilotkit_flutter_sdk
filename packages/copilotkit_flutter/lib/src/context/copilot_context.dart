@@ -28,6 +28,7 @@ class const CopilotContext({
 }
 
 class _CopilotContextState extends State<CopilotContext> {
+  // Widget State: the documented mutable exception 3 in ADR 0008.
   CopilotKitClient? _client;
 
   /// The entry added and the client it was added to, so only that entry is

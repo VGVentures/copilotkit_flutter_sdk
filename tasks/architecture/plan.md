@@ -122,14 +122,14 @@ Tests mirror `lib/src/`.
 - [x] Task 21: ADR 0008, the immutable client design (**human review gate**)
 - [x] Task 22: `CopilotAgent` becomes a bloc with `CopilotAgentEvent`
 - [x] Task 23: Remove `changes` / `stateStream` / `events` / getters; migrate Flutter and the example
-- [ ] Task 24: Client tools and context as immutable bloc state
-- [ ] Task 25: Agents and turn bookkeeping as immutable state
-- [ ] Task 26: Remaining mutable classes (`CancellationSignal`, `AgUiTransport`)
+- [x] Task 24: Client tools and context as immutable bloc state
+- [x] Task 25: Agents and turn bookkeeping as immutable state
+- [x] Task 26: Remaining mutable classes (`CancellationSignal`, `AgUiTransport`)
 
 ### Checkpoint D: Complete
-- [ ] No mutable fields outside blocs (and exceptions documented in ADR 0008)
-- [ ] README and the example app reflect the new API
-- [ ] Every task's acceptance criteria are met
+- [x] No mutable fields outside blocs (and exceptions documented in ADR 0008)
+- [x] README and the example app reflect the new API
+- [x] Every task's acceptance criteria are met
 
 ## Dependency Graph
 

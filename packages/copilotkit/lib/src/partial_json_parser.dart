@@ -14,6 +14,8 @@ class PartialJsonParser._(final String _input) {
   /// A fraction or exponent cut off at the end of the input, e.g. `1.`.
   static final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
 
+  /// Cursor into [_input]; the parser lives for one [parse] call (ADR 0008,
+  /// exception 5).
   int _index = 0;
 
   /// Parses [input] into the map it describes so far.

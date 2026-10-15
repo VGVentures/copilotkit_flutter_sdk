@@ -30,6 +30,7 @@ class const CopilotTool({
 }
 
 class _CopilotToolState extends State<CopilotTool> {
+  // Widget State: the documented mutable exception 3 in ADR 0008.
   CopilotKitClient? _client;
 
   /// The tool instance registered and the client it was registered on, so

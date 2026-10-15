@@ -88,7 +88,8 @@ class CopilotKitClient({
       transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
   final CopilotErrorHandler? _onError = onError;
 
-  /// Events added through [handled] whose handler hasn't completed.
+  /// Events added through [handled] whose handler hasn't completed: the
+  /// documented mutable exception 4 in ADR 0008.
   final List<(CopilotKitEvent, Completer<void>)> _awaited = [];
 
   /// Adds [event] and completes once its handler has, which for

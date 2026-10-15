@@ -36,8 +36,8 @@ class CopilotAgent({
     on<CopilotAgentEvent>(_onEvent);
   }
 
-  /// Events added and not yet applied, and who is waiting for that
-  /// (ADR 0008, exception 4).
+  /// Events added and not yet applied, and who is waiting for that: the
+  /// documented mutable exception 4 in ADR 0008.
   int _pending = 0;
   Completer<void>? _settled;
 

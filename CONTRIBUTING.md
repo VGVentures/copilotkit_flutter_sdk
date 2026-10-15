@@ -102,8 +102,9 @@ if (_SubschemaKey.values.asNameMap().containsKey(key)) ...
 
 Classes are immutable: every field is `final` and changes produce a new
 instance. State that changes over time lives in a bloc, which emits a new
-immutable state on each change. Mutable fields outside a bloc are documented
-exceptions.
+immutable state on each change. The few mutable fields outside a bloc are
+the exceptions listed in [ADR 0008](docs/adr/0008-immutable-client.md),
+each with a code comment pointing there.
 
 ```dart
 // Bad

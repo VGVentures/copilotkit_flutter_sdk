@@ -69,6 +69,7 @@ class CopilotKit extends StatefulWidget {
 }
 
 class _CopilotKitState extends State<CopilotKit> {
+  // Widget State: the documented mutable exception 3 in ADR 0008.
   CopilotKitClient? _ownedClient;
 
   CopilotKitClient get _client =>
