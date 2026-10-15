@@ -4,9 +4,13 @@ import 'package:ack/ack.dart';
 
 /// Handles a frontend tool call on the device.
 ///
-/// Receives the decoded tool [args] and a [signal] that is cancelled when the
-/// run is stopped. Returns the result string sent back to the agent. If it
-/// throws, the agent gets a generic failure result and the error goes to
+/// Receives the tool [args], already parsed by `FrontendTool.parameters`,
+/// and a [signal] that is cancelled when the run is stopped. Calls whose
+/// arguments don't match the schema never reach the handler; the agent gets a
+/// result listing the problems instead.
+///
+/// Returns the result string sent back to the agent. If it throws, the agent
+/// gets a generic failure result and the error goes to
 /// `CopilotKitClient.onError`.
 typedef FrontendToolHandler = Future<String> Function(
   Map<String, Object?> args, {
@@ -30,7 +34,8 @@ class const FrontendTool({
   /// Schema of the arguments the agent must send, built with [Ack.object].
   ///
   /// Sent to the agent as JSON Schema. Fields are required unless marked
-  /// `.optional()`.
+  /// `.optional()`. The arguments of each call are parsed with it before
+  /// [handler] runs.
   required final ObjectSchema parameters,
 
   /// Runs the tool when the agent calls it.

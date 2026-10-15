@@ -146,6 +146,66 @@ void main() {
       },
     );
 
+    test('passes the handler the args parsed by the schema', () async {
+      Map<String, Object?>? receivedArgs;
+      client.registerTool(
+        FrontendTool(
+          name: 'showWeather',
+          description: 'Show the weather for a city',
+          parameters: Ack.object({
+            'city': Ack.string(),
+            'days': Ack.integer().withDefault(3),
+          }),
+          handler: (args, {required signal}) async {
+            receivedArgs = args;
+            return 'ok';
+          },
+        ),
+      );
+      runs
+        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+
+      await agent.run();
+
+      expect(receivedArgs, {'city': 'Lima', 'days': 3});
+    });
+
+    test('answers invalid args without running the handler', () async {
+      var called = false;
+      client.registerTool(
+        weatherTool((_, {required signal}) async {
+          called = true;
+          return '';
+        }),
+      );
+      final events = toolCallRun(agent.threadId)
+        ..[2] = const ToolCallArgsEvent(
+          toolCallId: 'c1',
+          delta: '{"days": "3"}',
+        );
+      runs
+        ..add(Stream.fromIterable(events))
+        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+
+      await agent.run();
+
+      expect(called, isFalse);
+      expect(errors, isEmpty);
+      final result = agent.toolCalls.single.result;
+      expect(
+        result,
+        allOf(
+          startsWith("The tool didn't run"),
+          contains('- city: Required property "city" is missing.'),
+          contains('- days: Expected integer, got string.'),
+        ),
+      );
+      final toolMessage = sentInputs().last.messages.last as ToolMessage;
+      expect(toolMessage.content, result);
+      expect(agent.messages.last.content, 'Sunny in Lima');
+    });
+
     test('closes calls to unregistered tools as unavailable', () async {
       runs.add(Stream.fromIterable(toolCallRun(agent.threadId)));
 
