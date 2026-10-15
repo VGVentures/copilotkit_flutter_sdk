@@ -34,22 +34,22 @@ class const AgentSnapshot({
 
   /// Returns a copy with the given fields replaced.
   ///
-  /// Pass `null` for [state] or [error] to clear them.
+  /// [state] and [error] are getters so a caller can set a value
+  /// (`error: () => e`), clear it (`error: () => null`) or leave it alone by
+  /// not passing it.
   AgentSnapshot copyWith({
     List<Message>? messages,
-    Object? state = _unset,
+    Object? Function()? state,
     bool? isRunning,
     List<ToolCallView>? toolCalls,
-    Object? error = _unset,
+    Object? Function()? error,
   }) {
     return AgentSnapshot(
       messages: messages ?? this.messages,
-      state: identical(state, _unset) ? this.state : state,
+      state: state == null ? this.state : state(),
       isRunning: isRunning ?? this.isRunning,
       toolCalls: toolCalls ?? this.toolCalls,
-      error: identical(error, _unset) ? this.error : error,
+      error: error == null ? this.error : error(),
     );
   }
 }
-
-const Object _unset = Object();
