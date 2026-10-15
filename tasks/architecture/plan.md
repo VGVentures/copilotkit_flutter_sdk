@@ -90,16 +90,16 @@ Tests mirror `lib/src/`.
 - [ ] Task 4: Stream Chat research → ADR 0007 + follow-up plan
 
 ### Checkpoint A: Decisions reviewed
-- [ ] ADRs and conventions reviewed with the user before code moves
+- [x] ADRs and conventions reviewed with the user before code moves
 
 ### Phase 1: Mechanical moves (no behavior change)
-- [ ] Task 5: Plain `///` doc comments in core
-- [ ] Task 6: Plain `///` doc comments in Flutter
-- [ ] Task 7: Core `tools/` folder, one type per file
-- [ ] Task 8: Core `agent/` and `client/` folders (still `part` files)
-- [ ] Task 9: Core `context/` and `transport/` folders
-- [ ] Task 10: Flutter `chat/bloc/` and `chat/models/`
-- [ ] Task 11: Flutter `tools/`, `context/` and `client/` folders
+- [x] Task 5: Plain `///` doc comments in core
+- [x] Task 6: Plain `///` doc comments in Flutter
+- [x] Task 7: Core `tools/` folder, one type per file
+- [x] Task 8: Core `agent/` and `client/` folders (still `part` files)
+- [x] Task 9: Core `context/` and `transport/` folders
+- [x] Task 10: Flutter `chat/bloc/` and `chat/models/`
+- [x] Task 11: Flutter `tools/`, `context/` and `client/` folders
 
 ### Checkpoint B: Layout in place
 - [ ] All tests pass with 100% coverage, analyze and format clean, example app runs
