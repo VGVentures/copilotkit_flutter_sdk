@@ -62,3 +62,122 @@ Optional environment variables:
 
 From an Android emulator use `10.0.2.2` instead of `localhost`; from a
 physical device use the LAN URL.
+
+### Model availability
+
+<!-- prettier-ignore -->
+> [!WARNING]
+> Older models, such as `google:gemini-2.5-flash`, aren't available to new
+> API keys. The runtime still starts and `/info` still responds, but every
+> message fails. Use the model that the error message recommends.
+
+## Run the app
+
+Pass the runtime URL with `--dart-define`. Flutter is pinned in the root
+`.fvmrc`, so use FVM:
+
+```sh
+cd example
+fvm flutter run --dart-define=RUNTIME_URL=<runtime url>
+```
+
+| Target | `RUNTIME_URL` |
+| --- | --- |
+| iOS simulator or desktop | `http://localhost:8200/api/copilotkit` |
+| Android emulator | `http://10.0.2.2:8200/api/copilotkit` |
+| Physical device on the same network | The LAN URL printed by the runtime |
+
+Without a valid `RUNTIME_URL`, the app shows a **Runtime URL missing** screen
+instead of the chat. The app logs errors through `dart:developer`, so check the
+debug console when something fails.
+
+## Troubleshooting
+
+When a message fails in the app, the chat only shows **Something went wrong.
+Try again.** To find out if the runtime or the app is at fault, send a run
+directly to the runtime:
+
+```sh
+curl -N -X POST http://localhost:8200/api/copilotkit/agent/default/run \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: text/event-stream' \
+  -d '{"threadId":"t1","runId":"r1","state":{},"messages":[{"id":"m1","role":"user","content":"Say hi"}],"tools":[],"context":[],"forwardedProps":{}}'
+```
+
+- If the stream contains `TEXT_MESSAGE_CONTENT` events, the runtime works and
+  the problem is in the app or its `RUNTIME_URL`.
+- If the stream contains a `RUN_ERROR` event, its `message` explains the
+  failure, for example a missing key or an unavailable model. Fix the runtime
+  environment and restart the server. You don't need to restart the app.
+
+## Manual test checklist
+
+Use this checklist to check the app end to end against a running runtime. The
+demo in `lib/demo/weather_demo.dart` registers a `showWeather` frontend tool
+and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
+
+<!-- prettier-ignore -->
+> [!NOTE]
+> The forecast is fake and deterministic per city, so you can confirm that
+> the result came from the app. Lima always shows **21°C · Rainy**.
+
+### Chat and streaming
+
+These checks cover sending messages and rendering replies.
+
+- Send "Hi". The reply streams in and the list stays scrolled to the bottom.
+- Ask for a bulleted list and a code block. The markdown renders correctly,
+  including while it streams.
+- With an empty or whitespace-only input, the **Send** button is disabled.
+
+### Context
+
+This check confirms that the app shares the current user with the agent.
+
+- Ask "What's my name?" or "Where do I live?" The agent answers Ada or Lima.
+
+### Frontend tool and generative UI
+
+These checks cover the tool call lifecycle and the weather card.
+
+- Ask "What's the weather in Lima?" The card shows these states in order:
+  1. **Looking up the weather…** with a progress bar, while the arguments
+     stream.
+  2. **Checking Lima…** for about one second, while the handler runs.
+  3. **Lima** with **21°C · Rainy**.
+- After the card completes, the agent replies with text that uses the
+  forecast. This confirms that the tool result went back to the runtime.
+- Ask "What's the weather at home?" The agent uses the context and picks Lima.
+- Ask for two cities in one message. Two cards appear.
+
+### Stop
+
+These checks cover cancelling a run.
+
+- Ask for a long reply and tap **Stop** while it streams. Streaming stops, the
+  partial reply stays, and the button turns back into **Send**.
+- Ask for the weather and tap **Stop** during **Checking…**. The card shows
+  **Cancelled**.
+- After stopping, send another message. The chat still works.
+
+### Multi-turn
+
+This check confirms that the conversation history reaches the agent.
+
+- After a weather answer, ask "And in Tokyo?" or "Which one was warmer?" The
+  agent uses the earlier messages.
+
+### Errors and recovery
+
+These checks cover runtime failures.
+
+- Stop the runtime and send a message. The chat shows **Something went wrong.
+  Try again.** and the app doesn't crash.
+- Restart the runtime and send another message. The chat recovers.
+
+### Scrolling
+
+This check covers how the list follows new content.
+
+- During a long reply, scroll up. The list stops following new text. Scroll
+  back to the bottom, and it follows again.

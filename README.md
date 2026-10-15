@@ -96,6 +96,10 @@ Send these prompts to see each part of the SDK:
 - **Stop:** Tap the stop button while a reply streams. The partial reply stays,
   and you can send the next message.
 
+For the full list of checks, see the
+[manual test checklist](example/README.md#manual-test-checklist). If messages
+fail, see [Troubleshooting](example/README.md#troubleshooting).
+
 ## Repository layout
 
 The repository is a Dart pub workspace with three packages.
