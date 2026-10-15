@@ -164,20 +164,6 @@ void main() {
         expect(errors, isEmpty);
       });
 
-      test('emits every runtime event on events', () async {
-        final agent = client.agent('default');
-        final started = RunStartedEvent(threadId: agent.threadId, runId: 'r');
-        final finished = RunFinishedEvent(threadId: agent.threadId, runId: 'r');
-        stubRun(Stream.fromIterable([started, finished]));
-        final events = <BaseEvent>[];
-        agent.events.listen(events.add);
-
-        await agent.run();
-        await pumpEventQueue();
-
-        expect(events, [same(started), same(finished)]);
-      });
-
       test('is running as soon as the run starts', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
@@ -294,13 +280,12 @@ void main() {
       test('closes the transport and the agent streams', () async {
         final agent = client.agent('default');
         final changesDone = agent.changes.drain<void>();
-        final eventsDone = agent.events.drain<void>();
 
         await client.dispose();
 
         verify(() => transport.close()).called(1);
         await expectLater(changesDone, completes);
-        await expectLater(eventsDone, completes);
+        expect(agent.isClosed, isTrue);
       });
 
       test('cancels active runs', () async {
@@ -335,7 +320,7 @@ void main() {
       final agent = client.agent('default');
 
       expect(agent.messages, isEmpty);
-      expect(agent.state, isNull);
+      expect(agent.state.sharedState, isNull);
       expect(agent.isRunning, isFalse);
       expect(agent.toolCalls, isEmpty);
       expect(agent.snapshot.error, isNull);

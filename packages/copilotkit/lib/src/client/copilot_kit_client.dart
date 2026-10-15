@@ -4,8 +4,8 @@ import 'dart:developer' as developer;
 
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/models/agent_state.dart';
-import 'package:copilotkit/src/agent/reducer.dart';
+import 'package:copilotkit/src/agent/copilot_agent.dart';
+import 'package:copilotkit/src/agent/copilot_agent_event.dart';
 import 'package:copilotkit/src/client/copilot_error_handler.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
 import 'package:copilotkit/src/context/agent_context_entry.dart';
@@ -17,8 +17,6 @@ import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:uuid/uuid.dart';
-
-part '../agent/copilot_agent.dart';
 
 /// Results sent to the agent for tool calls that never ran to completion.
 enum _FallbackToolResult {
@@ -94,11 +92,11 @@ class CopilotKitClient({
     if (_turns.containsKey(agent)) return;
     final turn = _Turn();
     _turns[agent] = turn;
-    agent._update(agent.snapshot.copyWith(isRunning: true));
+    agent.add(const AgentTurnStarted());
     try {
       while (await _runOnce(agent, turn)) {
         final pending = _pendingToolCalls(agent);
-        _closeOpenToolCalls(
+        await _closeOpenToolCalls(
           agent,
           _FallbackToolResult.unavailable,
           where: (call) => !_tools.containsKey(call.name),
@@ -107,7 +105,7 @@ class CopilotKitClient({
         for (final (call, tool) in pending) {
           final result = await _runHandler(tool, call, turn);
           if (turn.stopped) return;
-          _addToolResult(agent, call, result);
+          await _addToolResult(agent, call, result);
         }
       }
     } finally {
@@ -115,7 +113,8 @@ class CopilotKitClient({
       // This turn, not an equal one: a newer turn may have replaced it.
       if (identical(_turns[agent], turn)) {
         _turns.remove(agent);
-        agent._update(agent.snapshot.copyWith(isRunning: false));
+        agent.add(const AgentTurnEnded());
+        await agent.settled;
       }
     }
   }
@@ -123,8 +122,6 @@ class CopilotKitClient({
   /// Streams one run of [agent]. Returns whether it finished successfully
   /// and wasn't stopped.
   Future<bool> _runOnce(CopilotAgent agent, _Turn turn) async {
-    agent._update(agent.snapshot.copyWith(error: () => null));
-
     final RunAgentInput input;
     final Map<String, String> requestHeaders;
     final Stream<BaseEvent> events;
@@ -132,7 +129,7 @@ class CopilotKitClient({
       input = RunAgentInput(
         threadId: agent.threadId,
         runId: const Uuid().v4(),
-        state: agent.state,
+        state: agent.state.sharedState,
         messages: agent.messages,
         tools: [
           for (final tool in _tools.values)
@@ -171,7 +168,7 @@ class CopilotKitClient({
         if (event is RunFinishedEvent || event is RunErrorEvent) {
           run.ended = true;
         }
-        agent._apply(event);
+        agent.add(AgentEventReceived(event));
         if (event is RunErrorEvent) onError?.call(event, StackTrace.current);
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -191,10 +188,11 @@ class CopilotKitClient({
       cancelOnError: true,
     );
     await run.done.future;
+    await agent.settled;
     turn.run = null;
     if (turn.stopped) return false;
-    if (agent.snapshot.error == null) return true;
-    _closeOpenToolCalls(agent, _FallbackToolResult.failed);
+    if (agent.state.error == null) return true;
+    await _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
   }
 
@@ -262,8 +260,10 @@ class CopilotKitClient({
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
-    agent._update(agent.snapshot.copyWith(isRunning: false));
+    await agent.settled;
+    await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+    agent.add(const AgentTurnEnded());
+    await agent.settled;
     if (run == null) return;
     run.finish();
     try {
@@ -317,38 +317,45 @@ class CopilotKitClient({
     }
     _turns.clear();
     for (final agent in _agents.values) {
-      await agent._close();
+      await agent.close();
     }
     await _transport.close();
   }
 
   /// Gives every tool call without a result (and matching [where], if set)
   /// the message of [result], so the conversation stays valid for the next run.
-  void _closeOpenToolCalls(
+  Future<void> _closeOpenToolCalls(
     CopilotAgent agent,
     _FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
-  }) {
-    for (final call in agent.toolCalls) {
+  }) async {
+    for (final call in agent.state.toolCalls) {
       if (call.status != ToolCallStatus.complete &&
           (where?.call(call) ?? true)) {
-        _addToolResult(agent, call, result.message);
+        await _addToolResult(agent, call, result.message);
       }
     }
   }
 
-  void _addToolResult(CopilotAgent agent, ToolCallView call, String content) {
-    agent._reduce(
-      ToolCallResultEvent(
-        messageId: const Uuid().v4(),
-        toolCallId: call.id,
-        content: content,
+  Future<void> _addToolResult(
+    CopilotAgent agent,
+    ToolCallView call,
+    String content,
+  ) async {
+    agent.add(
+      AgentEventReceived(
+        ToolCallResultEvent(
+          messageId: const Uuid().v4(),
+          toolCallId: call.id,
+          content: content,
+        ),
       ),
     );
+    await agent.settled;
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
-    agent._update(agent.snapshot.copyWith(error: () => error));
+    agent.add(AgentRunFailed(error));
     onError?.call(error, stackTrace);
   }
 }
