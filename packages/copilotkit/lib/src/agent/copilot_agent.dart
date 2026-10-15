@@ -17,22 +17,22 @@ class CopilotAgent({
   /// [threadId] is generated when none is given.
   this;
 
-  final _changes = StreamController<AgentSnapshot>.broadcast();
+  final _changes = StreamController<AgentState>.broadcast();
   final _stateChanges = StreamController<Object?>.broadcast();
   final _events = StreamController<BaseEvent>.broadcast();
-  AgentSnapshot _snapshot = const AgentSnapshot();
+  AgentState _snapshot = const AgentState();
 
   /// Id of the conversation thread sent with every run.
   final String threadId = threadId ?? const Uuid().v4();
 
   /// Current state of the agent.
-  AgentSnapshot get snapshot => _snapshot;
+  AgentState get snapshot => _snapshot;
 
   /// Conversation messages, oldest first.
   List<Message> get messages => _snapshot.messages;
 
   /// Shared agent state, or `null` if the agent sent none.
-  Object? get state => _snapshot.state;
+  Object? get state => _snapshot.sharedState;
 
   /// Whether the agent is working: from `run()` until the whole turn ends,
   /// including frontend tool handlers and the runs that follow them.
@@ -41,8 +41,8 @@ class CopilotAgent({
   /// Tool calls made by the agent, in call order.
   List<ToolCallView> get toolCalls => _snapshot.toolCalls;
 
-  /// Emits a new [AgentSnapshot] every time the agent changes.
-  Stream<AgentSnapshot> get changes => _changes.stream;
+  /// Emits a new [AgentState] every time the agent changes.
+  Stream<AgentState> get changes => _changes.stream;
 
   /// Emits the shared state every time it changes.
   Stream<Object?> get stateStream => _stateChanges.stream;
@@ -76,12 +76,14 @@ class CopilotAgent({
   /// emitting it on [events].
   void _reduce(BaseEvent event) => _update(reduceAgentEvent(_snapshot, event));
 
-  void _update(AgentSnapshot next) {
+  void _update(AgentState next) {
     if (next == _snapshot) return;
     final previous = _snapshot;
     _snapshot = next;
     _changes.add(next);
-    if (next.state != previous.state) _stateChanges.add(next.state);
+    if (next.sharedState != previous.sharedState) {
+      _stateChanges.add(next.sharedState);
+    }
   }
 
   Future<void> _close() async {

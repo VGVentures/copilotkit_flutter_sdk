@@ -16,9 +16,9 @@ part 'copilot_chat_state.dart';
 class CopilotChatBloc({required final CopilotAgent _agent})
     extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// Creates a bloc that drives a chat UI from [_agent].
-  this : super(CopilotChatState.fromSnapshot(_agent.snapshot)) {
+  this : super(CopilotChatState.fromAgentState(_agent.snapshot)) {
     on<_ChatSnapshotChanged>(
-      (event, emit) => emit(CopilotChatState.fromSnapshot(event.snapshot)),
+      (event, emit) => emit(CopilotChatState.fromAgentState(event.snapshot)),
     );
     on<ChatMessageSent>(_onMessageSent);
     on<ChatStopRequested>((_, _) => _agent.stop());
@@ -27,7 +27,7 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     );
   }
 
-  late final StreamSubscription<AgentSnapshot> _subscription;
+  late final StreamSubscription<AgentState> _subscription;
 
   Future<void> _onMessageSent(
     ChatMessageSent event,

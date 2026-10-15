@@ -1,12 +1,12 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/fixtures.dart';
 
-AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
-    events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);
+AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
+    events.fold(initial ?? const AgentState(), reduceAgentEvent);
 
 void main() {
   group('reduceAgentEvent', () {
@@ -14,7 +14,7 @@ void main() {
       // The client owns isRunning for the whole turn (runs plus tool
       // handlers), so lifecycle events never toggle it.
       test('RunStarted clears the previous error, not isRunning', () {
-        const previous = AgentSnapshot(isRunning: true, error: 'boom');
+        const previous = AgentState(isRunning: true, error: 'boom');
 
         final snapshot = reduceAgentEvent(
           previous,
@@ -26,7 +26,7 @@ void main() {
       });
 
       test('RunFinished leaves isRunning to the client', () {
-        const running = AgentSnapshot(isRunning: true);
+        const running = AgentState(isRunning: true);
 
         expect(
           reduceAgentEvent(
@@ -41,7 +41,7 @@ void main() {
         const error = RunErrorEvent(message: 'Bad key', code: 'AUTH');
 
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(isRunning: true),
+          const AgentState(isRunning: true),
           error,
         );
 
@@ -50,7 +50,7 @@ void main() {
       });
 
       test('steps leave the snapshot unchanged', () {
-        const running = AgentSnapshot(isRunning: true);
+        const running = AgentState(isRunning: true);
 
         expect(
           reduceAgentEvent(running, const StepStartedEvent(stepName: 's')),
@@ -64,7 +64,10 @@ void main() {
 
       test('keeps messages and state across the run', () {
         final user = UserMessage(id: 'u1', content: 'Hi');
-        final initial = AgentSnapshot(messages: [user], state: const {'a': 1});
+        final initial = AgentState(
+          messages: [user],
+          sharedState: const {'a': 1},
+        );
 
         final snapshot = _replay([
           RunStartedEvent(threadId: 't', runId: 'r'),
@@ -72,14 +75,14 @@ void main() {
         ], initial);
 
         expect(snapshot.messages, [user]);
-        expect(snapshot.state, {'a': 1});
+        expect(snapshot.sharedState, {'a': 1});
       });
     });
 
     group('text messages', () {
       test('Start appends an empty message with the given role', () {
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageStartEvent(messageId: 'm1'),
         );
 
@@ -91,7 +94,7 @@ void main() {
 
       test('Content grows the message text on every delta', () {
         var snapshot = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageStartEvent(messageId: 'm1'),
         );
         final texts = <String?>[];
@@ -108,7 +111,7 @@ void main() {
 
       test('Content does not mutate earlier snapshots', () {
         final started = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageStartEvent(messageId: 'm1'),
         );
 
@@ -129,7 +132,7 @@ void main() {
           const TextMessageStartEvent(messageId: 'm2'),
           const TextMessageContentEvent(messageId: 'm2', delta: 'Second'),
           const TextMessageContentEvent(messageId: 'm1', delta: '!'),
-        ], AgentSnapshot(messages: [user]));
+        ], AgentState(messages: [user]));
 
         expect(snapshot.messages.map((m) => m.content), [
           'Hi',
@@ -140,7 +143,7 @@ void main() {
 
       test('Content without a Start creates an assistant message', () {
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageContentEvent(messageId: 'm1', delta: 'Hi'),
         );
 
@@ -150,7 +153,7 @@ void main() {
 
       test('End leaves the snapshot unchanged', () {
         final started = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageStartEvent(messageId: 'm1'),
         );
 
@@ -184,7 +187,7 @@ void main() {
         const tool = ToolMessage(id: 'x', content: 'result', toolCallId: 'c');
 
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(messages: [tool]),
+          const AgentState(messages: [tool]),
           const TextMessageContentEvent(messageId: 'x', delta: 'Hi'),
         );
 
@@ -233,7 +236,7 @@ void main() {
 
       test('a chunk without delta still creates the message', () {
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const TextMessageChunkEvent(messageId: 'm1'),
         );
 
@@ -267,7 +270,7 @@ void main() {
       }
 
       test('a chunk without id or prior message is ignored', () {
-        const empty = AgentSnapshot();
+        const empty = AgentState();
 
         expect(
           reduceAgentEvent(empty, const TextMessageChunkEvent(delta: 'x')),
@@ -277,7 +280,7 @@ void main() {
     });
 
     test('unknown events leave the snapshot unchanged', () {
-      const snapshot = AgentSnapshot(isRunning: true);
+      const snapshot = AgentState(isRunning: true);
 
       expect(
         reduceAgentEvent(
