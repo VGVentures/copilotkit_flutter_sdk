@@ -1,6 +1,7 @@
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit_flutter/src/copilot_kit.dart';
-import 'package:copilotkit_flutter/src/tool_renderer.dart';
+import 'package:copilotkit_flutter/src/client/copilot_kit.dart';
+import 'package:copilotkit_flutter/src/tools/tool_call_widget_builder.dart';
+import 'package:copilotkit_flutter/src/tools/tool_renderer.dart';
 import 'package:flutter/widgets.dart';
 
 /// Makes [tool] available to the agent while this widget is mounted.

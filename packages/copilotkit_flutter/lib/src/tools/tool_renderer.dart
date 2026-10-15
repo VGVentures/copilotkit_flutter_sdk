@@ -1,11 +1,6 @@
-import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit_flutter/src/tools/tool_call_widget_builder.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-
-/// Builds the widget for a tool call.
-typedef ToolCallWidgetBuilder = Widget Function(
-  BuildContext context,
-  ToolCallView call,
-);
 
 /// Registers how calls to the tool [name] render in its subtree.
 ///
@@ -27,40 +22,16 @@ class const ToolRenderer({
   /// Creates a renderer for calls to the tool [name].
   this;
 
+  /// The builders registered by the renderers above [context], by tool name,
+  /// or `null` when there are none. Used by `ToolCallWidget`.
+  @internal
+  static Map<String, ToolCallWidgetBuilder>? buildersOf(BuildContext context) =>
+      _ToolBuilders.maybeOf(context);
+
   @override
   Widget build(BuildContext context) {
     final parent = _ToolBuilders.maybeOf(context);
     return _ToolBuilders(builders: {...?parent, name: builder}, child: child);
-  }
-}
-
-/// Renders [call] with the nearest builder registered for its tool name,
-/// falling back to the `'*'` builder, or nothing.
-///
-/// Keyed by the call id and kept alive inside lists, so builder state
-/// survives status updates, rebuilds and scrolling.
-class ToolCallWidget extends StatefulWidget {
-  /// Creates a widget that renders [call].
-  new({required this.call}) : super(key: ValueKey(call.id));
-
-  /// The call to render.
-  final ToolCallView call;
-
-  @override
-  State<ToolCallWidget> createState() => _ToolCallWidgetState();
-}
-
-class _ToolCallWidgetState extends State<ToolCallWidget>
-    with AutomaticKeepAliveClientMixin {
-  @override
-  bool get wantKeepAlive => true;
-
-  @override
-  Widget build(BuildContext context) {
-    super.build(context);
-    final builders = _ToolBuilders.maybeOf(context);
-    final builder = builders?[widget.call.name] ?? builders?['*'];
-    return builder?.call(context, widget.call) ?? const SizedBox.shrink();
   }
 }
 
