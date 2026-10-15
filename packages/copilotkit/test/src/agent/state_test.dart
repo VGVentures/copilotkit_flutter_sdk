@@ -113,7 +113,7 @@ void main() {
   });
 
   group('CopilotAgent state', () {
-    test('state and stateStream follow snapshots and deltas', () async {
+    test('sharedState follows snapshots and deltas', () async {
       final transport = _MockAgentTransport();
       final agent = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
@@ -139,7 +139,11 @@ void main() {
         ]),
       );
       final states = <Object?>[];
-      agent.stateStream.listen(states.add);
+      agent.stream
+          .map((state) => state.sharedState)
+          .where((shared) => shared != null)
+          .distinct()
+          .listen(states.add);
 
       await agent.run();
       await pumpEventQueue();

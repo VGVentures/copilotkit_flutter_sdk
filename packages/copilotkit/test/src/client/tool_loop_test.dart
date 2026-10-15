@@ -42,7 +42,7 @@ void main() {
         ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
         ..add(Stream.fromIterable(replyRun(agent.threadId)));
       final statuses = <ToolCallStatus>[];
-      agent.changes.listen((s) {
+      agent.stream.listen((s) {
         final status = s.toolCalls.firstOrNull?.status;
         if (status != null && statuses.lastOrNull != status) {
           statuses.add(status);
@@ -66,14 +66,14 @@ void main() {
       expect(Uuid.isValidUUID(fromString: toolMessage.id!), isTrue);
       expect(toolMessage.toolCallId, 'c1');
       expect(toolMessage.content, '{"forecast": "sunny"}');
-      expect(agent.toolCalls.single.result, '{"forecast": "sunny"}');
+      expect(agent.state.toolCalls.single.result, '{"forecast": "sunny"}');
       expect(statuses, [
         ToolCallStatus.inProgress,
         ToolCallStatus.executing,
         ToolCallStatus.complete,
       ]);
-      expect(agent.messages.last.content, 'Sunny in Lima');
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.messages.last.content, 'Sunny in Lima');
+      expect(agent.state.isRunning, isFalse);
       expect(errors, isEmpty);
     });
 
@@ -88,12 +88,12 @@ void main() {
 
       final run = agent.run();
       await pumpEventQueue();
-      expect(agent.isRunning, isTrue);
-      expect(agent.toolCalls.single.status, ToolCallStatus.executing);
+      expect(agent.state.isRunning, isTrue);
+      expect(agent.state.toolCalls.single.status, ToolCallStatus.executing);
 
       handlerDone.complete('ok');
       await run;
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.isRunning, isFalse);
     });
 
     test('stays running from the first run to the end of the turn', () async {
@@ -102,7 +102,7 @@ void main() {
         ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
         ..add(Stream.fromIterable(replyRun(agent.threadId)));
       final running = <bool>[];
-      agent.changes.listen((snapshot) => running.add(snapshot.isRunning));
+      agent.stream.listen((snapshot) => running.add(snapshot.isRunning));
 
       await agent.run();
       await pumpEventQueue();
@@ -119,7 +119,7 @@ void main() {
         ]),
       );
       final running = <bool>[];
-      agent.changes.listen((snapshot) => running.add(snapshot.isRunning));
+      agent.stream.listen((snapshot) => running.add(snapshot.isRunning));
 
       await agent.run();
       await pumpEventQueue();
@@ -145,7 +145,7 @@ void main() {
         expect(errors, [same(failure)]);
         final toolMessage = sentInputs().last.messages.last as ToolMessage;
         expect(toolMessage.content, 'Tool failed.');
-        expect(agent.toolCalls.single.status, ToolCallStatus.complete);
+        expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
       },
     );
 
@@ -195,7 +195,7 @@ void main() {
 
       expect(called, isFalse);
       expect(errors, isEmpty);
-      final result = agent.toolCalls.single.result;
+      final result = agent.state.toolCalls.single.result;
       expect(
         result,
         allOf(
@@ -206,7 +206,7 @@ void main() {
       );
       final toolMessage = sentInputs().last.messages.last as ToolMessage;
       expect(toolMessage.content, result);
-      expect(agent.messages.last.content, 'Sunny in Lima');
+      expect(agent.state.messages.last.content, 'Sunny in Lima');
     });
 
     test('closes calls to unregistered tools as unavailable', () async {
@@ -215,10 +215,10 @@ void main() {
       await agent.run();
 
       expect(sentInputs(), hasLength(1));
-      final view = agent.toolCalls.single;
+      final view = agent.state.toolCalls.single;
       expect(view.status, ToolCallStatus.complete);
       expect(view.result, 'Tool is not available.');
-      expect(agent.messages.last, isA<ToolMessage>());
+      expect(agent.state.messages.last, isA<ToolMessage>());
     });
 
     test('closes unregistered calls before running again', () async {
@@ -269,7 +269,7 @@ void main() {
 
       expect(called, isFalse);
       expect(sentInputs(), hasLength(1));
-      expect(agent.toolCalls.single.result, 'from server');
+      expect(agent.state.toolCalls.single.result, 'from server');
     });
 
     test('does not run handlers when the run fails', () async {
@@ -328,7 +328,10 @@ void main() {
         ]);
         final result = sentInputs().last.messages.whereType<ToolMessage>();
         expect(result.single.content, 'Sunny, 24°C');
-        expect(agent.messages.last.content, 'Hello! Wonderful to meet you.');
+        expect(
+          agent.state.messages.last.content,
+          'Hello! Wonderful to meet you.',
+        );
         expect(errors, isEmpty);
       });
 
@@ -339,7 +342,7 @@ void main() {
 
         await agent.run();
 
-        final call = agent.toolCalls.single;
+        final call = agent.state.toolCalls.single;
         expect(call.name, 'AGUISendStateDelta');
         expect(call.status, ToolCallStatus.complete);
         expect(call.result, contains('"success":true'));

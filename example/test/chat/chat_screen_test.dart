@@ -21,12 +21,12 @@ void main() {
       final client = _MockCopilotKitClient();
       final agent = _MockCopilotAgent();
       when(() => client.agent('default')).thenReturn(agent);
-      when(() => agent.snapshot).thenReturn(
+      when(() => agent.state).thenReturn(
         AgentState(
           messages: [UserMessage(id: 'u1', content: 'Hi')],
         ),
       );
-      when(() => agent.changes).thenAnswer((_) => const Stream.empty());
+      when(() => agent.stream).thenAnswer((_) => const Stream.empty());
 
       await tester.pumpWidget(
         CopilotKit.value(

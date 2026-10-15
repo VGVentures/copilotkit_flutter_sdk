@@ -89,9 +89,9 @@ void main() {
         await run;
 
         expect(cancelled, isTrue);
-        expect(agent.isRunning, isFalse);
-        expect(agent.snapshot.error, isNull);
-        expect(agent.messages.single.content, 'Hal');
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, isNull);
+        expect(agent.state.messages.single.content, 'Hal');
         expect(errors, isEmpty);
       },
     );
@@ -121,13 +121,13 @@ void main() {
       await agent.stop();
       await run;
       final changes = <AgentState>[];
-      agent.changes.listen(changes.add);
+      agent.stream.listen(changes.add);
 
       events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));
       await pumpEventQueue();
 
       expect(changes, isEmpty);
-      expect(agent.messages.single.content, 'Hal');
+      expect(agent.state.messages.single.content, 'Hal');
     });
 
     group('while the headers are being built', () {
@@ -163,7 +163,7 @@ void main() {
         await run;
 
         verifyNoRequest();
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       });
 
@@ -201,7 +201,7 @@ void main() {
 
         expect(stop, isNotNull);
         await expectLater(stop, completes);
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
       });
     }
 
@@ -233,7 +233,7 @@ void main() {
       await expectLater(agent.stop(), completes);
       await run;
 
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.isRunning, isFalse);
       expect(errors, [same(failure)]);
     });
 
@@ -258,8 +258,8 @@ void main() {
 
       await agent.run();
 
-      expect(agent.isRunning, isFalse);
-      expect(agent.messages.map((m) => m.content), ['Hal', 'Again']);
+      expect(agent.state.isRunning, isFalse);
+      expect(agent.state.messages.map((m) => m.content), ['Hal', 'Again']);
     });
   });
 }

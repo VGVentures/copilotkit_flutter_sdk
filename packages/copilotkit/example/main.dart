@@ -30,8 +30,8 @@ Future<void> main() async {
   final user = client.addContext('Current user', {'name': 'Ada'});
 
   final agent = client.agent('default');
-  final subscription = agent.changes.listen((snapshot) {
-    for (final call in snapshot.toolCalls) {
+  final subscription = agent.stream.listen((state) {
+    for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
         ToolCallStatus.executing => 'weather for ${call.args['city']}',
@@ -40,8 +40,8 @@ Future<void> main() async {
       print('${call.name}: $view');
     }
     print(
-      'running: ${snapshot.isRunning}, '
-      'messages: ${snapshot.messages.length}',
+      'running: ${state.isRunning}, '
+      'messages: ${state.messages.length}',
     );
   });
 

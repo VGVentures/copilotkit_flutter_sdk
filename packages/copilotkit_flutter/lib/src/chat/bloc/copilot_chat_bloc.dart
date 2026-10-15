@@ -12,20 +12,20 @@ part 'copilot_chat_state.dart';
 /// {@template copilot_chat_bloc}
 /// Drives a chat UI from a [CopilotAgent].
 ///
-/// Mirrors `agent.changes` into [CopilotChatState] and turns
+/// Mirrors `agent.stream` into [CopilotChatState] and turns
 /// [ChatMessageSent] and [ChatStopRequested] into agent calls.
 /// {@endtemplate}
 class CopilotChatBloc({required final CopilotAgent _agent})
     extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// {@macro copilot_chat_bloc}
-  this : super(CopilotChatState.fromAgentState(_agent.snapshot)) {
-    on<_ChatSnapshotChanged>(
-      (event, emit) => emit(CopilotChatState.fromAgentState(event.snapshot)),
+  this : super(CopilotChatState.fromAgentState(_agent.state)) {
+    on<_AgentStateChanged>(
+      (event, emit) => emit(CopilotChatState.fromAgentState(event.state)),
     );
     on<ChatMessageSent>(_onMessageSent);
     on<ChatStopRequested>((_, _) => _agent.stop());
-    _subscription = _agent.changes.listen(
-      (snapshot) => add(_ChatSnapshotChanged(snapshot)),
+    _subscription = _agent.stream.listen(
+      (state) => add(_AgentStateChanged(state)),
     );
   }
 
@@ -36,7 +36,7 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     Emitter<CopilotChatState> emit,
   ) async {
     final text = event.text.trim();
-    if (text.isEmpty || _agent.isRunning) return;
+    if (text.isEmpty || _agent.state.isRunning) return;
     await _agent.addMessage(UserMessage(id: const Uuid().v4(), content: text));
     await _agent.run();
   }
