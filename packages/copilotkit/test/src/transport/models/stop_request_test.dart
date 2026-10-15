@@ -1,4 +1,4 @@
-import 'package:copilotkit/src/transport/stop_request.dart';
+import 'package:copilotkit/src/transport/models/stop_request.dart';
 import 'package:test/test.dart';
 
 void main() {
