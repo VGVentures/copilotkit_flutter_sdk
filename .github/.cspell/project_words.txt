@@ -19,3 +19,4 @@ themable
 workstreams
 worktree
 jsonrepair
+livekit
