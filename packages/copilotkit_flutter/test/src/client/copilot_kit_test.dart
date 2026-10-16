@@ -59,16 +59,12 @@ void main() {
           child: _ClientProbe((c) => client = c),
         ),
       );
-      var changesClosed = false;
-      client
-          .agent('default')
-          .changes
-          .listen(null, onDone: () => changesClosed = true);
+      final agent = client.agent('default');
 
       await tester.pumpWidget(const SizedBox());
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(changesClosed, isTrue);
+      expect(agent.isClosed, isTrue);
     });
 
     group('value', () {

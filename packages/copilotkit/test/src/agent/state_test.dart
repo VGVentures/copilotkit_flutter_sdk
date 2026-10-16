@@ -1,15 +1,12 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/agent_reducer.dart';
 import '../../helpers/fixtures.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
-
-AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
-    events.fold(initial ?? const AgentState(), reduceAgentEvent);
 
 void main() {
   setUpAll(() {
@@ -24,9 +21,9 @@ void main() {
     );
   });
 
-  group('reduceAgentEvent state', () {
-    test('StateSnapshot replaces the state', () {
-      final snapshot = _replay(const [
+  group('CopilotAgent reduces state', () {
+    test('StateSnapshot replaces the state', () async {
+      final snapshot = await replay(const [
         StateSnapshotEvent(snapshot: {'count': 1}),
         StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
@@ -34,8 +31,8 @@ void main() {
       expect(snapshot.sharedState, {'items': <Object?>[]});
     });
 
-    test('StateDelta applies a JSON Patch to the state', () {
-      final snapshot = _replay(const [
+    test('StateDelta applies a JSON Patch to the state', () async {
+      final snapshot = await replay(const [
         StateSnapshotEvent(
           snapshot: {
             'count': 1,
@@ -56,8 +53,8 @@ void main() {
       });
     });
 
-    test('StateDelta does not mutate the previous state', () {
-      final before = reduceAgentEvent(
+    test('StateDelta does not mutate the previous state', () async {
+      final before = await reduce(
         const AgentState(),
         const StateSnapshotEvent(
           snapshot: {
@@ -66,7 +63,7 @@ void main() {
         ),
       );
 
-      reduceAgentEvent(
+      await reduce(
         before,
         const StateDeltaEvent(
           delta: [
@@ -80,30 +77,33 @@ void main() {
       });
     });
 
-    test('a StateDelta that does not apply leaves the snapshot unchanged', () {
-      const snapshot = AgentState(sharedState: {'count': 1});
+    test(
+      'a StateDelta that does not apply leaves the snapshot unchanged',
+      () async {
+        const snapshot = AgentState(sharedState: {'count': 1});
 
-      expect(
-        reduceAgentEvent(
-          snapshot,
-          const StateDeltaEvent(
-            delta: [
-              {'op': 'remove', 'path': '/missing'},
-            ],
+        expect(
+          await reduce(
+            snapshot,
+            const StateDeltaEvent(
+              delta: [
+                {'op': 'remove', 'path': '/missing'},
+              ],
+            ),
           ),
-        ),
-        same(snapshot),
-      );
-    });
+          same(snapshot),
+        );
+      },
+    );
 
-    test('MessagesSnapshot replaces the messages', () {
+    test('MessagesSnapshot replaces the messages', () async {
       final old = UserMessage(id: 'u0', content: 'Old');
       final fresh = [
         UserMessage(id: 'u1', content: 'Hi'),
         const AssistantMessage(id: 'a1', content: 'Hello'),
       ];
 
-      final snapshot = reduceAgentEvent(
+      final snapshot = await reduce(
         AgentState(messages: [old]),
         MessagesSnapshotEvent(messages: fresh),
       );
@@ -144,7 +144,7 @@ void main() {
       await agent.run();
       await pumpEventQueue();
 
-      expect(agent.state, {'count': 2});
+      expect(agent.state.sharedState, {'count': 2});
       expect(states, [
         {'count': 1},
         {'count': 2},
@@ -169,7 +169,7 @@ void main() {
 
       await agent.run();
 
-      expect(agent.state, {
+      expect(agent.state.sharedState, {
         'todos': ['buy milk', 'walk dog'],
       });
     });
