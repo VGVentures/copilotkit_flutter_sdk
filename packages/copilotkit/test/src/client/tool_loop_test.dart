@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
 import '../../helpers/tool_loop_harness.dart';
@@ -62,6 +63,7 @@ void main() {
         '{"city": "Lima"}',
       );
       final toolMessage = followUp.last as ToolMessage;
+      expect(Uuid.isValidUUID(fromString: toolMessage.id!), isTrue);
       expect(toolMessage.toolCallId, 'c1');
       expect(toolMessage.content, '{"forecast": "sunny"}');
       expect(agent.toolCalls.single.result, '{"forecast": "sunny"}');

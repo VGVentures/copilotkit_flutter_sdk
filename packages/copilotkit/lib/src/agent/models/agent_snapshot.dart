@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:equatable/equatable.dart';
 
 /// {@template agent_snapshot}
 /// Immutable view of an agent's state at one point in time.
@@ -28,28 +29,31 @@ class const AgentSnapshot({
   /// A [RunErrorEvent] when the runtime reported the error; otherwise the
   /// transport or client error.
   final Object? error,
-}) {
+}) extends Equatable {
   /// {@macro agent_snapshot}
   this;
 
+  @override
+  List<Object?> get props => [messages, state, isRunning, toolCalls, error];
+
   /// Returns a copy with the given fields replaced.
   ///
-  /// Pass `null` for [state] or [error] to clear them.
+  /// [state] and [error] are getters so a caller can set a value
+  /// (`error: () => e`), clear it (`error: () => null`) or leave it alone by
+  /// not passing it.
   AgentSnapshot copyWith({
     List<Message>? messages,
-    Object? state = _unset,
+    Object? Function()? state,
     bool? isRunning,
     List<ToolCallView>? toolCalls,
-    Object? error = _unset,
+    Object? Function()? error,
   }) {
     return AgentSnapshot(
       messages: messages ?? this.messages,
-      state: identical(state, _unset) ? this.state : state,
+      state: state == null ? this.state : state(),
       isRunning: isRunning ?? this.isRunning,
       toolCalls: toolCalls ?? this.toolCalls,
-      error: identical(error, _unset) ? this.error : error,
+      error: error == null ? this.error : error(),
     );
   }
 }
-
-const Object _unset = Object();

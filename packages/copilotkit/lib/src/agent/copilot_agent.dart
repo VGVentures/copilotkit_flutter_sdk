@@ -25,7 +25,7 @@ class CopilotAgent({
   AgentSnapshot _snapshot = const AgentSnapshot();
 
   /// Id of the conversation thread sent with every run.
-  final String threadId = threadId ?? _randomId();
+  final String threadId = threadId ?? const Uuid().v4();
 
   /// Current state of the agent.
   AgentSnapshot get snapshot => _snapshot;
@@ -79,11 +79,11 @@ class CopilotAgent({
   void _reduce(BaseEvent event) => _update(reduceAgentEvent(_snapshot, event));
 
   void _update(AgentSnapshot next) {
-    if (identical(next, _snapshot)) return;
+    if (next == _snapshot) return;
     final previous = _snapshot;
     _snapshot = next;
     _changes.add(next);
-    if (!identical(next.state, previous.state)) _stateChanges.add(next.state);
+    if (next.state != previous.state) _stateChanges.add(next.state);
   }
 
   Future<void> _close() async {

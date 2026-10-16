@@ -3,9 +3,9 @@ import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('toolParametersJson', () {
+  group('ToolSchema toJson', () {
     test('keeps a schema that already has properties', () {
-      expect(toolParametersJson(Ack.object({'city': Ack.string()})), {
+      expect(ToolSchema(Ack.object({'city': Ack.string()})).toJson(), {
         'type': 'object',
         'properties': {
           'city': {'type': 'string'},
@@ -16,7 +16,7 @@ void main() {
     });
 
     test('adds properties to an empty object', () {
-      expect(toolParametersJson(Ack.object({})), {
+      expect(ToolSchema(Ack.object({})).toJson(), {
         'type': 'object',
         'additionalProperties': false,
         'properties': <String, Object?>{},
@@ -24,14 +24,14 @@ void main() {
     });
 
     test('adds properties to nested empty objects', () {
-      final json = toolParametersJson(
+      final json = ToolSchema(
         Ack.object({
           'plain': Ack.object({}),
           'nullable': Ack.object({}).nullable(),
           'list': Ack.list(Ack.object({})),
           'deep': Ack.object({'inner': Ack.object({})}),
         }),
-      );
+      ).toJson();
 
       const empty = {
         'type': 'object',
@@ -53,7 +53,7 @@ void main() {
     });
   });
 
-  group('invalidArgumentsResult', () {
+  group('ToolSchema invalidArgumentsResult', () {
     final schema = Ack.object({
       'city': Ack.string(),
       'days': Ack.integer().optional(),
@@ -62,7 +62,7 @@ void main() {
     });
 
     String resultFor(Map<String, Object?> args) =>
-        invalidArgumentsResult(schema.safeParse(args).getError());
+        ToolSchema.invalidArgumentsResult(schema.safeParse(args).getError());
 
     test('lists each problem by argument path', () {
       expect(
@@ -91,7 +91,7 @@ void main() {
 
     test('describes a root error without a path', () {
       expect(
-        invalidArgumentsResult(schema.safeParse('Lima').getError()),
+        ToolSchema.invalidArgumentsResult(schema.safeParse('Lima').getError()),
         endsWith('\n- Expected object, got string.'),
       );
     });

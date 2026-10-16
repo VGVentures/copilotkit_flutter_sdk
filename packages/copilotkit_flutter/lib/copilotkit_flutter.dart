@@ -7,7 +7,9 @@ export 'package:copilotkit/copilotkit.dart';
 
 export 'src/chat/bloc/copilot_chat_bloc.dart';
 export 'src/chat/models/chat_row.dart';
-export 'src/copilot_context.dart';
-export 'src/copilot_kit.dart';
-export 'src/copilot_tool.dart';
-export 'src/tool_renderer.dart';
+export 'src/client/copilot_kit.dart';
+export 'src/context/copilot_context.dart';
+export 'src/tools/copilot_tool.dart';
+export 'src/tools/tool_call_widget.dart';
+export 'src/tools/tool_call_widget_builder.dart';
+export 'src/tools/tool_renderer.dart';

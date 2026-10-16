@@ -12,12 +12,12 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 ///
 /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
 /// don't change the agent return [snapshot] itself, so callers can skip
-/// emitting when `identical(previous, next)`.
+/// emitting when `previous == next`.
 AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
   return switch (event) {
-    RunStartedEvent() => snapshot.copyWith(error: null),
+    RunStartedEvent() => snapshot.copyWith(error: () => null),
     RunFinishedEvent() => _finishToolArgs(snapshot),
-    RunErrorEvent() => snapshot.copyWith(error: event),
+    RunErrorEvent() => snapshot.copyWith(error: () => event),
     TextMessageStartEvent(:final messageId, :final role, :final name) =>
       snapshot.copyWith(
         messages: [
@@ -48,14 +48,14 @@ AgentSnapshot reduceAgentEvent(AgentSnapshot snapshot, BaseEvent event) {
       snapshot,
       toolCallId,
       (view) => view.status == ToolCallStatus.inProgress
-          ? _copyView(view, status: ToolCallStatus.executing)
+          ? view.copyWith(status: ToolCallStatus.executing)
           : view,
     ),
     ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
     ToolCallResultEvent(:final messageId, :final toolCallId, :final content) =>
       _completeToolCall(snapshot, messageId, toolCallId, content),
     StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-      state: state,
+      state: () => state,
     ),
     StateDeltaEvent(:final delta) => _applyStateDelta(snapshot, delta),
     MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
@@ -72,7 +72,9 @@ AgentSnapshot _applyStateDelta(
   List<Map<String, Object?>> delta,
 ) {
   try {
-    return snapshot.copyWith(state: applyJsonPatch(snapshot.state, delta));
+    return snapshot.copyWith(
+      state: () => applyJsonPatch(snapshot.state, delta),
+    );
   } on FormatException {
     return snapshot;
   }
@@ -144,6 +146,8 @@ AgentSnapshot _appendToolArgs(
         message.copyWith(
           toolCalls: [
             for (final c in message.toolCalls!)
+              // The same ToolCall instance, not an equal one: ag_ui models
+              // compare by identity.
               if (identical(c, call)) updatedCall else c,
           ],
         )
@@ -154,7 +158,7 @@ AgentSnapshot _appendToolArgs(
   return _updateToolCall(
     snapshot.copyWith(messages: messages),
     toolCallId,
-    (view) => _copyView(view, args: args),
+    (view) => view.copyWith(args: args),
   );
 }
 
@@ -191,7 +195,8 @@ AgentSnapshot _completeToolCall(
       ],
     ),
     toolCallId,
-    (view) => _copyView(view, status: ToolCallStatus.complete, result: content),
+    (view) =>
+        view.copyWith(status: ToolCallStatus.complete, result: () => content),
   );
 }
 
@@ -205,7 +210,7 @@ AgentSnapshot _finishToolArgs(AgentSnapshot snapshot) {
     toolCalls: [
       for (final view in snapshot.toolCalls)
         if (view.status == ToolCallStatus.inProgress)
-          _copyView(view, status: ToolCallStatus.executing)
+          view.copyWith(status: ToolCallStatus.executing)
         else
           view,
     ],
@@ -221,32 +226,13 @@ AgentSnapshot _updateToolCall(
   if (index == -1) return snapshot;
   final view = snapshot.toolCalls[index];
   final updated = update(view);
-  if (identical(updated, view)) return snapshot;
+  if (updated == view) return snapshot;
   return snapshot.copyWith(
     toolCalls: [
       ...snapshot.toolCalls.sublist(0, index),
       updated,
       ...snapshot.toolCalls.sublist(index + 1),
     ],
-  );
-}
-
-/// Returns [view] with the given fields replaced.
-///
-/// Private on purpose: a public `ToolCallView.copyWith` would change the
-/// frozen A3 contract.
-ToolCallView _copyView(
-  ToolCallView view, {
-  ToolCallStatus? status,
-  Map<String, Object?>? args,
-  String? result,
-}) {
-  return ToolCallView(
-    id: view.id,
-    name: view.name,
-    status: status ?? view.status,
-    args: args ?? view.args,
-    result: result ?? view.result,
   );
 }
 

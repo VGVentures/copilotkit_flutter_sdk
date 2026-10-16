@@ -100,9 +100,9 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: toolParametersJson(
+  parameters: ToolSchema(
     Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
-  ),
+  ).toJson(),
 );
 
 Future<void> _record({
