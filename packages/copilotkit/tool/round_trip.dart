@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/tool_schema.dart';
+import 'package:copilotkit/src/tools/tool_schema.dart';
 import 'package:http/http.dart' as http;
 
 Future<void> main(List<String> arguments) async {
