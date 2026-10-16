@@ -29,5 +29,60 @@ void main() {
       expect(view.args, {'city': 'Lima'});
       expect(view.result, 'sunny');
     });
+
+    test('supports value equality', () {
+      const view = ToolCallView(
+        id: 'call-1',
+        name: 'showWeather',
+        status: ToolCallStatus.complete,
+        args: {'city': 'Lima'},
+        result: 'sunny',
+      );
+
+      expect(
+        view,
+        const ToolCallView(
+          id: 'call-1',
+          name: 'showWeather',
+          status: ToolCallStatus.complete,
+          args: {'city': 'Lima'},
+          result: 'sunny',
+        ),
+      );
+      expect(view, isNot(view.copyWith(status: ToolCallStatus.executing)));
+      expect(view, isNot(view.copyWith(args: {'city': 'Quito'})));
+    });
+
+    group('copyWith', () {
+      const view = ToolCallView(
+        id: 'call-1',
+        name: 'showWeather',
+        status: ToolCallStatus.inProgress,
+        args: {'city': 'Lima'},
+        result: 'partial',
+      );
+
+      test('keeps every field when nothing is passed', () {
+        expect(view.copyWith(), view);
+      });
+
+      test('replaces the given fields', () {
+        final copy = view.copyWith(
+          status: ToolCallStatus.complete,
+          args: {'city': 'Quito'},
+          result: () => 'sunny',
+        );
+
+        expect(copy.id, 'call-1');
+        expect(copy.name, 'showWeather');
+        expect(copy.status, ToolCallStatus.complete);
+        expect(copy.args, {'city': 'Quito'});
+        expect(copy.result, 'sunny');
+      });
+
+      test('can clear the result', () {
+        expect(view.copyWith(result: () => null).result, isNull);
+      });
+    });
   });
 }
