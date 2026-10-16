@@ -1,7 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
 import 'package:copilotkit/src/json_patch.dart';
-import 'package:copilotkit/src/partial_json.dart';
+import 'package:copilotkit/src/partial_json_parser.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 
@@ -154,7 +154,7 @@ AgentSnapshot _appendToolArgs(
       else
         message,
   ];
-  final args = parsePartialJson(arguments);
+  final args = PartialJsonParser.parse(arguments);
   return _updateToolCall(
     snapshot.copyWith(messages: messages),
     toolCallId,
