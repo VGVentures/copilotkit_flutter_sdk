@@ -32,12 +32,12 @@ void main() {
 
   group(CopilotChatBloc, () {
     late _MockCopilotAgent agent;
-    late StreamController<AgentSnapshot> changes;
+    late StreamController<AgentState> changes;
 
     setUp(() {
       agent = _MockCopilotAgent();
-      changes = StreamController<AgentSnapshot>.broadcast();
-      when(() => agent.snapshot).thenReturn(const AgentSnapshot());
+      changes = StreamController<AgentState>.broadcast();
+      when(() => agent.snapshot).thenReturn(const AgentState());
       when(() => agent.changes).thenAnswer((_) => changes.stream);
       when(() => agent.isRunning).thenReturn(false);
       when(() => agent.addMessage(any())).thenAnswer((_) async {});
@@ -49,7 +49,7 @@ void main() {
 
     test('starts from the agent snapshot', () {
       when(() => agent.snapshot).thenReturn(
-        AgentSnapshot(messages: [_user], isRunning: true, error: 'boom'),
+        AgentState(messages: [_user], isRunning: true, error: 'boom'),
       );
 
       final bloc = CopilotChatBloc(agent: agent);
@@ -70,16 +70,16 @@ void main() {
       build: () => CopilotChatBloc(agent: agent),
       act: (_) {
         changes
-          ..add(AgentSnapshot(messages: [_user], isRunning: true))
+          ..add(AgentState(messages: [_user], isRunning: true))
           ..add(
-            AgentSnapshot(
+            AgentState(
               messages: [_user, _assistantWithCall],
               toolCalls: const [_call],
               isRunning: true,
             ),
           )
           ..add(
-            AgentSnapshot(
+            AgentState(
               messages: [_user, _assistantWithCall],
               toolCalls: const [_call],
               error: 'boom',
@@ -109,8 +109,8 @@ void main() {
 
     group('rows', () {
       test('hide tool, system and empty messages', () {
-        final rows = CopilotChatState.fromSnapshot(
-          AgentSnapshot(
+        final rows = CopilotChatState.fromAgentState(
+          AgentState(
             messages: [
               const SystemMessage(id: 's', content: 'Be nice'),
               _user,
@@ -141,8 +141,8 @@ void main() {
           ],
         );
 
-        final rows = CopilotChatState.fromSnapshot(
-          const AgentSnapshot(messages: [callOnly], toolCalls: [_call]),
+        final rows = CopilotChatState.fromAgentState(
+          const AgentState(messages: [callOnly], toolCalls: [_call]),
         ).rows;
 
         expect(rows, [const ChatToolCallRow(_call)]);

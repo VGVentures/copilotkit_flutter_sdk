@@ -1,13 +1,13 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/fixtures.dart';
 
-AgentSnapshot _replay(List<BaseEvent> events, [AgentSnapshot? initial]) =>
-    events.fold(initial ?? const AgentSnapshot(), reduceAgentEvent);
+AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
+    events.fold(initial ?? const AgentState(), reduceAgentEvent);
 
 const _start = ToolCallStartEvent(
   toolCallId: 'c1',
@@ -18,7 +18,7 @@ const _start = ToolCallStartEvent(
 void main() {
   group('reduceAgentEvent tool calls', () {
     test('Start adds an in-progress view with empty args', () {
-      final snapshot = reduceAgentEvent(const AgentSnapshot(), _start);
+      final snapshot = reduceAgentEvent(const AgentState(), _start);
 
       final view = snapshot.toolCalls.single;
       expect(view.id, 'c1');
@@ -29,7 +29,7 @@ void main() {
     });
 
     test('Start records the call on a new assistant message', () {
-      final snapshot = reduceAgentEvent(const AgentSnapshot(), _start);
+      final snapshot = reduceAgentEvent(const AgentState(), _start);
 
       final message = snapshot.messages.single as AssistantMessage;
       expect(message.id, 'm1');
@@ -42,7 +42,7 @@ void main() {
 
     test('Start without a parent message uses the call id', () {
       final snapshot = reduceAgentEvent(
-        const AgentSnapshot(),
+        const AgentState(),
         const ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
       );
 
@@ -68,13 +68,13 @@ void main() {
     });
 
     test('a repeated Start is ignored', () {
-      final started = reduceAgentEvent(const AgentSnapshot(), _start);
+      final started = reduceAgentEvent(const AgentState(), _start);
 
       expect(reduceAgentEvent(started, _start), same(started));
     });
 
     test('Args grow the raw arguments and the parsed partial args', () {
-      final started = reduceAgentEvent(const AgentSnapshot(), _start);
+      final started = reduceAgentEvent(const AgentState(), _start);
       final partial = reduceAgentEvent(
         started,
         const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
@@ -98,13 +98,13 @@ void main() {
       final snapshot = _replay(const [
         _start,
         ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
-      ], AgentSnapshot(messages: [user]));
+      ], AgentState(messages: [user]));
 
       expect(snapshot.messages.first, same(user));
     });
 
     test('Args for an unknown call are ignored', () {
-      const snapshot = AgentSnapshot();
+      const snapshot = AgentState();
 
       expect(
         reduceAgentEvent(
@@ -125,7 +125,7 @@ void main() {
     });
 
     test('End for an unknown call is ignored', () {
-      const snapshot = AgentSnapshot();
+      const snapshot = AgentState();
 
       expect(
         reduceAgentEvent(snapshot, const ToolCallEndEvent(toolCallId: 'x')),
@@ -155,7 +155,7 @@ void main() {
 
     test('Result for an unknown call still appends the tool message', () {
       final snapshot = reduceAgentEvent(
-        const AgentSnapshot(),
+        const AgentState(),
         const ToolCallResultEvent(
           messageId: 't1',
           toolCallId: 'x',
@@ -198,7 +198,7 @@ void main() {
       });
 
       test('a chunk without a name for an unknown call is ignored', () {
-        const snapshot = AgentSnapshot();
+        const snapshot = AgentState();
 
         expect(
           reduceAgentEvent(
@@ -215,7 +215,7 @@ void main() {
 
       test('a chunk without delta only starts the call', () {
         final snapshot = reduceAgentEvent(
-          const AgentSnapshot(),
+          const AgentState(),
           const ToolCallChunkEvent(toolCallId: 'c1', toolCallName: 'tool'),
         );
 

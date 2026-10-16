@@ -22,7 +22,7 @@ final class const CopilotChatState({
   /// User and assistant messages with text become [ChatMessageRow]s; each
   /// tool call on an assistant message follows it as a [ChatToolCallRow].
   /// Tool results, system and developer messages are not shown.
-  factory fromSnapshot(AgentSnapshot snapshot) {
+  factory fromAgentState(AgentState snapshot) {
     final calls = {for (final call in snapshot.toolCalls) call.id: call};
     return CopilotChatState(
       rows: [

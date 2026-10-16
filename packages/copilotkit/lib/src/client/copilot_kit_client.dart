@@ -4,7 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/models/agent_snapshot.dart';
+import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:copilotkit/src/client/copilot_error_handler.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
