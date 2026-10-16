@@ -20,9 +20,11 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent_snapshot.dart';
+export 'src/agent/models/agent_snapshot.dart';
 export 'src/agent_transport.dart';
-export 'src/client.dart';
+export 'src/client/copilot_error_handler.dart';
+export 'src/client/copilot_kit_client.dart';
+export 'src/client/headers_builder.dart';
 export 'src/context.dart';
 export 'src/tools/cancellation_signal.dart';
 export 'src/tools/frontend_tool.dart';

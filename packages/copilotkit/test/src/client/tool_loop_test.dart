@@ -4,8 +4,8 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
-import '../helpers/fixtures.dart';
-import '../helpers/tool_loop_harness.dart';
+import '../../helpers/fixtures.dart';
+import '../../helpers/tool_loop_harness.dart';
 
 void main() {
   setUpAll(ToolLoopHarness.registerFallbacks);

@@ -1,4 +1,4 @@
-part of 'client.dart';
+part of '../client/copilot_kit_client.dart';
 
 /// {@template copilot_agent}
 /// A conversation with one agent on a Copilot Runtime.
