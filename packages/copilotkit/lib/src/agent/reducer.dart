@@ -73,7 +73,7 @@ AgentSnapshot _applyStateDelta(
 ) {
   try {
     return snapshot.copyWith(
-      state: () => applyJsonPatch(snapshot.state, delta),
+      state: () => JsonPatch.apply(snapshot.state, delta),
     );
   } on FormatException {
     return snapshot;
