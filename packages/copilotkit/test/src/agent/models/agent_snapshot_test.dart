@@ -69,10 +69,10 @@ void main() {
 
         final copy = const AgentSnapshot().copyWith(
           messages: [message],
-          state: const {'a': 1},
+          state: () => const {'a': 1},
           isRunning: true,
           toolCalls: [toolCall],
-          error: 'boom',
+          error: () => 'boom',
         );
 
         expect(copy.messages, [message]);
@@ -85,7 +85,7 @@ void main() {
       test('can reset state and error to null', () {
         const snapshot = AgentSnapshot(state: {'a': 1}, error: 'boom');
 
-        final copy = snapshot.copyWith(state: null, error: null);
+        final copy = snapshot.copyWith(state: () => null, error: () => null);
 
         expect(copy.state, isNull);
         expect(copy.error, isNull);
