@@ -171,6 +171,10 @@ class AgUiTransport({
   void _ensureOpen() {
     if (_closed) throw StateError('AgUiTransport is closed.');
   }
+
+  /// Whether [error] is `ag_ui` reporting an event it could not decode.
+  static bool _isDecodeError(Object error) =>
+      error is DecodingError || error is AGUIValidationError;
 }
 
 Future<http.Response> _send(http.Client client, http.Request request) async {
@@ -184,8 +188,4 @@ Future<void> _cancel(StreamSubscription<BaseEvent>? subscription) async {
   } on Object {
     // The connection is already being torn down; nothing to report.
   }
-
-  /// Whether [error] is `ag_ui` reporting an event it could not decode.
-  static bool _isDecodeError(Object error) =>
-      error is DecodingError || error is AGUIValidationError;
 }
