@@ -16,6 +16,8 @@ abstract interface class AgentTransport {
   });
 
   /// Asks the runtime to stop run [runId] of [agentId] on [threadId].
+  ///
+  /// Throws when the runtime rejects the request or doesn't answer in time.
   Future<void> stop({
     required String agentId,
     required String threadId,

@@ -147,6 +147,31 @@ void main() {
       expect(events, [isA<RunStartedEvent>(), isA<RunFinishedEvent>()]);
     });
 
+    test('reports each skipped event to onSkippedEvent', () async {
+      final skipped = <Object>[];
+      transport = AgUiTransport(
+        runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+        httpClientFactory: () => httpClient,
+        onSkippedEvent: (error, _) => skipped.add(error),
+      );
+      stubResponse(
+        _sse(
+          Stream.fromIterable([
+            _event({'type': 'SOMETHING_NEW', 'payload': 1}),
+            _event({'type': 'TEXT_MESSAGE_START'}),
+            _event({'type': 'RUN_FINISHED', 'threadId': 't', 'runId': 'r'}),
+          ]),
+        ),
+      );
+
+      final events = await transport
+          .run(agentId: 'default', input: _input)
+          .toList();
+
+      expect(events, [isA<RunFinishedEvent>()]);
+      expect(skipped, hasLength(2));
+    });
+
     test('emits an error when the runtime rejects the request', () async {
       stubResponse(
         http.StreamedResponse(
@@ -222,6 +247,51 @@ void main() {
       verify(() => httpClient.close()).called(1);
     });
 
+    test(
+      'close completes the streams of active runs without an error',
+      () async {
+        final body = StreamController<List<int>>();
+        when(() => httpClient.close()).thenAnswer((_) => body.close());
+        stubResponse(_sse(body.stream));
+        final done = Completer<void>();
+        final errors = <Object>[];
+        transport
+            .run(agentId: 'default', input: _input)
+            .listen((_) {}, onError: errors.add, onDone: done.complete);
+        await pumpEventQueue();
+
+        await transport.close();
+        await done.future;
+
+        expect(errors, isEmpty);
+      },
+    );
+
+    test('run after close throws', () async {
+      await transport.close();
+
+      expect(
+        () => transport.run(agentId: 'default', input: _input),
+        throwsStateError,
+      );
+    });
+
+    test('ignores an error from cancelling the response', () async {
+      final body = StreamController<List<int>>(
+        onCancel: () => throw StateError('cancel failed'),
+      );
+      stubResponse(_sse(body.stream));
+      final started = Completer<void>();
+      body.add(_event({'type': 'RUN_STARTED', 'threadId': 't', 'runId': 'r'}));
+      final subscription = transport
+          .run(agentId: 'default', input: _input)
+          .listen((_) => started.complete());
+      await started.future;
+
+      await subscription.cancel();
+      await pumpEventQueue();
+    });
+
     group('stop', () {
       test('posts the run id to the stop route with headers', () async {
         stubResponse(
@@ -271,6 +341,46 @@ void main() {
           ),
         );
         verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws when the runtime answers with a redirect', () async {
+        stubResponse(http.StreamedResponse(const Stream.empty(), 302));
+
+        await expectLater(
+          transport.stop(agentId: 'a', threadId: 't', runId: 'r'),
+          throwsA(isA<http.ClientException>()),
+        );
+      });
+
+      test('throws when the runtime does not answer in time', () async {
+        transport = AgUiTransport(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          httpClientFactory: () => httpClient,
+          stopTimeout: const Duration(milliseconds: 10),
+        );
+        when(() => httpClient.send(any()))
+            .thenAnswer((_) => Completer<http.StreamedResponse>().future);
+
+        await expectLater(
+          transport.stop(agentId: 'a', threadId: 't', runId: 'r'),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('timed out'),
+            ),
+          ),
+        );
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws after close', () async {
+        await transport.close();
+
+        await expectLater(
+          transport.stop(agentId: 'a', threadId: 't', runId: 'r'),
+          throwsStateError,
+        );
       });
     });
   });

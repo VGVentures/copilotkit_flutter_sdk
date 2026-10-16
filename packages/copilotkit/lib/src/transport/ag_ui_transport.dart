@@ -15,11 +15,19 @@ import 'package:http/http.dart' as http;
 class AgUiTransport({
   required Uri runtimeUrl,
   http.Client Function()? httpClientFactory,
+  Duration stopTimeout = const Duration(seconds: 10),
+  void Function(Object error, StackTrace stackTrace)? onSkippedEvent,
 }) implements AgentTransport {
   /// Creates a transport for the runtime at [runtimeUrl].
   ///
   /// [httpClientFactory] creates the per-run client; defaults to
   /// [http.Client.new].
+  ///
+  /// [stopTimeout] bounds the stop request, so a hung runtime can't hang
+  /// `stop`.
+  ///
+  /// [onSkippedEvent] is called with each event the transport skipped because
+  /// it couldn't be decoded, so apps can report it.
   this;
 
   final String _baseUrl = runtimeUrl.toString().replaceFirst(
@@ -28,7 +36,16 @@ class AgUiTransport({
   );
   final http.Client Function() _httpClientFactory =
       httpClientFactory ?? http.Client.new;
+  final Duration _stopTimeout = stopTimeout;
+  final void Function(Object error, StackTrace stackTrace)? _onSkippedEvent =
+      onSkippedEvent;
+
+  /// Clients of the runs in flight.
   final Set<http.Client> _activeClients = {};
+
+  /// Ends each run in flight, see [close].
+  final Set<void Function()> _runShutdowns = {};
+  bool _closed = false;
 
   @override
   Stream<BaseEvent> run({
@@ -36,6 +53,7 @@ class AgUiTransport({
     required RunAgentInput input,
     Map<String, String> headers = const {},
   }) {
+    _ensureOpen();
     final httpClient = _httpClientFactory();
     _activeClients.add(httpClient);
     final client = AgUiClient(
@@ -49,6 +67,14 @@ class AgUiTransport({
 
     StreamSubscription<BaseEvent>? subscription;
     late final StreamController<BaseEvent> controller;
+    late final void Function() shutdown;
+    shutdown = () {
+      _runShutdowns.remove(shutdown);
+      release();
+      unawaited(_cancel(subscription));
+      unawaited(controller.close());
+    };
+    _runShutdowns.add(shutdown);
     controller = StreamController<BaseEvent>(
       onListen: () {
         subscription = client
@@ -67,11 +93,13 @@ class AgUiTransport({
                     'Skipped undecodable AG-UI event: $error',
                     name: 'copilotkit',
                   );
+                  _onSkippedEvent?.call(error, stackTrace);
                   return;
                 }
                 controller.addError(error, stackTrace);
               },
               onDone: () {
+                _runShutdowns.remove(shutdown);
                 release();
                 unawaited(controller.close());
               },
@@ -83,8 +111,9 @@ class AgUiTransport({
         // Closing the client aborts the socket, which ends the inner stream.
         // Don't wait for ag_ui's cancel: it only completes once the body
         // stream ends, and stop must not block on the network.
+        _runShutdowns.remove(shutdown);
         release();
-        unawaited(subscription?.cancel());
+        unawaited(_cancel(subscription));
       },
     );
     return controller.stream;
@@ -92,7 +121,8 @@ class AgUiTransport({
 
   /// Calls the runtime's stop route so the run also ends on the server.
   ///
-  /// Throws an [http.ClientException] when the runtime rejects the request.
+  /// Throws an [http.ClientException] when the runtime rejects the request or
+  /// doesn't answer within the stop timeout.
   @override
   Future<void> stop({
     required String agentId,
@@ -100,6 +130,7 @@ class AgUiTransport({
     required String runId,
     Map<String, String> headers = const {},
   }) async {
+    _ensureOpen();
     final url = Uri.parse(
       '$_baseUrl/agent/${Uri.encodeComponent(agentId)}'
       '/stop/${Uri.encodeComponent(threadId)}',
@@ -109,26 +140,48 @@ class AgUiTransport({
       final request = http.Request('POST', url)
         ..headers.addAll({...headers, 'Content-Type': 'application/json'})
         ..body = jsonEncode(StopRequest(runId: runId));
-      final response = await http.Response.fromStream(
-        await httpClient.send(request),
-      );
-      if (response.statusCode >= 400) {
+      final response = await _send(httpClient, request).timeout(_stopTimeout);
+      if (response.statusCode < 200 || response.statusCode >= 300) {
         throw http.ClientException(
           'Stop failed with status ${response.statusCode}: ${response.body}',
           url,
         );
       }
+    } on TimeoutException {
+      throw http.ClientException(
+        'Stop timed out after ${_stopTimeout.inSeconds}s.',
+        url,
+      );
     } finally {
       httpClient.close();
     }
   }
 
+  /// Ends the runs in flight (their streams complete). The transport can't be
+  /// used afterwards.
   @override
   Future<void> close() async {
-    for (final client in _activeClients) {
-      client.close();
+    _closed = true;
+    for (final shutdown in [..._runShutdowns]) {
+      shutdown();
     }
-    _activeClients.clear();
+  }
+
+  void _ensureOpen() {
+    if (_closed) throw StateError('AgUiTransport is closed.');
+  }
+}
+
+Future<http.Response> _send(http.Client client, http.Request request) async {
+  final streamed = await client.send(request);
+  return await http.Response.fromStream(streamed);
+}
+
+Future<void> _cancel(StreamSubscription<BaseEvent>? subscription) async {
+  try {
+    await subscription?.cancel();
+  } on Object {
+    // The connection is already being torn down; nothing to report.
   }
 }
 
