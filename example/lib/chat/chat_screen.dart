@@ -5,13 +5,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// Chat with the runtime's `default` agent.
-class const ChatPage({super.key}) extends StatelessWidget {
+///
+/// Opens the agent on the nearest `CopilotKit` client and builds the chat
+/// once the client's state holds it.
+class const ChatPage({super.key}) extends StatefulWidget {
+  /// Id of the agent this page chats with.
+  static const agentId = 'default';
+
+  @override
+  State<ChatPage> createState() => _ChatPageState();
+}
+
+class _ChatPageState extends State<ChatPage> {
+  CopilotKitClient? _client;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final client = CopilotKit.of(context);
+    if (!identical(client, _client)) {
+      _client = client..add(const AgentOpened(ChatPage.agentId));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final client = CopilotKit.of(context);
-    return BlocProvider(
-      create: (_) => CopilotChatBloc(agent: client.agent('default')),
-      child: const ChatView(),
+    return BlocSelector<CopilotKitClient, CopilotKitState, CopilotAgent?>(
+      bloc: _client,
+      selector: (state) => state.agents[ChatPage.agentId],
+      builder: (context, agent) {
+        if (agent == null) return const SizedBox.shrink();
+        return BlocProvider(
+          create: (_) => CopilotChatBloc(agent: agent),
+          child: const ChatView(),
+        );
+      },
     );
   }
 }

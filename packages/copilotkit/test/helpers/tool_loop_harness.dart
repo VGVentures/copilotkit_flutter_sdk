@@ -2,6 +2,8 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 
+import 'client_x.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 /// A client on a mocked transport for frontend tool tests.
@@ -56,8 +58,13 @@ class ToolLoopHarness {
     transport: transport,
   );
 
-  /// The default agent of [client].
-  late final CopilotAgent agent = client.agent('default');
+  /// The default agent of [client]; set by [open].
+  late final CopilotAgent agent;
+
+  /// Opens the default agent.
+  Future<void> open() async {
+    agent = await client.openAgent('default');
+  }
 
   /// The inputs of every run sent so far, in order.
   List<RunAgentInput> sentInputs() {

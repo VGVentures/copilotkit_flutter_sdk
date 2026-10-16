@@ -83,7 +83,7 @@ class _CopilotKitState extends State<CopilotKit> {
   @override
   void dispose() {
     final client = _ownedClient;
-    if (client != null) unawaited(client.dispose());
+    if (client != null) unawaited(client.close());
     super.dispose();
   }
 

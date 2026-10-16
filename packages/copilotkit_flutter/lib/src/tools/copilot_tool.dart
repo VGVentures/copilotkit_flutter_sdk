@@ -7,9 +7,9 @@ import 'package:flutter/widgets.dart';
 /// {@template copilot_tool}
 /// Makes [tool] available to the agent while this widget is mounted.
 ///
-/// Registers [tool] on the nearest `CopilotKit` client and unregisters it on
-/// dispose. If [builder] is set, calls to the tool render with it in
-/// [child] (see `ToolCallWidget`).
+/// Adds `ToolRegistered` to the nearest `CopilotKit` client and
+/// `ToolUnregistered` on dispose. If [builder] is set, calls to the tool
+/// render with it in [child] (see `ToolCallWidget`).
 /// {@endtemplate}
 class const CopilotTool({
   /// The tool to register.
@@ -31,7 +31,10 @@ class const CopilotTool({
 
 class _CopilotToolState extends State<CopilotTool> {
   CopilotKitClient? _client;
-  void Function()? _unregister;
+
+  /// The tool instance registered and the client it was registered on, so
+  /// only that registration is undone.
+  (CopilotKitClient, FrontendTool)? _registered;
 
   @override
   void didChangeDependencies() {
@@ -50,13 +53,21 @@ class _CopilotToolState extends State<CopilotTool> {
   }
 
   void _register() {
-    _unregister?.call();
-    _unregister = _client!.registerTool(widget.tool);
+    _unregister();
+    final client = _client!..add(ToolRegistered(widget.tool));
+    _registered = (client, widget.tool);
+  }
+
+  void _unregister() {
+    if (_registered case (final client, final tool)) {
+      client.add(ToolUnregistered(tool));
+    }
+    _registered = null;
   }
 
   @override
   void dispose() {
-    _unregister?.call();
+    _unregister();
     super.dispose();
   }
 

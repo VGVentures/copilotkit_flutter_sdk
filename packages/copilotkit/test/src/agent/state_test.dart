@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent_reducer.dart';
+import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
@@ -115,10 +116,11 @@ void main() {
   group('CopilotAgent state', () {
     test('sharedState follows snapshots and deltas', () async {
       final transport = _MockAgentTransport();
-      final agent = CopilotKitClient(
+      final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
-      ).agent('default');
+      );
+      final agent = await client.openAgent('default');
       when(
         () => transport.run(
           agentId: any(named: 'agentId'),
@@ -145,7 +147,7 @@ void main() {
           .distinct()
           .listen(states.add);
 
-      await agent.run();
+      await client.runAgent(agent);
       await pumpEventQueue();
 
       expect(agent.state.sharedState, {'count': 2});
@@ -157,10 +159,11 @@ void main() {
 
     test('state_snapshot_delta fixture applies the recorded patch', () async {
       final transport = _MockAgentTransport();
-      final agent = CopilotKitClient(
+      final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
-      ).agent('default');
+      );
+      final agent = await client.openAgent('default');
       when(
         () => transport.run(
           agentId: any(named: 'agentId'),
@@ -171,7 +174,7 @@ void main() {
         (_) => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
       );
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(agent.state.sharedState, {
         'todos': ['buy milk', 'walk dog'],

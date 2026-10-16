@@ -5,9 +5,9 @@ import 'package:flutter/widgets.dart';
 /// {@template copilot_context}
 /// Shares [value] with the agent while this widget is mounted.
 ///
-/// Adds a context entry on the nearest `CopilotKit` client on mount, updates
-/// it when [value] changes and removes it on dispose. [value] must be
-/// JSON-encodable.
+/// Adds a context entry (`ContextAdded`) on the nearest `CopilotKit` client
+/// on mount, updates it (`ContextUpdated`) when [value] changes and removes
+/// it (`ContextRemoved`) on dispose. [value] must be JSON-encodable.
 /// {@endtemplate}
 class const CopilotContext({
   /// Tells the agent what [value] is.
@@ -29,7 +29,10 @@ class const CopilotContext({
 
 class _CopilotContextState extends State<CopilotContext> {
   CopilotKitClient? _client;
-  AgentContextEntry? _entry;
+
+  /// The entry added and the client it was added to, so only that entry is
+  /// updated or removed.
+  (CopilotKitClient, AgentContextEntry)? _entry;
 
   @override
   void didChangeDependencies() {
@@ -47,18 +50,30 @@ class _CopilotContextState extends State<CopilotContext> {
     if (widget.description != oldWidget.description) {
       _add();
     } else if (widget.value != oldWidget.value) {
-      _entry!.update(widget.value);
+      _client!.add(ContextUpdated(_entry!.$2.id, widget.value));
     }
   }
 
   void _add() {
-    _entry?.remove();
-    _entry = _client!.addContext(widget.description, widget.value);
+    _remove();
+    final entry = AgentContextEntry(
+      description: widget.description,
+      value: widget.value,
+    );
+    final client = _client!..add(ContextAdded(entry));
+    _entry = (client, entry);
+  }
+
+  void _remove() {
+    if (_entry case (final client, final entry)) {
+      client.add(ContextRemoved(entry.id));
+    }
+    _entry = null;
   }
 
   @override
   void dispose() {
-    _entry?.remove();
+    _remove();
     super.dispose();
   }
 

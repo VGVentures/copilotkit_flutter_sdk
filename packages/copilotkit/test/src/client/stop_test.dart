@@ -5,6 +5,8 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/client_x.dart';
+
 class _MockAgentTransport extends Mock implements AgentTransport;
 
 void main() {
@@ -29,7 +31,7 @@ void main() {
     late bool cancelled;
     late Future<void> run;
 
-    setUp(() {
+    setUp(() async {
       transport = _MockAgentTransport();
       errors = [];
       cancelled = false;
@@ -55,11 +57,11 @@ void main() {
         onError: (error, _) => errors.add(error),
         transport: transport,
       );
-      agent = client.agent('default');
+      agent = await client.openAgent('default');
     });
 
     Future<void> startStreaming() async {
-      run = agent.run();
+      run = client.runAgent(agent);
       events
         ..add(RunStartedEvent(threadId: agent.threadId, runId: 'r'))
         ..add(const TextMessageStartEvent(messageId: 'm1'))
@@ -85,7 +87,7 @@ void main() {
       () async {
         await startStreaming();
 
-        await agent.stop();
+        await client.stopAgent(agent);
         await run;
 
         expect(cancelled, isTrue);
@@ -118,7 +120,7 @@ void main() {
 
     test('applies no events after the stop', () async {
       await startStreaming();
-      await agent.stop();
+      await client.stopAgent(agent);
       await run;
       final changes = <AgentState>[];
       agent.stream.listen(changes.add);
@@ -133,7 +135,7 @@ void main() {
     group('while the headers are being built', () {
       late Completer<Map<String, String>> headers;
 
-      setUp(() {
+      setUp(() async {
         headers = Completer();
         client = CopilotKitClient(
           runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
@@ -141,7 +143,7 @@ void main() {
           onError: (error, _) => errors.add(error),
           transport: transport,
         );
-        agent = client.agent('default');
+        agent = await client.openAgent('default');
       });
 
       void verifyNoRequest() {
@@ -155,10 +157,10 @@ void main() {
       }
 
       test('stop sends no request', () async {
-        run = agent.run();
+        run = client.runAgent(agent);
         await pumpEventQueue();
 
-        await agent.stop();
+        await client.stopAgent(agent);
         headers.complete({});
         await run;
 
@@ -169,10 +171,10 @@ void main() {
 
       test('dispose sends no request', () async {
         when(() => transport.close()).thenAnswer((_) async {});
-        run = agent.run();
+        run = client.runAgent(agent);
         await pumpEventQueue();
 
-        await client.dispose();
+        await client.close();
         headers.complete({});
         await run;
 
@@ -189,11 +191,11 @@ void main() {
         Future<void>? stop;
         client = CopilotKitClient(
           runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
-          onError: (_, _) => stop ??= agent.stop(),
+          onError: (_, _) => stop ??= client.stopAgent(agent),
           transport: transport,
         );
-        agent = client.agent('default');
-        run = agent.run();
+        agent = await client.openAgent('default');
+        run = client.runAgent(agent);
         await pumpEventQueue();
 
         end(events);
@@ -206,7 +208,7 @@ void main() {
     }
 
     test('does nothing when the agent is not running', () async {
-      await agent.stop();
+      await client.stopAgent(agent);
 
       verifyNever(
         () => transport.stop(
@@ -230,7 +232,7 @@ void main() {
       ).thenThrow(failure);
       await startStreaming();
 
-      await expectLater(agent.stop(), completes);
+      await expectLater(client.stopAgent(agent), completes);
       await run;
 
       expect(agent.state.isRunning, isFalse);
@@ -239,7 +241,7 @@ void main() {
 
     test('can run again after a stop', () async {
       await startStreaming();
-      await agent.stop();
+      await client.stopAgent(agent);
       await run;
       when(
         () => transport.run(
@@ -256,7 +258,7 @@ void main() {
         ]),
       );
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(agent.state.isRunning, isFalse);
       expect(agent.state.messages.map((m) => m.content), ['Hal', 'Again']);
