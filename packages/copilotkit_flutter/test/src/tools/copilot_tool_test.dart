@@ -128,7 +128,7 @@ void main() {
           client: client,
           child: MaterialApp(
             home: ToolRenderer(
-              name: '*',
+              name: ToolRenderer.nameFallback,
               builder: (context, call) => const Text('generic'),
               child: CopilotTool(
                 tool: _tool('showWeather'),

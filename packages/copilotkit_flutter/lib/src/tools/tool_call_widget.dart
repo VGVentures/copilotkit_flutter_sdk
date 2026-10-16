@@ -3,7 +3,7 @@ import 'package:copilotkit_flutter/src/tools/tool_renderer.dart';
 import 'package:flutter/widgets.dart';
 
 /// Renders [call] with the nearest builder registered for its tool name,
-/// falling back to the `'*'` builder, or nothing.
+/// falling back to the [ToolRenderer.nameFallback] builder, or nothing.
 ///
 /// Keyed by the call id and kept alive inside lists, so builder state
 /// survives status updates, rebuilds and scrolling.
@@ -27,7 +27,8 @@ class _ToolCallWidgetState extends State<ToolCallWidget>
   Widget build(BuildContext context) {
     super.build(context);
     final builders = ToolRenderer.buildersOf(context);
-    final builder = builders?[widget.call.name] ?? builders?['*'];
+    final builder =
+        builders?[widget.call.name] ?? builders?[ToolRenderer.nameFallback];
     return builder?.call(context, widget.call) ?? const SizedBox.shrink();
   }
 }
