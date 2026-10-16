@@ -42,7 +42,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           ToolRenderer(
-            name: '*',
+            name: ToolRenderer.nameFallback,
             builder: (context, call) => Text('generic ${call.name}'),
             child: ToolCallWidget(call: _call('searchDocs')),
           ),
@@ -56,7 +56,7 @@ void main() {
       await tester.pumpWidget(
         _app(
           ToolRenderer(
-            name: '*',
+            name: ToolRenderer.nameFallback,
             builder: (context, call) => const Text('generic'),
             child: ToolRenderer(
               name: 'showWeather',
