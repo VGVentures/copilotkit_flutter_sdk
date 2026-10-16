@@ -68,8 +68,8 @@ void main() {
 
         await agent.run();
 
-        expect(agent.messages.single.content, 'Hello');
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.messages.single.content, 'Hello');
+        expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       },
     );
@@ -86,9 +86,9 @@ void main() {
       await agent.run();
 
       expect(errors, [same(runError)]);
-      expect(agent.isRunning, isFalse);
-      expect(agent.snapshot.error, same(runError));
-      expect(agent.messages.single.content, 'Par');
+      expect(agent.state.isRunning, isFalse);
+      expect(agent.state.error, same(runError));
+      expect(agent.state.messages.single.content, 'Par');
     });
 
     test('unknown_events fixture keeps the text reply', () async {
@@ -96,8 +96,11 @@ void main() {
 
       await agent.run();
 
-      expect(agent.messages.single.content, 'Hello! Wonderful to meet you.');
-      expect(agent.isRunning, isFalse);
+      expect(
+        agent.state.messages.single.content,
+        'Hello! Wonderful to meet you.',
+      );
+      expect(agent.state.isRunning, isFalse);
       expect(errors, isEmpty);
     });
 
@@ -108,14 +111,14 @@ void main() {
 
       expect(errors.single, isA<RunErrorEvent>());
       expect(
-        agent.snapshot.error,
+        agent.state.error,
         isA<RunErrorEvent>().having(
           (error) => error.message,
           'message',
           contains('gemini-2.5-flash'),
         ),
       );
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.isRunning, isFalse);
     });
 
     test('dropped_connection fixture fails the run and keeps the partial '
@@ -125,8 +128,8 @@ void main() {
       await agent.run();
 
       expect(errors.single, isA<StateError>());
-      expect(agent.messages.single.content, 'Hello! Wonderful to');
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.messages.single.content, 'Hello! Wonderful to');
+      expect(agent.state.isRunning, isFalse);
     });
   });
 }

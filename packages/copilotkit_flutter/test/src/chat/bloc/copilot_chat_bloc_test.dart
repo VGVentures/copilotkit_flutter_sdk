@@ -37,9 +37,8 @@ void main() {
     setUp(() {
       agent = _MockCopilotAgent();
       changes = StreamController<AgentState>.broadcast();
-      when(() => agent.snapshot).thenReturn(const AgentState());
-      when(() => agent.changes).thenAnswer((_) => changes.stream);
-      when(() => agent.isRunning).thenReturn(false);
+      when(() => agent.state).thenReturn(const AgentState());
+      when(() => agent.stream).thenAnswer((_) => changes.stream);
       when(() => agent.addMessage(any())).thenAnswer((_) async {});
       when(() => agent.run()).thenAnswer((_) async {});
       when(() => agent.stop()).thenAnswer((_) async {});
@@ -47,8 +46,8 @@ void main() {
 
     tearDown(() => changes.close());
 
-    test('starts from the agent snapshot', () {
-      when(() => agent.snapshot).thenReturn(
+    test('starts from the agent state', () {
+      when(() => agent.state).thenReturn(
         AgentState(messages: [_user], isRunning: true, error: 'boom'),
       );
 
@@ -66,7 +65,7 @@ void main() {
     });
 
     blocTest<CopilotChatBloc, CopilotChatState>(
-      'maps every agent snapshot to a chat state',
+      'maps every agent state to a chat state',
       build: () => CopilotChatBloc(agent: agent),
       act: (_) {
         changes
@@ -190,7 +189,8 @@ void main() {
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatMessageSent is ignored while the agent runs',
-      setUp: () => when(() => agent.isRunning).thenReturn(true),
+      setUp: () =>
+          when(() => agent.state).thenReturn(const AgentState(isRunning: true)),
       build: () => CopilotChatBloc(agent: agent),
       act: (bloc) => bloc.add(const ChatMessageSent('Hi')),
       verify: (_) {

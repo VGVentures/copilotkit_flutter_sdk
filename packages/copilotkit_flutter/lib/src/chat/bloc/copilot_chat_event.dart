@@ -32,5 +32,5 @@ final class const ChatStopRequested() extends CopilotChatEvent {
   this;
 }
 
-final class const _ChatSnapshotChanged(final AgentState snapshot)
+final class const _AgentStateChanged(final AgentState state)
     extends CopilotChatEvent;

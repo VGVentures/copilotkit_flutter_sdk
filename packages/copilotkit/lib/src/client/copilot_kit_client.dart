@@ -130,7 +130,7 @@ class CopilotKitClient({
         threadId: agent.threadId,
         runId: const Uuid().v4(),
         state: agent.state.sharedState,
-        messages: agent.messages,
+        messages: agent.state.messages,
         tools: [
           for (final tool in _tools.values)
             Tool(
@@ -199,7 +199,7 @@ class CopilotKitClient({
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
   List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
-    for (final call in agent.toolCalls)
+    for (final call in agent.state.toolCalls)
       if ((call.status, _tools[call.name]) case (
         ToolCallStatus.executing,
         final tool?,

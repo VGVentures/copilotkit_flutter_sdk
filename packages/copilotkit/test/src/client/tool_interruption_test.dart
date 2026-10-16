@@ -29,10 +29,10 @@ void main() {
 
     group('a failed run closes open calls', () {
       void expectClosedAsFailed() {
-        final view = agent.toolCalls.single;
+        final view = agent.state.toolCalls.single;
         expect(view.status, ToolCallStatus.complete);
         expect(view.result, 'Tool call failed: the run ended early.');
-        final message = agent.messages.whereType<ToolMessage>().single;
+        final message = agent.state.messages.whereType<ToolMessage>().single;
         expect(message.toolCallId, 'c1');
         expect(message.content, view.result);
       }
@@ -96,12 +96,12 @@ void main() {
 
         expect(receivedSignal.isCancelled, isTrue);
         expect(sentInputs(), hasLength(1));
-        expect(agent.isRunning, isFalse);
-        final view = agent.toolCalls.single;
+        expect(agent.state.isRunning, isFalse);
+        final view = agent.state.toolCalls.single;
         expect(view.status, ToolCallStatus.complete);
         expect(view.result, 'Tool call cancelled.');
         expect(
-          agent.messages.whereType<ToolMessage>().single.content,
+          agent.state.messages.whereType<ToolMessage>().single.content,
           'Tool call cancelled.',
         );
         verifyNever(
@@ -129,8 +129,8 @@ void main() {
         await agent.stop();
         await run;
 
-        expect(agent.toolCalls.single.status, ToolCallStatus.complete);
-        expect(agent.messages.last, isA<ToolMessage>());
+        expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
+        expect(agent.state.messages.last, isA<ToolMessage>());
       });
     });
   });

@@ -153,13 +153,13 @@ void main() {
           ]),
         );
         final texts = <String?>[];
-        agent.changes.listen((s) => texts.add(s.messages.lastOrNull?.content));
+        agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
 
         await agent.run();
         await pumpEventQueue();
 
-        expect(agent.messages.single.content, 'Hello');
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.messages.single.content, 'Hello');
+        expect(agent.state.isRunning, isFalse);
         expect(texts, containsAllInOrder(['', 'Hel', 'Hello']));
         expect(errors, isEmpty);
       });
@@ -171,12 +171,12 @@ void main() {
 
         final run = client.runAgent(agent);
         await pumpEventQueue();
-        expect(agent.isRunning, isTrue);
+        expect(agent.state.isRunning, isTrue);
 
         events.add(RunFinishedEvent(threadId: agent.threadId, runId: 'r'));
         await events.close();
         await run;
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
       });
 
       test('ignores a run while one is in progress', () async {
@@ -208,8 +208,8 @@ void main() {
         await expectLater(client.runAgent(agent), completes);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
-        expect(agent.snapshot.error, same(failure));
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, same(failure));
       });
 
       test('reports a transport that throws synchronously', () async {
@@ -226,7 +226,7 @@ void main() {
         await expectLater(client.runAgent(agent), completes);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
       });
 
       test('reports a stream that ends before the run finishes', () async {
@@ -238,8 +238,8 @@ void main() {
         await client.runAgent(agent);
 
         expect(errors.single.$1, isA<StateError>());
-        expect(agent.isRunning, isFalse);
-        expect(agent.snapshot.error, isA<StateError>());
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, isA<StateError>());
       });
 
       test('reports header builder errors without running', () async {
@@ -255,7 +255,7 @@ void main() {
         await client.runAgent(agent);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
         verifyNever(
           () => transport.run(
             agentId: any(named: 'agentId'),
@@ -279,7 +279,7 @@ void main() {
     group('dispose', () {
       test('closes the transport and the agent streams', () async {
         final agent = client.agent('default');
-        final changesDone = agent.changes.drain<void>();
+        final changesDone = agent.stream.drain<void>();
 
         await client.dispose();
 
@@ -319,11 +319,11 @@ void main() {
     test('starts idle and empty', () {
       final agent = client.agent('default');
 
-      expect(agent.messages, isEmpty);
+      expect(agent.state.messages, isEmpty);
       expect(agent.state.sharedState, isNull);
-      expect(agent.isRunning, isFalse);
-      expect(agent.toolCalls, isEmpty);
-      expect(agent.snapshot.error, isNull);
+      expect(agent.state.isRunning, isFalse);
+      expect(agent.state.toolCalls, isEmpty);
+      expect(agent.state.error, isNull);
     });
 
     test('uses the given thread id', () {
@@ -339,24 +339,12 @@ void main() {
     test('addMessage appends the message and emits a change', () async {
       final agent = client.agent('default');
       final message = UserMessage(id: 'u1', content: 'Hi');
-      final change = agent.changes.first;
+      final change = agent.stream.first;
 
       await agent.addMessage(message);
 
-      expect(agent.messages, [message]);
+      expect(agent.state.messages, [message]);
       expect((await change).messages, [message]);
-    });
-
-    test('stateStream does not emit when only messages change', () async {
-      final agent = client.agent('default');
-      final states = <Object?>[];
-      agent.stateStream.listen(states.add);
-
-      await agent.addMessage(UserMessage(id: 'u1', content: 'Hi'));
-      await agent.addMessage(UserMessage(id: 'u2', content: 'Again'));
-      await pumpEventQueue();
-
-      expect(states, isEmpty);
     });
   });
 }

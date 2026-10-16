@@ -82,17 +82,19 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
     onError: (error, stackTrace) => print('onError: $error'),
   );
   final agent = client.agent(agentId);
-  final subscription = agent.changes.listen((snapshot) {
-    final last = snapshot.messages.lastOrNull;
+  final subscription = agent.stream.listen((state) {
+    final last = state.messages.lastOrNull;
     print(
-      'running: ${snapshot.isRunning} | ${last?.role.value}: '
+      'running: ${state.isRunning} | ${last?.role.value}: '
       '${last?.content}',
     );
   });
   await agent.addMessage(UserMessage(id: 'user-1', content: message));
   await agent.run();
   await subscription.cancel();
-  print('done | running: ${agent.isRunning} | error: ${agent.snapshot.error}');
+  print(
+    'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',
+  );
   await client.dispose();
 }
 

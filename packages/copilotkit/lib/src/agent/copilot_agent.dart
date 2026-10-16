@@ -35,33 +35,12 @@ class CopilotAgent({
     on<CopilotAgentEvent>(_onEvent);
   }
 
-  final _stateChanges = StreamController<Object?>.broadcast();
-
   /// Events added and not yet applied, and who is waiting for that.
   int _pending = 0;
   Completer<void>? _settled;
 
   /// Id of the conversation thread sent with every run.
   final String threadId = threadId ?? const Uuid().v4();
-
-  /// Current state of the agent.
-  AgentState get snapshot => state;
-
-  /// Conversation messages, oldest first.
-  List<Message> get messages => state.messages;
-
-  /// Whether the agent is working: from `run()` until the whole turn ends,
-  /// including frontend tool handlers and the runs that follow them.
-  bool get isRunning => state.isRunning;
-
-  /// Tool calls made by the agent, in call order.
-  List<ToolCallView> get toolCalls => state.toolCalls;
-
-  /// Emits a new [AgentState] every time the agent changes.
-  Stream<AgentState> get changes => stream;
-
-  /// Emits the shared state every time it changes.
-  Stream<Object?> get stateStream => _stateChanges.stream;
 
   /// Completes once every event added so far has been applied.
   ///
@@ -94,12 +73,6 @@ class CopilotAgent({
   /// Same as `CopilotKitClient.stopAgent(this)`.
   Future<void> stop() => _client.stopAgent(this);
 
-  @override
-  Future<void> close() async {
-    await _stateChanges.close();
-    await super.close();
-  }
-
   void _onEvent(CopilotAgentEvent event, Emitter<AgentState> emit) {
     try {
       final next = switch (event) {
@@ -117,9 +90,6 @@ class CopilotAgent({
       // Bloc emits the first state even when it equals the initial one;
       // consumers only want changes.
       if (next == state) return;
-      if (next.sharedState != state.sharedState) {
-        _stateChanges.add(next.sharedState);
-      }
       emit(next);
     } finally {
       if (--_pending == 0) {

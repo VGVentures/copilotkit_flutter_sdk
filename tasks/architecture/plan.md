@@ -115,13 +115,13 @@ Tests mirror `lib/src/`.
 - [x] Task 19: `JsonPatch` class
 
 ### Checkpoint C: Refactors done
-- [ ] No top-level functions or variables left except where the redesign removes them (`reducer.dart`, the client's `part` link)
+- [x] No top-level functions or variables left except where the redesign removes them (`reducer.dart`, the client's `part` link)
 
 ### Phase 3: Immutability and blocs
-- [ ] Task 20: Rename `AgentSnapshot` → `AgentState`, `state` → `sharedState`
-- [ ] Task 21: ADR 0008, the immutable client design (**human review gate**)
-- [ ] Task 22: `CopilotAgent` becomes a bloc with `CopilotAgentEvent`
-- [ ] Task 23: Remove `changes` / `stateStream` / `events` / getters; migrate Flutter and the example
+- [x] Task 20: Rename `AgentSnapshot` → `AgentState`, `state` → `sharedState`
+- [x] Task 21: ADR 0008, the immutable client design (**human review gate**)
+- [x] Task 22: `CopilotAgent` becomes a bloc with `CopilotAgentEvent`
+- [x] Task 23: Remove `changes` / `stateStream` / `events` / getters; migrate Flutter and the example
 - [ ] Task 24: Client tools and context as immutable bloc state
 - [ ] Task 25: Agents and turn bookkeeping as immutable state
 - [ ] Task 26: Remaining mutable classes (`CancellationSignal`, `AgUiTransport`)
