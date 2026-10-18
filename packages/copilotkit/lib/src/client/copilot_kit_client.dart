@@ -78,6 +78,7 @@ class CopilotKitClient({
   /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
   this : super(const CopilotKitState()) {
     on<AgentOpened>(_onAgentOpened);
+    on<AgentClosed>(_onAgentClosed);
     on<ToolRegistered>(_onToolRegistered);
     on<ToolUnregistered>(_onToolUnregistered);
     on<ContextAdded>(_onContextAdded);
@@ -126,10 +127,34 @@ class CopilotKitClient({
       state.copyWith(
         agents: {
           ...state.agents,
-          event.agentId: CopilotAgent(agentId: event.agentId, client: this),
+          event.agentId: CopilotAgent(
+            agentId: event.agentId,
+            client: this,
+            threadId: event.threadId,
+          ),
         },
       ),
     );
+  }
+
+  Future<void> _onAgentClosed(
+    AgentClosed event,
+    Emitter<CopilotKitState> emit,
+  ) async {
+    final agent = state.agents[event.agentId];
+    if (agent == null) return;
+    // Removed first, so no new run starts on it while it stops.
+    emit(
+      state.copyWith(
+        agents: {
+          for (final MapEntry(:key, :value) in state.agents.entries)
+            if (key != event.agentId) key: value,
+        },
+      ),
+    );
+    // The turn's cleanup still writes to the agent; wait for it.
+    await _stopTurn(agent, emit);
+    await agent.close();
   }
 
   void _onToolRegistered(ToolRegistered event, Emitter<CopilotKitState> emit) {
@@ -227,9 +252,17 @@ class CopilotKitClient({
     Emitter<CopilotKitState> emit,
   ) async {
     final agent = state.agents[event.agentId];
-    final turn = state.turns[event.agentId];
-    if (agent == null || turn == null) return;
-    emit(_withTurn(event.agentId, null));
+    if (agent != null) await _stopTurn(agent, emit);
+  }
+
+  /// Stops the turn of [agent], if it has one.
+  Future<void> _stopTurn(
+    CopilotAgent agent,
+    Emitter<CopilotKitState> emit,
+  ) async {
+    final turn = state.turns[agent.agentId];
+    if (turn == null) return;
+    emit(_withTurn(agent.agentId, null));
     turn.controller.cancel();
     final run = turn.run;
     if (run != null) await run.subscription.cancel();

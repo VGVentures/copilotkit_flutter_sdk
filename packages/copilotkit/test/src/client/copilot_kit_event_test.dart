@@ -16,6 +16,10 @@ void main() {
       // ignore_for_file: prefer_const_constructors
       expect(AgentOpened('a'), AgentOpened('a'));
       expect(AgentOpened('a'), isNot(AgentOpened('b')));
+      expect(AgentOpened('a', threadId: 't'), AgentOpened('a', threadId: 't'));
+      expect(AgentOpened('a', threadId: 't'), isNot(AgentOpened('a')));
+      expect(AgentClosed('a'), AgentClosed('a'));
+      expect(AgentClosed('a'), isNot(AgentClosed('b')));
       expect(ToolRegistered(tool), ToolRegistered(tool));
       expect(ToolUnregistered(tool), ToolUnregistered(tool));
       expect(ContextAdded(entry), ContextAdded(entry));

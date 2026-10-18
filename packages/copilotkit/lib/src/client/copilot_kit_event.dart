@@ -12,8 +12,24 @@ sealed class CopilotKitEvent extends Equatable {
 
 /// Opens the agent [agentId], making it available in
 /// `CopilotKitState.agents`. Does nothing if it is already open.
-final class const AgentOpened(final String agentId) extends CopilotKitEvent {
+///
+/// The agent talks on [threadId], which defaults to a new random id. Pass
+/// the id of an earlier conversation to resume it on the runtime. An agent
+/// id has one open conversation: to switch threads, close the agent with
+/// [AgentClosed] and open it again.
+final class const AgentOpened(final String agentId, {final String? threadId})
+    extends CopilotKitEvent {
   /// Creates the event for opening [agentId].
+  this;
+
+  @override
+  List<Object?> get props => [agentId, threadId];
+}
+
+/// Stops the agent [agentId] if it is running, closes it and removes it from
+/// `CopilotKitState.agents`. Does nothing if it is not open.
+final class const AgentClosed(final String agentId) extends CopilotKitEvent {
+  /// Creates the event for closing [agentId].
   this;
 
   @override
