@@ -1,19 +1,26 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:copilotkit/copilotkit.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 /// {@template copilot_kit}
 /// Provides a [CopilotKitClient] to the widget tree.
 ///
-/// Place it near the app root and read the client with [CopilotKit.of].
+/// Place it near the app root and read the client with [CopilotKit.of], or
+/// with `context.read<CopilotKitClient>()` and `BlocBuilder` as for any bloc.
 /// {@endtemplate}
 class CopilotKit extends StatefulWidget {
   /// {@macro copilot_kit}
   ///
-  /// Creates a client for the runtime at [_runtimeUrl] once and disposes it
-  /// when this widget is removed. The configuration is read when the client
-  /// is created; later changes are ignored.
+  /// Creates a client for the runtime at `runtimeUrl` once and disposes it
+  /// when this widget is removed.
+  ///
+  /// `headers` is called before every run, and `onError` on every error, so
+  /// closures that read the current token or context stay up to date.
+  /// `runtimeUrl` and `properties` are read when the client is created; a
+  /// later change is ignored, and fails an assertion in debug mode.
   const new({
     required Uri this._runtimeUrl,
     required this.child,
@@ -72,13 +79,30 @@ class _CopilotKitState extends State<CopilotKit> {
   CopilotKitClient? _ownedClient;
 
   CopilotKitClient get _client =>
-      widget._client ??
-      (_ownedClient ??= CopilotKitClient(
-        runtimeUrl: widget._runtimeUrl!,
-        headers: widget._headers,
-        properties: widget._properties,
-        onError: widget._onError,
-      ));
+      widget._client ?? (_ownedClient ??= _createClient());
+
+  /// A client that reads its callbacks from the current widget, so a rebuild
+  /// with new closures takes effect.
+  CopilotKitClient _createClient() => CopilotKitClient(
+    runtimeUrl: widget._runtimeUrl!,
+    headers: () async => await widget._headers?.call() ?? const {},
+    properties: widget._properties,
+    onError: (error, stackTrace) => widget._onError?.call(error, stackTrace),
+  );
+
+  @override
+  void didUpdateWidget(CopilotKit oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    assert(
+      _ownedClient == null ||
+          (widget._runtimeUrl == oldWidget._runtimeUrl &&
+              jsonEncode(widget._properties) ==
+                  jsonEncode(oldWidget._properties)),
+      'CopilotKit reads runtimeUrl and properties once, when it creates its '
+      'client. To use another runtime or other properties, give the '
+      'CopilotKit a new key.',
+    );
+  }
 
   @override
   void dispose() {
@@ -89,7 +113,14 @@ class _CopilotKitState extends State<CopilotKit> {
 
   @override
   Widget build(BuildContext context) {
-    return _CopilotKitScope(client: _client, child: widget.child);
+    final client = _client;
+    return _CopilotKitScope(
+      client: client,
+      child: BlocProvider<CopilotKitClient>.value(
+        value: client,
+        child: widget.child,
+      ),
+    );
   }
 }
 
