@@ -101,6 +101,38 @@ void main() {
       expect(body['forwardedProps'], {'userId': '42'});
     });
 
+    test('rejects a runtime url that is not absolute', () {
+      expect(
+        () => AgUiTransport(runtimeUrl: Uri.parse('/api/copilotkit')),
+        throwsArgumentError,
+      );
+      expect(
+        () => AgUiTransport(runtimeUrl: Uri.parse('runtime.test')),
+        throwsArgumentError,
+      );
+    });
+
+    test('emits the error and closes when ag_ui rejects the url', () async {
+      final badTransport = AgUiTransport(
+        runtimeUrl: Uri.parse('ftp://runtime.test/api'),
+        httpClientFactory: () => httpClient,
+      );
+      final errors = <Object>[];
+      final done = Completer<void>();
+      final uncaught = <Object>[];
+
+      await runZonedGuarded(() async {
+        badTransport
+            .run(agentId: 'default', input: _input)
+            .listen(null, onError: errors.add, onDone: done.complete);
+        await done.future;
+      }, (error, _) => uncaught.add(error));
+
+      expect(uncaught, isEmpty);
+      expect(errors, hasLength(1));
+      verify(() => httpClient.close()).called(1);
+    });
+
     test('encodes the agent id in the route', () async {
       stubResponse(_sse(const Stream.empty()));
 

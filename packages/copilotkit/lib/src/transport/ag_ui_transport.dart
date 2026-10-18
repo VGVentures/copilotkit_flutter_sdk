@@ -19,14 +19,14 @@ class AgUiTransport({
 }) implements AgentTransport {
   /// Creates a transport for the runtime at [runtimeUrl].
   ///
+  /// Throws an [ArgumentError] when [runtimeUrl] isn't absolute (it needs a
+  /// scheme and a host), instead of failing on the first run.
+  ///
   /// [httpClientFactory] creates the per-run client; defaults to
   /// [http.Client.new].
   this;
 
-  final String _baseUrl = runtimeUrl.toString().replaceFirst(
-    RegExp(r'/+$'),
-    '',
-  );
+  final String _baseUrl = _normalize(runtimeUrl);
   final http.Client Function() _httpClientFactory =
       httpClientFactory ?? http.Client.new;
   final Set<http.Client> _activeClients = {};
@@ -52,31 +52,40 @@ class AgUiTransport({
     late final StreamController<BaseEvent> controller;
     controller = StreamController<BaseEvent>(
       onListen: () {
-        subscription = client
-            .runAgent(
-              'agent/${Uri.encodeComponent(agentId)}/run',
-              input.toSimpleInput(),
-            )
-            .listen(
-              controller.add,
-              onError: (Object error, StackTrace stackTrace) {
-                // ag_ui reports each event it can't decode (unknown types,
-                // missing fields, bad JSON) and keeps streaming. Skip them so
-                // newer runtimes never break a run.
-                if (_isDecodeError(error)) {
-                  developer.log(
-                    'Skipped undecodable AG-UI event: $error',
-                    name: 'copilotkit',
-                  );
-                  return;
-                }
-                controller.addError(error, stackTrace);
-              },
-              onDone: () {
-                release();
-                unawaited(controller.close());
-              },
-            );
+        try {
+          subscription = client
+              .runAgent(
+                'agent/${Uri.encodeComponent(agentId)}/run',
+                input.toSimpleInput(),
+              )
+              .listen(
+                controller.add,
+                onError: (Object error, StackTrace stackTrace) {
+                  // ag_ui reports each event it can't decode (unknown types,
+                  // missing fields, bad JSON) and keeps streaming. Skip them
+                  // so newer runtimes never break a run.
+                  if (_isDecodeError(error)) {
+                    developer.log(
+                      'Skipped undecodable AG-UI event: $error',
+                      name: 'copilotkit',
+                    );
+                    return;
+                  }
+                  controller.addError(error, stackTrace);
+                },
+                onDone: () {
+                  release();
+                  unawaited(controller.close());
+                },
+              );
+        } on Object catch (error, stackTrace) {
+          // ag_ui validates its arguments synchronously. Thrown from
+          // onListen, the error would skip the stream and leave the run
+          // waiting forever.
+          release();
+          controller.addError(error, stackTrace);
+          unawaited(controller.close());
+        }
       },
       onPause: () => subscription?.pause(),
       onResume: () => subscription?.resume(),
@@ -130,6 +139,18 @@ class AgUiTransport({
       client.close();
     }
     _activeClients.clear();
+  }
+
+  /// [runtimeUrl] without trailing slashes, as the base of every route.
+  static String _normalize(Uri runtimeUrl) {
+    if (!runtimeUrl.hasScheme || runtimeUrl.host.isEmpty) {
+      throw ArgumentError.value(
+        runtimeUrl,
+        'runtimeUrl',
+        'must be an absolute URL with a scheme and a host',
+      );
+    }
+    return runtimeUrl.toString().replaceFirst(RegExp(r'/+$'), '');
   }
 
   /// Whether [error] is `ag_ui` reporting an event it could not decode.
