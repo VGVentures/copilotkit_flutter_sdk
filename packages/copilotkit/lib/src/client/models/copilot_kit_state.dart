@@ -3,6 +3,7 @@ import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:copilotkit/src/context/agent_context_entry.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 /// What a `CopilotKitClient` holds: the agents it opened, the registered
 /// frontend tools, the context entries sent with every run and the turns in
@@ -17,8 +18,9 @@ class const CopilotKitState({
   /// Context entries in insertion order; see `ContextAdded`.
   final List<AgentContextEntry> context = const [],
 
-  /// Turns in progress by agent id; see `AgentRunRequested`.
-  final Map<String, TurnState> turns = const {},
+  /// Turns in progress by agent id; see `AgentRunRequested`. Holds handles
+  /// only the client may use, so it isn't part of the public API.
+  @internal final Map<String, TurnState> turns = const {},
 }) extends Equatable {
   /// Creates the state of a client.
   this;

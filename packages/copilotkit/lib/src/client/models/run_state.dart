@@ -22,6 +22,11 @@ class const RunState({
   /// Creates the state of an open run.
   this;
 
+  // A run holds the request headers, e.g. an auth token; keep them out of
+  // `toString`, which blocs print through observers.
+  @override
+  bool? get stringify => false;
+
   @override
   List<Object?> get props => [runId, headers, subscription];
 }

@@ -1,4 +1,3 @@
-import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -62,7 +61,7 @@ void main() {
             activityType: 'search',
             content: {'query': 'weather'},
           ),
-          const ThinkingStartEvent(title: 'plan'),
+          const StepStartedEvent(stepName: 'plan'),
           const RawEvent(event: {'anything': true}),
           const CustomEvent(name: 'progress', value: 0.5),
           const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),

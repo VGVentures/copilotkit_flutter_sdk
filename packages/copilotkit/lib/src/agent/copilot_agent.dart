@@ -28,8 +28,9 @@ class CopilotAgent({
 }) extends Bloc<CopilotAgentEvent, AgentState> {
   /// {@macro copilot_agent}
   ///
-  /// Prefer `CopilotKitClient.agent`, which caches agents by id. A random
-  /// [threadId] is generated when none is given.
+  /// Internal: the client creates the agents it runs; open one with
+  /// `AgentOpened`. A random [threadId] is generated when none is given.
+  @internal
   this : super(const AgentState()) {
     // One handler for the whole family: the handlers are synchronous, so
     // events apply in the order they were added (ADR 0002).
@@ -57,6 +58,12 @@ class CopilotAgent({
     super.add(event);
     _pending++;
   }
+
+  /// Internal: the client closes the agents it opened; closing one yourself
+  /// leaves a closed agent in `CopilotKitState.agents`.
+  @internal
+  @override
+  Future<void> close() => super.close();
 
   /// Appends [message] to the conversation without starting a run.
   Future<void> addMessage(Message message) async {

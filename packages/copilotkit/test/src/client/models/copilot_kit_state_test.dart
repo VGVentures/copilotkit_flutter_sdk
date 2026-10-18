@@ -1,4 +1,5 @@
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:test/test.dart';
 
 void main() {

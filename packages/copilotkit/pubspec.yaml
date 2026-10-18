@@ -10,7 +10,7 @@ resolution: workspace
 
 dependencies:
   ack: ^1.7.0
-  ag_ui: 0.3.0
+  ag_ui: ^0.3.0
   bloc: ^9.2.1
   bloc_concurrency: ^0.3.0
   equatable: ^3.0.0

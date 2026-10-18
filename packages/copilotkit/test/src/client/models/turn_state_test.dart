@@ -4,6 +4,8 @@
 import 'dart:async';
 
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit/src/client/models/run_state.dart';
+import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -24,6 +26,13 @@ void main() {
       expect(withRun.run, run);
       expect(withRun.copyWith().run, run);
       expect(withRun.copyWith(run: () => null).run, isNull);
+    });
+
+    test('toString leaves out the request headers', () {
+      final turn = TurnState(controller: controller, run: run);
+
+      expect(turn.toString(), isNot(contains('Bearer')));
+      expect(run.toString(), isNot(contains('Bearer')));
     });
 
     test('supports value equality', () {

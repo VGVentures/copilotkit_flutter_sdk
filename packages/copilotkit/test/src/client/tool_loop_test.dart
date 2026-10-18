@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';

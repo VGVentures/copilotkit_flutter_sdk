@@ -20,6 +20,11 @@ class const TurnState({
   TurnState copyWith({RunState? Function()? run}) =>
       TurnState(controller: controller, run: run == null ? this.run : run());
 
+  // A run holds the request headers, e.g. an auth token; keep them out of
+  // `toString`, which blocs print through observers.
+  @override
+  bool? get stringify => false;
+
   @override
   List<Object?> get props => [controller, run];
 }
