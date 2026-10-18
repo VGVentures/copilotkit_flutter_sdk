@@ -11,14 +11,23 @@ class const TurnState({
 
   /// The run whose stream is open, or `null` between runs.
   final RunState? run,
+
+  /// Completes once a stop has finished cleaning up, or `null` while the turn
+  /// isn't being stopped. The turn stays in the state until then.
+  final Future<void>? stopped,
 }) extends Equatable {
   /// Creates the state of a turn.
   this;
 
-  /// Returns a copy with [run] replaced; `run: () => null` clears it.
-  TurnState copyWith({RunState? Function()? run}) =>
-      TurnState(signal: signal, run: run == null ? this.run : run());
+  /// Returns a copy with [run] or [stopped] replaced; `run: () => null`
+  /// clears the run.
+  TurnState copyWith({RunState? Function()? run, Future<void>? stopped}) =>
+      TurnState(
+        signal: signal,
+        run: run == null ? this.run : run(),
+        stopped: stopped ?? this.stopped,
+      );
 
   @override
-  List<Object?> get props => [signal, run];
+  List<Object?> get props => [signal, run, stopped];
 }

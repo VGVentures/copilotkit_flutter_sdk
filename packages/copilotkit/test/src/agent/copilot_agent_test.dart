@@ -83,6 +83,25 @@ void main() {
       await agent.close();
     });
 
+    test('ignores events added after it is closed', () async {
+      final agent = testAgent();
+      await agent.close();
+
+      agent.add(AgentMessageAdded(user));
+
+      expect(agent.state.messages, isEmpty);
+      await expectLater(agent.settled, completes);
+    });
+
+    test('close releases whoever waits for settled', () async {
+      final agent = testAgent()..add(const AgentTurnStarted());
+      final settled = agent.settled;
+
+      await agent.close();
+
+      await expectLater(settled, completes);
+    });
+
     test('applies a recorded stream in order', () async {
       final fixture = loadFixture('text_stream');
       final deltas = [

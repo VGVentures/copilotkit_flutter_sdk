@@ -182,29 +182,45 @@ class CopilotKitClient({
     Emitter<CopilotKitState> emit,
   ) async {
     final agent = state.agents[event.agentId];
-    if (agent == null || state.turns.containsKey(event.agentId)) return;
+    if (agent == null) return;
+    final stopping = state.turns[event.agentId];
+    if (stopping != null) {
+      // A run still going is not restarted. After a stop, the new run waits
+      // for the stop to finish, so it sends the conversation with every
+      // open tool call closed and its own state isn't overwritten.
+      final stopped = stopping.stopped;
+      if (stopped == null) return;
+      await stopped;
+    }
+    // A run that waited for a stop can find the agent closed meanwhile.
+    if (agent.isClosed || state.turns.containsKey(event.agentId)) {
+      return;
+    }
     final signal = CancellationSignal();
     emit(_withTurn(event.agentId, TurnState(signal: signal)));
     agent.add(const AgentTurnStarted());
     try {
-      while (await _runOnce(agent, signal, emit)) {
+      while (!signal.isCancelled && await _runOnce(agent, signal, emit)) {
         final pending = _pendingToolCalls(agent);
         await _closeOpenToolCalls(
           agent,
           _FallbackToolResult.unavailable,
           where: (call) => !state.tools.containsKey(call.name),
+          unlessCancelled: signal,
         );
         if (pending.isEmpty) return;
         for (final (call, tool) in pending) {
+          // A stop can land while the previous result is being added.
+          if (signal.isCancelled) return;
           final result = await _runHandler(tool, call, signal);
           if (signal.isCancelled) return;
           await _addToolResult(agent, call, result);
         }
       }
     } finally {
-      // A stop or close already ended the turn otherwise. This turn's
-      // signal, not an equal one: a newer turn may have replaced it.
-      if (!agent.isClosed &&
+      // A stop or close ends a cancelled turn itself. This turn's signal,
+      // not an equal one: a newer turn may have replaced it.
+      if (!signal.isCancelled &&
           identical(state.turns[event.agentId]?.signal, signal)) {
         emit(_withTurn(event.agentId, null));
         agent.add(const AgentTurnEnded());
@@ -219,16 +235,23 @@ class CopilotKitClient({
   ) async {
     final agent = state.agents[event.agentId];
     final turn = state.turns[event.agentId];
-    if (agent == null || turn == null) return;
-    emit(_withTurn(event.agentId, null));
+    if (agent == null || turn == null || turn.signal.isCancelled) return;
+    // The turn stays in the state until its cleanup is done, so a run
+    // requested meanwhile waits for it (see _onAgentRunRequested).
+    final stopped = Completer<void>();
+    emit(_withTurn(event.agentId, turn.copyWith(stopped: stopped.future)));
     turn.signal.cancel();
     final run = turn.run;
-    if (run != null) await run.subscription.cancel();
-
-    await agent.settled;
-    await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
-    agent.add(const AgentTurnEnded());
-    await agent.settled;
+    try {
+      if (run != null) await run.subscription.cancel();
+      await agent.settled;
+      await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+      agent.add(const AgentTurnEnded());
+      await agent.settled;
+    } finally {
+      emit(_withTurn(event.agentId, null));
+      stopped.complete();
+    }
     if (run == null) return;
     try {
       await _transport.stop(
@@ -401,12 +424,16 @@ class CopilotKitClient({
   /// The client and its agents can't be used afterwards.
   @override
   Future<void> close() async {
-    for (final turn in state.turns.values) {
+    final turns = state.turns.values.toList();
+    // Agents first: handlers still cleaning up then write to closed agents,
+    // which ignore them, and a run waiting for a stop finds its agent closed
+    // instead of starting.
+    for (final agent in state.agents.values.toList()) {
+      await agent.close();
+    }
+    for (final turn in turns) {
       turn.signal.cancel();
       await turn.run?.subscription.cancel();
-    }
-    for (final agent in state.agents.values) {
-      await agent.close();
     }
     await _transport.close();
     await super.close();
@@ -414,12 +441,19 @@ class CopilotKitClient({
 
   /// Gives every tool call without a result (and matching [where], if set)
   /// the message of [result], so the conversation stays valid for the next run.
+  ///
+  /// Reads each call's status when its turn comes, since the results added
+  /// meanwhile change it. Stops early once [unlessCancelled] is cancelled:
+  /// the stop closes the remaining calls itself.
   Future<void> _closeOpenToolCalls(
     CopilotAgent agent,
     _FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
+    CancellationSignal? unlessCancelled,
   }) async {
-    for (final call in agent.state.toolCalls) {
+    for (final id in [for (final call in agent.state.toolCalls) call.id]) {
+      if (unlessCancelled?.isCancelled ?? false) return;
+      final call = agent.state.toolCalls.firstWhere((c) => c.id == id);
       if (call.status != ToolCallStatus.complete &&
           (where?.call(call) ?? true)) {
         await _addToolResult(agent, call, result.message);

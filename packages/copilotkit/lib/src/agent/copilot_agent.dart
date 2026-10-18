@@ -49,13 +49,25 @@ class CopilotAgent({
   /// Bloc delivers events asynchronously; the client awaits this before it
   /// reads [state] after adding events.
   @internal
-  Future<void> get settled =>
-      _pending == 0 ? Future.value() : (_settled ??= Completer<void>()).future;
+  Future<void> get settled => _pending == 0 || isClosed
+      ? Future.value()
+      : (_settled ??= Completer<void>()).future;
 
+  /// Adds [event]; does nothing once the agent is closed, so a run or stop
+  /// handler that outlives [close] doesn't fail.
   @override
   void add(CopilotAgentEvent event) {
+    if (isClosed) return;
     super.add(event);
     _pending++;
+  }
+
+  @override
+  Future<void> close() {
+    // Nobody can wait for events that are no longer applied.
+    _settled?.complete();
+    _settled = null;
+    return super.close();
   }
 
   /// Appends [message] to the conversation without starting a run.
@@ -292,6 +304,12 @@ class CopilotAgent({
     if (snapshot.messages.any((m) => m is ToolMessage && m.id == messageId)) {
       return snapshot;
     }
+    // A call has one result; a second one would make the conversation
+    // invalid for the next run.
+    final view = snapshot.toolCalls
+        .where((view) => view.id == toolCallId)
+        .firstOrNull;
+    if (view?.status == ToolCallStatus.complete) return snapshot;
     return _updateToolCall(
       snapshot.copyWith(
         messages: [

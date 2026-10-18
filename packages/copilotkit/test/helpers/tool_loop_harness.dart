@@ -27,6 +27,7 @@ class ToolLoopHarness {
         headers: any(named: 'headers'),
       ),
     ).thenAnswer((_) async {});
+    when(transport.close).thenAnswer((_) async {});
   }
 
   /// Registers the fallback `RunAgentInput` used by `any` matchers.

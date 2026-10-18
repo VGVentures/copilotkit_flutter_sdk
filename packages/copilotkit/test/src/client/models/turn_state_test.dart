@@ -26,6 +26,14 @@ void main() {
       expect(withRun.copyWith(run: () => null).run, isNull);
     });
 
+    test('copyWith sets and keeps stopped', () {
+      final stopped = Future<void>.value();
+      final turn = TurnState(signal: signal).copyWith(stopped: stopped);
+
+      expect(turn.stopped, same(stopped));
+      expect(turn.copyWith().stopped, same(stopped));
+    });
+
     test('supports value equality', () {
       expect(TurnState(signal: signal), TurnState(signal: signal));
       expect(
