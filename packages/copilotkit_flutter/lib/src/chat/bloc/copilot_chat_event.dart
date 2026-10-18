@@ -11,7 +11,8 @@ sealed class CopilotChatEvent extends Equatable {
 /// {@template chat_message_sent}
 /// The user sent [text]; it is added as a user message and the agent runs.
 ///
-/// Ignored when [text] is blank or the agent is already running.
+/// Ignored when [text] is blank or the agent is already running, including
+/// while the run of an earlier send is starting.
 /// {@endtemplate}
 final class const ChatMessageSent(
   /// What the user typed.

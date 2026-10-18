@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/chat/models/chat_row.dart';
 import 'package:equatable/equatable.dart';
@@ -22,7 +23,10 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     on<_AgentStateChanged>(
       (event, emit) => emit(CopilotChatState.fromAgentState(event.state)),
     );
-    on<ChatMessageSent>(_onMessageSent);
+    // A send lasts until its turn ends, so one that arrives meanwhile is
+    // dropped, as the event documents, even before the agent reports that
+    // it is running.
+    on<ChatMessageSent>(_onMessageSent, transformer: droppable());
     on<ChatStopRequested>((_, _) => _agent.stop());
     _subscription = _agent.stream.listen(
       (state) => add(_AgentStateChanged(state)),
@@ -38,7 +42,7 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     final text = event.text.trim();
     if (text.isEmpty || _agent.state.isRunning) return;
     await _agent.addMessage(UserMessage(id: const Uuid().v4(), content: text));
-    _agent.run();
+    await _agent.run();
   }
 
   @override
