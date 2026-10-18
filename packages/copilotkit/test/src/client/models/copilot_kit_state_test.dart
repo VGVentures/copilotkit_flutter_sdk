@@ -22,7 +22,9 @@ void main() {
 
     test('copyWith replaces the given fields', () {
       final state = const CopilotKitState().copyWith(
-        tools: {tool.name: tool},
+        registrations: {
+          tool.name: [tool],
+        },
         context: [entry],
       );
       final turn = TurnState(signal: CancellationSignal());
@@ -34,13 +36,43 @@ void main() {
       expect(state.copyWith(), state);
     });
 
+    test('tools holds the last registration of each name', () {
+      final other = FrontendTool(
+        name: 'showWeather',
+        description: 'Other',
+        parameters: Ack.object({}),
+        handler: (_, {required signal}) async => '',
+      );
+      final state = CopilotKitState(
+        registrations: {
+          'showWeather': [tool, other],
+        },
+      );
+
+      expect(state.tools, {'showWeather': other});
+    });
+
     test('supports value equality', () {
       expect(
-        CopilotKitState(tools: {tool.name: tool}, context: [entry]),
-        CopilotKitState(tools: {tool.name: tool}, context: [entry]),
+        CopilotKitState(
+          registrations: {
+            tool.name: [tool],
+          },
+          context: [entry],
+        ),
+        CopilotKitState(
+          registrations: {
+            tool.name: [tool],
+          },
+          context: [entry],
+        ),
       );
       expect(
-        CopilotKitState(tools: {tool.name: tool}),
+        CopilotKitState(
+          registrations: {
+            tool.name: [tool],
+          },
+        ),
         isNot(const CopilotKitState()),
       );
     });

@@ -128,25 +128,48 @@ class CopilotKitClient({
   }
 
   void _onToolRegistered(ToolRegistered event, Emitter<CopilotKitState> emit) {
-    emit(state.copyWith(tools: {...state.tools, event.tool.name: event.tool}));
+    final name = event.tool.name;
+    emit(
+      state.copyWith(
+        registrations: {
+          ...state.registrations,
+          // Registering an instance again makes it the active one.
+          name: [
+            ..._without(state.registrations[name], event.tool),
+            event.tool,
+          ],
+        },
+      ),
+    );
   }
 
   void _onToolUnregistered(
     ToolUnregistered event,
     Emitter<CopilotKitState> emit,
   ) {
+    final name = event.tool.name;
+    final remaining = _without(state.registrations[name], event.tool);
     // Only unregister the instance that was registered; an equal tool
-    // registered later must stay.
-    if (!identical(state.tools[event.tool.name], event.tool)) return;
-    emit(
-      state.copyWith(
-        tools: {
-          for (final MapEntry(:key, :value) in state.tools.entries)
-            if (key != event.tool.name) key: value,
-        },
-      ),
-    );
+    // registered later must stay. When the active one goes, the one it
+    // replaced is active again.
+    if (remaining.length == (state.registrations[name]?.length ?? 0)) return;
+    final registrations = {...state.registrations};
+    if (remaining.isEmpty) {
+      registrations.remove(name);
+    } else {
+      registrations[name] = remaining;
+    }
+    emit(state.copyWith(registrations: registrations));
   }
+
+  /// [registrations] without [tool], compared by identity.
+  static List<FrontendTool> _without(
+    List<FrontendTool>? registrations,
+    FrontendTool tool,
+  ) => [
+    for (final registered in registrations ?? const <FrontendTool>[])
+      if (!identical(registered, tool)) registered,
+  ];
 
   void _onContextAdded(ContextAdded event, Emitter<CopilotKitState> emit) {
     emit(state.copyWith(context: [...state.context, event.entry]));

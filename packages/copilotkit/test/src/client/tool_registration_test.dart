@@ -102,6 +102,50 @@ void main() {
           expect(sentInputs().single.tools, hasLength(1));
         },
       );
+
+      test(
+        'unregistering the active tool brings back the one it replaced',
+        () async {
+          final old = weatherTool((_, {required signal}) async => 'old');
+          final newer = weatherTool((_, {required signal}) async => 'new');
+          await client.registerTool(old);
+          await client.registerTool(newer);
+
+          await client.unregisterTool(newer);
+
+          expect(client.state.tools, {'showWeather': old});
+          await client.unregisterTool(old);
+          expect(client.state.tools, isEmpty);
+        },
+      );
+
+      test(
+        'registering the same instance again makes it the active one',
+        () async {
+          final first = weatherTool((_, {required signal}) async => 'first');
+          final second = weatherTool((_, {required signal}) async => 'second');
+          await client.registerTool(first);
+          await client.registerTool(second);
+
+          await client.registerTool(first);
+
+          expect(client.state.tools, {'showWeather': first});
+          expect(client.state.registrations['showWeather'], [second, first]);
+        },
+      );
+
+      test(
+        'unregistering a tool that was never registered does nothing',
+        () async {
+          final tool = weatherTool((_, {required signal}) async => '');
+          final other = weatherTool((_, {required signal}) async => '');
+          await client.registerTool(tool);
+
+          await client.unregisterTool(other);
+
+          expect(client.state.tools, {'showWeather': tool});
+        },
+      );
     });
   });
 }
