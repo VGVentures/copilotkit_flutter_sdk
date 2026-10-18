@@ -46,6 +46,30 @@ void main() {
       expect(find.byType(Text), findsNothing);
     });
 
+    testWidgets('logs a hint once in debug mode when no builder matches', (
+      tester,
+    ) async {
+      final logs = <String?>[];
+      final original = debugPrint;
+      debugPrint = (message, {wrapWidth}) => logs.add(message);
+
+      await tester.pumpWidget(_app(ToolCallWidget(call: _call('unknown'))));
+      await tester.pumpWidget(
+        _app(
+          ToolCallWidget(
+            call: _call('unknown', status: ToolCallStatus.executing),
+          ),
+        ),
+      );
+
+      // The test framework checks that debug variables are back to normal
+      // before the tear-downs run.
+      debugPrint = original;
+
+      expect(logs, hasLength(1));
+      expect(logs.single, contains('"unknown"'));
+    });
+
     testWidgets('keeps builder state while the call updates', (tester) async {
       Widget build(ToolCallStatus status) => _app(
         ToolRenderer(
