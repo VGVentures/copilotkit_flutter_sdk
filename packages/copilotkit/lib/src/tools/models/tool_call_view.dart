@@ -16,7 +16,9 @@ class const ToolCallView({
   /// [ToolCallStatus.inProgress].
   final Map<String, Object?> args = const {},
 
-  /// Result string; set once [status] is [ToolCallStatus.complete].
+  /// Result string; set once the call has finished (see
+  /// [ToolCallStatus.isFinished]). For a failed or cancelled call, the message
+  /// the agent got instead of a result.
   final String? result,
 }) extends Equatable {
   /// Creates a view of a tool call.

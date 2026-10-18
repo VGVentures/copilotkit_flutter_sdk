@@ -125,6 +125,24 @@ void main() {
       expect(AgentTurnEnded(), AgentTurnEnded());
       expect(const AgentRunFailed('boom'), const AgentRunFailed('boom'));
       expect(const AgentRunFailed('boom'), isNot(const AgentRunFailed('x')));
+      const closed = AgentToolCallClosed(
+        toolCallId: 'c1',
+        messageId: 't1',
+        content: 'x',
+        status: ToolCallStatus.failed,
+      );
+      expect(closed, closed);
+      expect(
+        closed,
+        isNot(
+          const AgentToolCallClosed(
+            toolCallId: 'c1',
+            messageId: 't1',
+            content: 'x',
+            status: ToolCallStatus.cancelled,
+          ),
+        ),
+      );
     });
   });
 }

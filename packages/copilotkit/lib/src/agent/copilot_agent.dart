@@ -98,6 +98,13 @@ class CopilotAgent({
       AgentTurnStarted() => state.copyWith(isRunning: true, error: () => null),
       AgentTurnEnded() => state.copyWith(isRunning: false),
       AgentRunFailed(:final error) => state.copyWith(error: () => error),
+      AgentToolCallClosed(
+        :final toolCallId,
+        :final messageId,
+        :final content,
+        :final status,
+      ) =>
+        _completeToolCall(state, messageId, toolCallId, content, status),
     };
     // Bloc emits the first state even when it equals the initial one;
     // consumers only want changes.
@@ -156,7 +163,13 @@ class CopilotAgent({
         :final toolCallId,
         :final content,
       ) =>
-        _completeToolCall(snapshot, messageId, toolCallId, content),
+        _completeToolCall(
+          snapshot,
+          messageId,
+          toolCallId,
+          content,
+          ToolCallStatus.complete,
+        ),
       StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
         sharedState: () => state,
       ),
@@ -288,6 +301,7 @@ class CopilotAgent({
     String messageId,
     String toolCallId,
     String content,
+    ToolCallStatus status,
   ) {
     if (snapshot.messages.any((m) => m is ToolMessage && m.id == messageId)) {
       return snapshot;
@@ -300,8 +314,7 @@ class CopilotAgent({
         ],
       ),
       toolCallId,
-      (view) =>
-          view.copyWith(status: ToolCallStatus.complete, result: () => content),
+      (view) => view.copyWith(status: status, result: () => content),
     );
   }
 

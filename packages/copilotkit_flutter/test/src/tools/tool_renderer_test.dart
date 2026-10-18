@@ -102,6 +102,8 @@ void main() {
             ToolCallStatus.inProgress => const Text('loading'),
             ToolCallStatus.executing => Text('fetching ${call.args['city']}'),
             ToolCallStatus.complete => Text('result ${call.result}'),
+            ToolCallStatus.failed ||
+            ToolCallStatus.cancelled => Text('ended ${call.result}'),
           },
           child: ToolCallWidget(call: call),
         ),
@@ -132,6 +134,24 @@ void main() {
         ),
       );
       expect(find.text('result sunny'), findsOneWidget);
+
+      await tester.pumpWidget(
+        build(
+          _call(
+            'showWeather',
+            status: ToolCallStatus.cancelled,
+            result: 'stopped',
+          ),
+        ),
+      );
+      expect(find.text('ended stopped'), findsOneWidget);
+
+      await tester.pumpWidget(
+        build(
+          _call('showWeather', status: ToolCallStatus.failed, result: 'broke'),
+        ),
+      );
+      expect(find.text('ended broke'), findsOneWidget);
     });
   });
 }

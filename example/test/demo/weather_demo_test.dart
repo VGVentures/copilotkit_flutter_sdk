@@ -148,19 +148,23 @@ void main() {
       expect(find.text('21°C · Sunny'), findsOneWidget);
     });
 
-    testWidgets('shows a non-forecast result as text', (tester) async {
-      await pump(
+    for (final status in [ToolCallStatus.failed, ToolCallStatus.cancelled]) {
+      testWidgets('shows the message of a $status call as text', (
         tester,
-        const ToolCallView(
-          id: 'c1',
-          name: 'showWeather',
-          status: ToolCallStatus.complete,
-          result: 'Tool call cancelled.',
-        ),
-      );
+      ) async {
+        await pump(
+          tester,
+          ToolCallView(
+            id: 'c1',
+            name: 'showWeather',
+            status: status,
+            result: 'Tool call cancelled.',
+          ),
+        );
 
-      expect(find.text('Tool call cancelled.'), findsOneWidget);
-    });
+        expect(find.text('Tool call cancelled.'), findsOneWidget);
+      });
+    }
 
     for (final result in [
       '[1, 2]',

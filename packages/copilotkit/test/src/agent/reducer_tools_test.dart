@@ -1,4 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent/copilot_agent_event.dart';
 import 'package:copilotkit/src/agent/models/agent_state.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
@@ -148,6 +149,38 @@ void main() {
       expect(message.id, 't1');
       expect(message.toolCallId, 'c1');
       expect(message.content, '{"forecast": "sunny"}');
+    });
+
+    group('AgentToolCallClosed', () {
+      Future<AgentState> close(ToolCallStatus status) =>
+          replay([_start, const ToolCallEndEvent(toolCallId: 'c1')])
+              .then((state) async {
+                final agent = testAgent()
+                  ..emit(state)
+                  ..add(
+                    AgentToolCallClosed(
+                      toolCallId: 'c1',
+                      messageId: 't1',
+                      content: 'nope',
+                      status: status,
+                    ),
+                  );
+                await agent.settled;
+                return agent.state;
+              });
+
+      for (final status in [ToolCallStatus.failed, ToolCallStatus.cancelled]) {
+        test(
+          'ends the call as $status with the message as its result',
+          () async {
+            final state = await close(status);
+
+            expect(state.toolCalls.single.status, status);
+            expect(state.toolCalls.single.result, 'nope');
+            expect((state.messages.last as ToolMessage).content, 'nope');
+          },
+        );
+      }
     });
 
     test('Result for an unknown call still appends the tool message', () async {

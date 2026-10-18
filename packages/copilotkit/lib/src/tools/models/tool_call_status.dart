@@ -4,9 +4,25 @@ enum ToolCallStatus {
   /// partial.
   inProgress,
 
-  /// The arguments are complete and the handler is running.
+  /// The arguments are complete and the call is waiting for its result: a
+  /// frontend handler is running, or the runtime is running a backend tool.
   executing,
 
-  /// The handler finished; `ToolCallView.result` is set.
+  /// The call finished with a result; `ToolCallView.result` is set.
   complete,
+
+  /// The call ended without a usable result: its handler threw, the arguments
+  /// didn't match the schema, no tool handles it, or the run ended early.
+  /// `ToolCallView.result` holds the message the agent got instead.
+  failed,
+
+  /// The call was cut short because the run was stopped.
+  /// `ToolCallView.result` holds the message the agent got instead.
+  cancelled;
+
+  /// Whether the call has ended, successfully or not.
+  bool get isFinished => switch (this) {
+    inProgress || executing => false,
+    complete || failed || cancelled => true,
+  };
 }

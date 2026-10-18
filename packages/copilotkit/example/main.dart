@@ -43,6 +43,7 @@ Future<void> main() async {
         ToolCallStatus.inProgress => 'loading…',
         ToolCallStatus.executing => 'weather for ${call.args['city']}',
         ToolCallStatus.complete => call.result!,
+        ToolCallStatus.failed || ToolCallStatus.cancelled => 'no result',
       };
       print('${call.name}: $view');
     }

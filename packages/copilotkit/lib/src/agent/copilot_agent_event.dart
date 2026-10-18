@@ -1,4 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
@@ -60,4 +61,28 @@ final class const AgentRunFailed(final Object error) extends CopilotAgentEvent {
 
   @override
   List<Object?> get props => [error];
+}
+
+/// The client ended the tool call [toolCallId] with [content] as its result
+/// and [status] as its outcome, e.g. because its handler ran, threw or was
+/// stopped.
+@internal
+final class const AgentToolCallClosed({
+  /// Id of the tool call.
+  required final String toolCallId,
+
+  /// Id of the tool message that holds [content].
+  required final String messageId,
+
+  /// The result sent to the agent.
+  required final String content,
+
+  /// How the call ended; always finished.
+  required final ToolCallStatus status,
+}) extends CopilotAgentEvent {
+  /// Creates the event for ending [toolCallId].
+  this;
+
+  @override
+  List<Object?> get props => [toolCallId, messageId, content, status];
 }

@@ -24,27 +24,31 @@ import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
-/// Results sent to the agent for tool calls that never ran to completion.
+/// Results sent to the agent for tool calls that never ran to completion,
+/// with the outcome each one gets in the call's view.
 enum _FallbackToolResult {
   /// A tool call cut short by a stop.
-  cancelled('Tool call cancelled.'),
+  cancelled('Tool call cancelled.', ToolCallStatus.cancelled),
 
   /// A tool call left open by a failed run.
-  failed('Tool call failed: the run ended early.'),
+  failed('Tool call failed: the run ended early.', ToolCallStatus.failed),
 
   /// A call to a tool that isn't registered, e.g. because its `CopilotTool`
   /// was unmounted. Backend tool calls never get it: the runtime sends their
   /// results within the run.
-  unavailable('Tool is not available.'),
+  unavailable('Tool is not available.', ToolCallStatus.failed),
 
   /// A handler threw. The error itself goes to `onError` only, so exception
   /// details never reach the model.
-  handlerError('Tool failed.');
+  handlerError('Tool failed.', ToolCallStatus.failed);
 
-  new(this.message);
+  new(this.message, this.status);
 
   /// The result text sent to the agent.
   final String message;
+
+  /// How the call ends in its view.
+  final ToolCallStatus status;
 }
 
 /// {@template copilot_kit_client}
@@ -196,9 +200,9 @@ class CopilotKitClient({
         );
         if (pending.isEmpty) return;
         for (final (call, tool) in pending) {
-          final result = await _runHandler(tool, call, signal);
+          final (result, status) = await _runHandler(tool, call, signal);
           if (signal.isCancelled) return;
-          await _addToolResult(agent, call, result);
+          await _addToolResult(agent, call, result, status);
         }
       }
     } finally {
@@ -364,12 +368,12 @@ class CopilotKitClient({
   ];
 
   /// Runs the handler of [tool] for [call] with the turn's [signal] and
-  /// returns the result for the agent.
+  /// returns the result for the agent and how the call ended.
   ///
   /// Arguments that don't match `FrontendTool.parameters` never reach the
   /// handler: the agent gets a result listing the problems, and they are
   /// logged rather than sent to `onError`, since the agent is at fault.
-  Future<String> _runHandler(
+  Future<(String, ToolCallStatus)> _runHandler(
     FrontendTool tool,
     ToolCallView call,
     CancellationSignal signal,
@@ -386,13 +390,19 @@ class CopilotKitClient({
           level: 900, // WARNING
           error: error,
         );
-        return result;
+        return (result, ToolCallStatus.failed);
     }
     try {
-      return await tool.handler(args, signal: signal);
+      return (
+        await tool.handler(args, signal: signal),
+        ToolCallStatus.complete,
+      );
     } on Object catch (error, stackTrace) {
       _onError?.call(error, stackTrace);
-      return _FallbackToolResult.handlerError.message;
+      return (
+        _FallbackToolResult.handlerError.message,
+        _FallbackToolResult.handlerError.status,
+      );
     }
   }
 
@@ -420,9 +430,8 @@ class CopilotKitClient({
     bool Function(ToolCallView call)? where,
   }) async {
     for (final call in agent.state.toolCalls) {
-      if (call.status != ToolCallStatus.complete &&
-          (where?.call(call) ?? true)) {
-        await _addToolResult(agent, call, result.message);
+      if (!call.status.isFinished && (where?.call(call) ?? true)) {
+        await _addToolResult(agent, call, result.message, result.status);
       }
     }
   }
@@ -431,14 +440,14 @@ class CopilotKitClient({
     CopilotAgent agent,
     ToolCallView call,
     String content,
+    ToolCallStatus status,
   ) async {
     agent.add(
-      AgentEventReceived(
-        ToolCallResultEvent(
-          messageId: const Uuid().v4(),
-          toolCallId: call.id,
-          content: content,
-        ),
+      AgentToolCallClosed(
+        toolCallId: call.id,
+        messageId: const Uuid().v4(),
+        content: content,
+        status: status,
       ),
     );
     await agent.settled;

@@ -81,7 +81,10 @@ class const WeatherCard({required final ToolCallView call, super.key})
         ],
       ),
       ToolCallStatus.executing => Text('Checking ${city ?? 'the city'}…'),
-      ToolCallStatus.complete => _forecast(call.result, textTheme),
+      // A failed or cancelled call has the message the agent got as result.
+      ToolCallStatus.complete ||
+      ToolCallStatus.failed ||
+      ToolCallStatus.cancelled => _forecast(call.result, textTheme),
     };
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),

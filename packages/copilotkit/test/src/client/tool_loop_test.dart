@@ -149,7 +149,7 @@ void main() {
         expect(errors, [same(failure)]);
         final toolMessage = sentInputs().last.messages.last as ToolMessage;
         expect(toolMessage.content, 'Tool failed.');
-        expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
+        expect(agent.state.toolCalls.single.status, ToolCallStatus.failed);
       },
     );
 
@@ -197,6 +197,7 @@ void main() {
 
       await client.runAgent(agent);
 
+      expect(agent.state.toolCalls.single.status, ToolCallStatus.failed);
       expect(called, isFalse);
       expect(errors, isEmpty);
       final result = agent.state.toolCalls.single.result;
@@ -220,7 +221,7 @@ void main() {
 
       expect(sentInputs(), hasLength(1));
       final view = agent.state.toolCalls.single;
-      expect(view.status, ToolCallStatus.complete);
+      expect(view.status, ToolCallStatus.failed);
       expect(view.result, 'Tool is not available.');
       expect(agent.state.messages.last, isA<ToolMessage>());
     });
