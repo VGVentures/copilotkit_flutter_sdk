@@ -270,14 +270,14 @@ void main() {
       await startStreaming();
 
       final turn = client.state.turns[agent.agentId]!;
-      expect(turn.signal.isCancelled, isFalse);
+      expect(turn.controller.isCancelled, isFalse);
       expect(turn.run?.headers, {'Authorization': 'Bearer token'});
 
       await client.stopAgent(agent);
       await run;
 
       expect(client.state.turns, isEmpty);
-      expect(turn.signal.isCancelled, isTrue);
+      expect(turn.controller.isCancelled, isTrue);
     });
 
     test('stops one agent while another keeps running', () async {

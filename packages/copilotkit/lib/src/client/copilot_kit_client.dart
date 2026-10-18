@@ -14,6 +14,7 @@ import 'package:copilotkit/src/client/headers_builder.dart';
 import 'package:copilotkit/src/client/models/copilot_kit_state.dart';
 import 'package:copilotkit/src/client/models/run_state.dart';
 import 'package:copilotkit/src/client/models/turn_state.dart';
+import 'package:copilotkit/src/tools/cancellation_controller.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
@@ -187,11 +188,11 @@ class CopilotKitClient({
   ) async {
     final agent = state.agents[event.agentId];
     if (agent == null || state.turns.containsKey(event.agentId)) return;
-    final signal = CancellationSignal();
-    emit(_withTurn(event.agentId, TurnState(signal: signal)));
+    final controller = CancellationController();
+    emit(_withTurn(event.agentId, TurnState(controller: controller)));
     agent.add(const AgentTurnStarted());
     try {
-      while (await _runOnce(agent, signal, emit)) {
+      while (await _runOnce(agent, controller, emit)) {
         final pending = _pendingToolCalls(agent);
         await _closeOpenToolCalls(
           agent,
@@ -200,16 +201,20 @@ class CopilotKitClient({
         );
         if (pending.isEmpty) return;
         for (final (call, tool) in pending) {
-          final (result, status) = await _runHandler(tool, call, signal);
-          if (signal.isCancelled) return;
+          final (result, status) = await _runHandler(
+            tool,
+            call,
+            controller.signal,
+          );
+          if (controller.isCancelled) return;
           await _addToolResult(agent, call, result, status);
         }
       }
     } finally {
       // A stop or close already ended the turn otherwise. This turn's
-      // signal, not an equal one: a newer turn may have replaced it.
+      // controller, not an equal one: a newer turn may have replaced it.
       if (!agent.isClosed &&
-          identical(state.turns[event.agentId]?.signal, signal)) {
+          identical(state.turns[event.agentId]?.controller, controller)) {
         emit(_withTurn(event.agentId, null));
         agent.add(const AgentTurnEnded());
         await agent.settled;
@@ -225,7 +230,7 @@ class CopilotKitClient({
     final turn = state.turns[event.agentId];
     if (agent == null || turn == null) return;
     emit(_withTurn(event.agentId, null));
-    turn.signal.cancel();
+    turn.controller.cancel();
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
@@ -256,11 +261,11 @@ class CopilotKitClient({
     },
   );
 
-  /// Streams one run of [agent] within the turn [signal] belongs to.
+  /// Streams one run of [agent] within the turn [controller] belongs to.
   /// Returns whether it finished successfully and wasn't stopped.
   Future<bool> _runOnce(
     CopilotAgent agent,
-    CancellationSignal signal,
+    CancellationController controller,
     Emitter<CopilotKitState> emit,
   ) async {
     final RunAgentInput input;
@@ -291,7 +296,7 @@ class CopilotKitClient({
       );
       requestHeaders = await headers?.call() ?? const {};
       // Stopped or closed while the headers were being built.
-      if (signal.isCancelled) return false;
+      if (controller.isCancelled) return false;
       events = _transport.run(
         agentId: agent.agentId,
         input: input,
@@ -338,7 +343,7 @@ class CopilotKitClient({
       _withTurn(
         agent.agentId,
         TurnState(
-          signal: signal,
+          controller: controller,
           run: RunState(
             runId: input.runId,
             headers: requestHeaders,
@@ -347,10 +352,10 @@ class CopilotKitClient({
         ),
       ),
     );
-    await Future.any([streamDone.future, signal.whenCancelled]);
+    await Future.any([streamDone.future, controller.signal.whenCancelled]);
     await agent.settled;
-    if (signal.isCancelled) return false;
-    emit(_withTurn(agent.agentId, TurnState(signal: signal)));
+    if (controller.isCancelled) return false;
+    emit(_withTurn(agent.agentId, TurnState(controller: controller)));
     if (agent.state.error == null) return true;
     await _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
@@ -412,7 +417,7 @@ class CopilotKitClient({
   @override
   Future<void> close() async {
     for (final turn in state.turns.values) {
-      turn.signal.cancel();
+      turn.controller.cancel();
       await turn.run?.subscription.cancel();
     }
     for (final agent in state.agents.values) {

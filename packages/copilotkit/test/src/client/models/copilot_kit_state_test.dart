@@ -25,7 +25,7 @@ void main() {
         tools: {tool.name: tool},
         context: [entry],
       );
-      final turn = TurnState(signal: CancellationSignal());
+      final turn = TurnState(controller: CancellationController());
 
       expect(state.tools, {'showWeather': tool});
       expect(state.context, [entry]);

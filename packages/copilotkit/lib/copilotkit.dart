@@ -30,6 +30,7 @@ export 'src/client/models/copilot_kit_state.dart';
 export 'src/client/models/run_state.dart';
 export 'src/client/models/turn_state.dart';
 export 'src/context/agent_context_entry.dart';
+export 'src/tools/cancellation_controller.dart';
 export 'src/tools/cancellation_signal.dart';
 export 'src/tools/frontend_tool.dart';
 export 'src/tools/frontend_tool_handler.dart';

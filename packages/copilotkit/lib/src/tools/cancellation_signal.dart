@@ -2,22 +2,23 @@ import 'dart:async';
 
 /// Tells a tool handler that its run was stopped.
 ///
-/// The client creates one per tool call and cancels it when the run stops.
-/// Handlers check [isCancelled] or await [whenCancelled] to stop early.
-class CancellationSignal() {
-  /// Creates a signal that has not been cancelled yet.
-  this;
+/// Handlers check [isCancelled] or await [whenCancelled] to stop early. They
+/// can't cancel it: only the owner's `CancellationController` can.
+abstract interface class CancellationSignal {
+  /// A signal that is never cancelled, e.g. to call a handler in a test.
+  const factory none() = _NeverCancelled;
 
-  final _cancelled = Completer<void>();
+  /// Whether the run was stopped.
+  bool get isCancelled;
 
-  /// Whether [cancel] has been called.
-  bool get isCancelled => _cancelled.isCompleted;
+  /// Completes when the run is stopped.
+  Future<void> get whenCancelled;
+}
 
-  /// Completes when [cancel] is called.
-  Future<void> get whenCancelled => _cancelled.future;
+class const _NeverCancelled() implements CancellationSignal {
+  @override
+  bool get isCancelled => false;
 
-  /// Cancels the signal. Calling it again has no effect.
-  void cancel() {
-    if (!isCancelled) _cancelled.complete();
-  }
+  @override
+  Future<void> get whenCancelled => Completer<void>().future;
 }

@@ -16,7 +16,9 @@ void main() {
       expect(tool.description, 'Show the weather for a city');
       expect(tool.parameters, same(parameters));
       expect(
-        await tool.handler({'city': 'Lima'}, signal: CancellationSignal()),
+        await tool.handler({
+          'city': 'Lima',
+        }, signal: const CancellationSignal.none()),
         'sunny in Lima',
       );
     });

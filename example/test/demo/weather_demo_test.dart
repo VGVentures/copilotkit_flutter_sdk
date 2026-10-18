@@ -16,12 +16,12 @@ void main() {
     test('returns a deterministic forecast for the city', () async {
       final first = await lookUpWeather(
         {'city': 'Lima'},
-        signal: CancellationSignal(),
+        signal: const CancellationSignal.none(),
         delay: Duration.zero,
       );
       final second = await lookUpWeather(
         {'city': 'Lima'},
-        signal: CancellationSignal(),
+        signal: const CancellationSignal.none(),
         delay: Duration.zero,
       );
 
@@ -36,7 +36,7 @@ void main() {
       final forecast = jsonDecode(
         await lookUpWeather(
           {},
-          signal: CancellationSignal(),
+          signal: const CancellationSignal.none(),
           delay: Duration.zero,
         ),
       ) as Map<String, Object?>;
@@ -48,7 +48,7 @@ void main() {
       await expectLater(
         lookUpWeather(
           {'city': 42},
-          signal: CancellationSignal(),
+          signal: const CancellationSignal.none(),
           delay: Duration.zero,
         ),
         throwsA(isA<CheckedFromJsonException>()),
@@ -58,7 +58,7 @@ void main() {
     test('reports a cancelled lookup', () async {
       final result = await lookUpWeather(
         {'city': 'Lima'},
-        signal: CancellationSignal()..cancel(),
+        signal: (CancellationController()..cancel()).signal,
         delay: Duration.zero,
       );
 
