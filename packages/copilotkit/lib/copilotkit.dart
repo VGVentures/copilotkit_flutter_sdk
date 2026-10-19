@@ -27,8 +27,6 @@ export 'src/client/copilot_kit_client.dart';
 export 'src/client/copilot_kit_event.dart';
 export 'src/client/headers_builder.dart';
 export 'src/client/models/copilot_kit_state.dart';
-export 'src/client/models/run_state.dart';
-export 'src/client/models/turn_state.dart';
 export 'src/context/agent_context_entry.dart';
 export 'src/tools/cancellation_signal.dart';
 export 'src/tools/frontend_tool.dart';

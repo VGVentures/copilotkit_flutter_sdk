@@ -18,6 +18,9 @@ class const CopilotKitState({
   final List<AgentContextEntry> context = const [],
 
   /// Turns in progress by agent id; see `AgentRunRequested`.
+  ///
+  /// Internal bookkeeping of the client: read `AgentState.isRunning` to know
+  /// whether an agent is working.
   final Map<String, TurnState> turns = const {},
 }) extends Equatable {
   /// Creates the state of a client.

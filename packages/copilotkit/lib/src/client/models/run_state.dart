@@ -6,8 +6,12 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 /// One streamed request to the runtime, open until it ends or is stopped.
+///
+/// Internal: see `TurnState`.
+@internal
 class const RunState({
   /// Id of the run, sent to the runtime's stop route.
   required final String runId,
