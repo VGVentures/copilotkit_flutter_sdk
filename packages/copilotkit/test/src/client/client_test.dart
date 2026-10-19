@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
+import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -75,6 +76,78 @@ void main() {
       final defaultClient = CopilotKitClient(runtimeUrl: _runtimeUrl);
 
       await expectLater(defaultClient.close(), completes);
+    });
+
+    group('state', () {
+      final tool = FrontendTool(
+        name: 'showWeather',
+        description: 'Weather',
+        parameters: Ack.object({}),
+        handler: (_, {required signal}) async => '',
+      );
+      final entry = AgentContextEntry(
+        id: 'e1',
+        description: 'Unread',
+        value: 3,
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'AgentOpened opens an agent once',
+        build: () => client,
+        act: (client) => client
+          ..add(const AgentOpened('default'))
+          ..add(const AgentOpened('default')),
+        expect: () => [
+          isA<CopilotKitState>().having(
+            (state) => state.agents.keys,
+            'agents',
+            ['default'],
+          ),
+        ],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ToolRegistered and ToolUnregistered add and remove the tool',
+        build: () => client,
+        act: (client) => client
+          ..add(ToolRegistered(tool))
+          ..add(ToolUnregistered(tool)),
+        expect: () => [
+          CopilotKitState(tools: {'showWeather': tool}),
+          const CopilotKitState(),
+        ],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ToolUnregistered ignores an equal tool that is not the registered one',
+        build: () => client,
+        seed: () => CopilotKitState(tools: {'showWeather': tool}),
+        act: (client) => client.add(
+          ToolUnregistered(
+            FrontendTool(
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+              handler: tool.handler,
+            ),
+          ),
+        ),
+        expect: () => <CopilotKitState>[],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ContextAdded, ContextUpdated and ContextRemoved edit the context',
+        build: () => client,
+        act: (client) => client
+          ..add(ContextAdded(entry))
+          ..add(const ContextUpdated('e1', 4))
+          ..add(const ContextRemoved('e1')),
+        expect: () => [
+          CopilotKitState(context: [entry]),
+          CopilotKitState(context: [entry.copyWith(value: 4)]),
+          const CopilotKitState(),
+        ],
+      );
     });
 
     group('agent', () {
