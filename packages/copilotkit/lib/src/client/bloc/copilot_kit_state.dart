@@ -8,7 +8,7 @@ class const CopilotKitState({
   final Map<String, CopilotAgentBloc> agents = const {},
 
   /// Registered tools by name; see `ToolRegistered`.
-  final Map<String, FrontendTool> tools = const {},
+  final Map<String, ClientTool> tools = const {},
 
   /// Context entries in insertion order; see `ContextAdded`.
   final List<AgentContextEntry> context = const [],
@@ -25,7 +25,7 @@ class const CopilotKitState({
   /// Returns a copy with the given fields replaced.
   CopilotKitState copyWith({
     Map<String, CopilotAgentBloc>? agents,
-    Map<String, FrontendTool>? tools,
+    Map<String, ClientTool>? tools,
     List<AgentContextEntry>? context,
     Map<String, TurnState>? turns,
   }) {

@@ -65,10 +65,43 @@ void main() {
       await tester.pumpWidget(build(first));
       await tester.pumpWidget(build(second));
 
+      // The new tool first, so the client never lacks the tool in between.
+      expect(eventsOf(client), [
+        ToolRegistered(first),
+        ToolRegistered(second),
+        ToolUnregistered(first),
+      ]);
+    });
+
+    testWidgets('keeps the registration when an equal tool replaces it', (
+      tester,
+    ) async {
+      Future<String> handler(
+        Map<String, Object?> args, {
+        required CancellationSignal signal,
+      }) async => 'ok';
+      FrontendTool tool() => FrontendTool(
+        name: 'showWeather',
+        description: 'A tool',
+        parameters: Ack.object({}),
+        handler: handler,
+      );
+      final first = tool();
+      Widget build(FrontendTool tool) => CopilotKit.value(
+        client: client,
+        child: CopilotTool(tool: tool, child: const SizedBox()),
+      );
+
+      await tester.pumpWidget(build(first));
+      await tester.pumpWidget(build(tool()));
+      await tester.pumpWidget(
+        CopilotKit.value(client: client, child: const SizedBox()),
+      );
+
+      // The client holds the first instance, so that is the one unregistered.
       expect(eventsOf(client), [
         ToolRegistered(first),
         ToolUnregistered(first),
-        ToolRegistered(second),
       ]);
     });
 

@@ -50,6 +50,13 @@ class CopilotAgentBloc({required String agentId, String? threadId})
         sharedState: () => value,
       ),
       AgentStatePatched(:final operations) => _patchState(operations),
+      AgentToolCallAwaiting(:final toolCallId) => _updateToolCall(
+        state,
+        toolCallId,
+        (view) => view.status == ToolCallStatus.executing
+            ? view.copyWith(awaitingResponse: true)
+            : view,
+      ),
       AgentTurnStarted() => state.copyWith(isRunning: true, error: () => null),
       AgentTurnEnded() => state.copyWith(isRunning: false),
       AgentRunFailed(:final error) => state.copyWith(error: () => error),
@@ -202,6 +209,7 @@ class CopilotAgentBloc({required String agentId, String? threadId})
       final result? => view.copyWith(
         status: ToolCallStatus.complete,
         result: () => result,
+        awaitingResponse: false,
       ),
       null => view,
     };
@@ -354,8 +362,11 @@ class CopilotAgentBloc({required String agentId, String? threadId})
         ],
       ),
       toolCallId,
-      (view) =>
-          view.copyWith(status: ToolCallStatus.complete, result: () => content),
+      (view) => view.copyWith(
+        status: ToolCallStatus.complete,
+        result: () => content,
+        awaitingResponse: false,
+      ),
     );
   }
 

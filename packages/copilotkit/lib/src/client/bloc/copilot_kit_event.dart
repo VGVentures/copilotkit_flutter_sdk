@@ -21,7 +21,7 @@ final class const AgentOpened(final String agentId) extends CopilotKitEvent {
 /// Makes [tool] available to the agent on every run.
 ///
 /// A tool with the same name replaces the previous one.
-final class const ToolRegistered(final FrontendTool tool)
+final class const ToolRegistered(final ClientTool tool)
     extends CopilotKitEvent {
   /// Creates the event for registering [tool].
   this;
@@ -32,7 +32,15 @@ final class const ToolRegistered(final FrontendTool tool)
 
 /// Unregisters [tool]. Does nothing once [tool] was replaced by another
 /// registration under the same name.
-final class const ToolUnregistered(final FrontendTool tool)
+///
+/// A running turn that waits for the user to answer a call of a
+/// `HumanInTheLoopTool` answers it as cancelled: with the tool gone, nothing
+/// can answer it anymore. To swap a tool for an updated one, add
+/// [ToolRegistered] for the new tool first (it replaces the old one), then
+/// [ToolUnregistered] for the old one, which then does nothing, so no call is
+/// cancelled. A tool equal to the registered one changes nothing, and the
+/// registered instance stays.
+final class const ToolUnregistered(final ClientTool tool)
     extends CopilotKitEvent {
   /// Creates the event for unregistering [tool].
   this;
@@ -54,6 +62,30 @@ final class const ContextAdded(final AgentContextEntry entry)
 
   @override
   List<Object?> get props => [entry];
+}
+
+/// The user answered the call [toolCallId] of a `HumanInTheLoopTool` with
+/// [result].
+///
+/// A `String` [result] is sent to the agent as it is; any other value is
+/// JSON-encoded, and a value that can't be encoded is reported through the
+/// client's `onError` and leaves the call waiting. The run that is waiting
+/// for the call continues with it as the tool result.
+///
+/// Add it whenever the user decides. An answer that arrives before the client
+/// starts waiting for the call (its arguments are complete but its run has not
+/// finished streaming) is kept until it does. The event is ignored when the
+/// call is unknown, belongs to no running turn, already has a result or was
+/// answered already, or when its tool is not a registered `HumanInTheLoopTool`.
+final class const ToolCallResponded(
+  final String toolCallId,
+  final Object? result,
+) extends CopilotKitEvent {
+  /// Creates the event for answering [toolCallId] with [result].
+  this;
+
+  @override
+  List<Object?> get props => [toolCallId, result];
 }
 
 /// Replaces the value of the entry [id]; the next run sends [value], encoded
@@ -82,8 +114,11 @@ final class const ContextRemoved(final String id) extends CopilotKitEvent {
 /// run, and dropped with the run when the agent is already running.
 ///
 /// When the agent calls registered frontend tools, their handlers run and
-/// the agent runs again with the results, until it stops calling them. The
-/// agent's `isRunning` is true for that whole turn. Errors go to
+/// the agent runs again with the results, until it stops calling them. When
+/// it calls a `HumanInTheLoopTool`, the turn waits for the user's
+/// `ToolCallResponded` (or a stop) and then continues the same way, unless
+/// that tool sets `followUp` to `false`. The agent's `isRunning` is true for
+/// that whole turn. Errors go to
 /// the client's `onError`. Tool calls that will never get a result (the
 /// run failed, or no registered tool handles them) are closed with a result
 /// saying so, so the next run sends a valid conversation. Does nothing if

@@ -103,6 +103,21 @@ final class const AgentTurnEnded() extends CopilotAgentEvent {
   this;
 }
 
+/// The client waits for the user to answer the call [toolCallId] of a
+/// `HumanInTheLoopTool`.
+///
+/// Marks the call with `ToolCallView.awaitingResponse`, until it gets its
+/// result.
+@internal
+final class const AgentToolCallAwaiting(final String toolCallId)
+    extends CopilotAgentEvent {
+  /// Creates the event for [toolCallId] waiting for an answer.
+  this;
+
+  @override
+  List<Object?> get props => [toolCallId];
+}
+
 /// A run failed outside the event stream with [error] (transport, headers
 /// or an early close).
 @internal

@@ -41,6 +41,41 @@ The agent's conversation is rebuilt when the runtime sends a
 `MESSAGES_SNAPSHOT`, tool calls included, so tool calls that only exist in a
 snapshot (a loaded history) render through `ToolCallWidget` like live ones.
 
+## Asking the user
+
+`CopilotHumanInTheLoop` registers a `HumanInTheLoopTool` while it is mounted
+and renders its calls. `respond` is `null` until the call waits for the user,
+so a card can only answer when it is time:
+
+```dart
+CopilotHumanInTheLoop(
+  tool: confirmAction,
+  builder: (context, call, respond) => Column(
+    children: [
+      Text('${call.args['action']}'),
+      if (respond != null) ...[
+        FilledButton(
+          onPressed: () => respond({'decision': 'approve'}),
+          child: const Text('Approve'),
+        ),
+        OutlinedButton(
+          onPressed: () => respond({'decision': 'reject'}),
+          child: const Text('Reject'),
+        ),
+      ],
+    ],
+  ),
+  child: const ChatPage(),
+)
+```
+
+The widget the builder returns keeps its state while the call moves from
+streaming to waiting to complete. Keep the tool stable across rebuilds (a
+field, not a new instance in `build`): a different tool replaces the
+registered one, and unmounting the widget while a call waits answers the call
+as cancelled. The agent's `isRunning` stays `true` while a call waits; read
+`CopilotAgentState.awaitingResponseIds` to know the agent waits for the user.
+
 ---
 
 ## Continuous Integration 🤖

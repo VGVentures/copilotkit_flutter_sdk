@@ -25,12 +25,13 @@ export 'src/agent/bloc/copilot_agent_bloc.dart'
         AgentEventReceived,
         AgentRunFailed,
         AgentSettleRequested,
+        AgentToolCallAwaiting,
         AgentTurnEnded,
         AgentTurnStarted;
 export 'src/client/bloc/copilot_kit_bloc.dart';
 export 'src/context/agent_context_entry.dart';
 export 'src/tools/cancellation_signal.dart';
-export 'src/tools/frontend_tool.dart';
+export 'src/tools/client_tool.dart';
 export 'src/tools/models/tool_call_status.dart';
 export 'src/tools/models/tool_call_view.dart';
 export 'src/transport/agent_transport.dart';

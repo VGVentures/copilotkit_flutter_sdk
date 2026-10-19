@@ -44,11 +44,15 @@ class TestCopilotKitBloc({
       handled(AgentStopRequested(agent.state.agentId));
 
   /// Registers [tool].
-  Future<void> registerTool(FrontendTool tool) => handled(ToolRegistered(tool));
+  Future<void> registerTool(ClientTool tool) => handled(ToolRegistered(tool));
 
   /// Unregisters [tool].
-  Future<void> unregisterTool(FrontendTool tool) =>
+  Future<void> unregisterTool(ClientTool tool) =>
       handled(ToolUnregistered(tool));
+
+  /// Answers the human-in-the-loop call [toolCallId] with [result].
+  Future<void> respond(String toolCallId, Object? result) =>
+      handled(ToolCallResponded(toolCallId, result));
 
   /// Adds [entry] to the context.
   Future<void> addContext(AgentContextEntry entry) =>

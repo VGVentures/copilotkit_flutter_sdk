@@ -11,7 +11,7 @@ import 'package:copilotkit/src/client/models/run_state.dart';
 import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:copilotkit/src/context/agent_context_entry.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
-import 'package:copilotkit/src/tools/frontend_tool.dart';
+import 'package:copilotkit/src/tools/client_tool.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_schema.dart';
@@ -34,7 +34,8 @@ typedef CopilotErrorHandler = void Function(
 
 /// Results sent to the agent for tool calls that never ran to completion.
 enum _FallbackToolResult {
-  /// A tool call cut short by a stop.
+  /// A tool call cut short by a stop, or a human-in-the-loop call whose tool
+  /// was unregistered while it waited for the user.
   cancelled('Tool call cancelled.'),
 
   /// A tool call left open by a failed run.
@@ -79,6 +80,7 @@ class CopilotKitBloc({
     on<AgentOpened>(_onAgentOpened);
     on<ToolRegistered>(_onToolRegistered);
     on<ToolUnregistered>(_onToolUnregistered);
+    on<ToolCallResponded>(_onToolCallResponded);
     on<ContextAdded>(_onContextAdded);
     on<ContextUpdated>(_onContextUpdated);
     on<ContextRemoved>(_onContextRemoved);
@@ -91,6 +93,17 @@ class CopilotKitBloc({
   final AgentTransport _transport =
       transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
   final CopilotErrorHandler? _onError = onError;
+
+  /// The answers to human-in-the-loop tool calls, by tool call id: the
+  /// completer a running turn waits on, or the answer that arrived first.
+  ///
+  /// A documented exception to the immutability rule (ADR 0009): an answer
+  /// can arrive before the turn waits for it and the turn must wake up when
+  /// it does, so both sides need the same handle, which no state can hold.
+  /// An entry is created when the turn starts waiting or the first answer
+  /// arrives, whichever comes first, and removed once the call has its
+  /// result.
+  final Map<String, Completer<String>> _responses = {};
 
   /// Reports [error] to the `onError` callback, after `BlocObserver.onError`.
   ///
@@ -133,7 +146,52 @@ class CopilotKitBloc({
         },
       ),
     );
+    if (event.tool is HumanInTheLoopTool) _cancelAwaiting(event.tool.name);
   }
+
+  /// Answers the calls of the tool [toolName] that wait for the user as
+  /// cancelled: with the tool gone, nobody can answer them.
+  void _cancelAwaiting(String toolName) {
+    for (final agent in state.agents.values) {
+      for (final call in agent.state.toolCalls) {
+        if (call.name == toolName && call.awaitingResponse) {
+          final completer = _responses[call.id];
+          if (completer != null && !completer.isCompleted) {
+            completer.complete(_FallbackToolResult.cancelled.message);
+          }
+        }
+      }
+    }
+  }
+
+  void _onToolCallResponded(
+    ToolCallResponded event,
+    Emitter<CopilotKitState> emit,
+  ) {
+    if (!_isUnansweredHumanCall(event.toolCallId)) return;
+    final completer = _responses.putIfAbsent(event.toolCallId, Completer.new);
+    if (completer.isCompleted) return;
+    // Encoded before completing: a value that can't be encoded is reported
+    // and leaves the call waiting.
+    try {
+      completer.complete(_encode(event.result));
+    } on Object catch (error, stackTrace) {
+      addError(error, stackTrace);
+    }
+  }
+
+  /// Whether [toolCallId] is a call of a registered `HumanInTheLoopTool`
+  /// with complete arguments and no result yet, in an agent that is running a
+  /// turn.
+  bool _isUnansweredHumanCall(String toolCallId) => [
+    for (final agent in state.agents.values)
+      if (state.turns.containsKey(agent.state.agentId))
+        for (final call in agent.state.toolCalls)
+          if (call.id == toolCallId &&
+              call.status == ToolCallStatus.executing &&
+              state.tools[call.name] is HumanInTheLoopTool)
+            call,
+  ].isNotEmpty;
 
   void _onContextAdded(ContextAdded event, Emitter<CopilotKitState> emit) {
     emit(state.copyWith(context: [...state.context, event.entry]));
@@ -188,11 +246,15 @@ class CopilotKitBloc({
           where: (call) => !state.tools.containsKey(call.name),
         );
         if (pending.isEmpty) return;
+        await _markAwaitingResponse(agent, pending);
+        var followUp = false;
         for (final (call, tool) in pending) {
-          final result = await _runHandler(tool, call, signal);
+          final result = await _runTool(tool, call, signal);
           if (signal.isCancelled) return;
           await _addToolResult(agent, call, result);
+          followUp |= _followsUp(tool);
         }
+        if (!followUp) return;
       }
     } finally {
       // A stop or close already ended the turn otherwise. This turn's
@@ -266,13 +328,7 @@ class CopilotKitBloc({
     context: [
       for (final entry in state.context)
         if (entry.agentIds?.contains(agent.state.agentId) ?? true)
-          Context(
-            description: entry.description,
-            value: switch (entry.value) {
-              final String text => text,
-              final value => jsonEncode(value),
-            },
-          ),
+          Context(description: entry.description, value: _encode(entry.value)),
     ],
     forwardedProps: _properties,
   );
@@ -358,28 +414,53 @@ class CopilotKitBloc({
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
-  List<(ToolCallView, FrontendTool)> _pendingToolCalls(
-    CopilotAgentBloc agent,
-  ) => [
-    for (final call in agent.state.toolCalls)
-      if ((call.status, state.tools[call.name]) case (
-        ToolCallStatus.executing,
-        final tool?,
-      ))
-        (call, tool),
-  ];
+  List<(ToolCallView, ClientTool)> _pendingToolCalls(CopilotAgentBloc agent) =>
+      [
+        for (final call in agent.state.toolCalls)
+          if ((call.status, state.tools[call.name]) case (
+            ToolCallStatus.executing,
+            final tool?,
+          ))
+            (call, tool),
+      ];
 
-  /// Runs the handler of [tool] for [call] with the turn's [signal] and
-  /// returns the result for the agent.
+  /// Marks the human-in-the-loop calls in [pending] as awaiting a response,
+  /// all at once, so the user can answer them in any order.
   ///
-  /// Arguments that don't match `FrontendTool.parameters` never reach the
+  /// Calls whose arguments don't match their tool's parameters are left out:
+  /// they get the invalid arguments result without waiting.
+  Future<void> _markAwaitingResponse(
+    CopilotAgentBloc agent,
+    List<(ToolCallView, ClientTool)> pending,
+  ) async {
+    for (final (call, tool) in pending) {
+      if (tool is HumanInTheLoopTool &&
+          tool.parameters.safeParse(call.args) is Ok) {
+        _responses.putIfAbsent(call.id, Completer.new);
+        agent.add(AgentToolCallAwaiting(call.id));
+      }
+    }
+    await _settle(agent);
+  }
+
+  /// Whether the agent runs again after [tool] was answered.
+  static bool _followsUp(ClientTool tool) => switch (tool) {
+    FrontendTool() => true,
+    HumanInTheLoopTool(:final followUp) => followUp,
+  };
+
+  /// Produces the result of [call] for [tool], within the turn [signal]
+  /// belongs to: by running the handler of a [FrontendTool] or by waiting for
+  /// the user to answer a [HumanInTheLoopTool].
+  ///
+  /// Arguments that don't match `ClientTool.parameters` never reach the
   /// handler: the agent gets a result listing the problems, and they are
   /// logged rather than sent to `onError`, since the agent is at fault.
-  Future<String> _runHandler(
-    FrontendTool tool,
+  Future<String> _runTool(
+    ClientTool tool,
     ToolCallView call,
     CancellationSignal signal,
-  ) async {
+  ) {
     final Map<String, Object?> args;
     switch (tool.parameters.safeParse(call.args)) {
       case Ok(:final value):
@@ -392,8 +473,20 @@ class CopilotKitBloc({
           level: 900, // WARNING
           error: error,
         );
-        return result;
+        return Future.value(result);
     }
+    return switch (tool) {
+      FrontendTool() => _runHandler(tool, args, signal),
+      HumanInTheLoopTool() => _awaitResponse(call, signal),
+    };
+  }
+
+  /// Runs the handler of [tool] and returns the result for the agent.
+  Future<String> _runHandler(
+    FrontendTool tool,
+    Map<String, Object?> args,
+    CancellationSignal signal,
+  ) async {
     try {
       return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
@@ -401,6 +494,29 @@ class CopilotKitBloc({
       return _FallbackToolResult.handlerError.message;
     }
   }
+
+  /// Waits for the answer to [call] and returns it.
+  ///
+  /// Races the answer against the turn's [signal], so a stop always ends the
+  /// wait; the result is then the cancelled one, which the caller drops
+  /// because the turn was stopped.
+  Future<String> _awaitResponse(
+    ToolCallView call,
+    CancellationSignal signal,
+  ) async {
+    final completer = _responses.putIfAbsent(call.id, Completer.new);
+    await Future.any([completer.future, signal.whenCancelled]);
+    return completer.isCompleted
+        ? await completer.future
+        : _FallbackToolResult.cancelled.message;
+  }
+
+  /// [value] as the text sent to the agent: a `String` as it is, anything
+  /// else JSON-encoded.
+  static String _encode(Object? value) => switch (value) {
+    final String text => text,
+    _ => jsonEncode(value),
+  };
 
   /// Stops all runs, closes the agents and releases the transport.
   ///
@@ -411,6 +527,7 @@ class CopilotKitBloc({
       turn.signal.cancel();
       await turn.run?.subscription.cancel();
     }
+    _responses.clear();
     for (final agent in state.agents.values) {
       await agent.close();
     }
@@ -449,6 +566,9 @@ class CopilotKitBloc({
       ),
     );
     await _settle(agent);
+    // After the result is applied, so an answer that arrives meanwhile still
+    // finds its completed completer and is ignored as a duplicate.
+    _responses.remove(call.id);
   }
 
   /// Completes once every event added to [agent] so far has been applied.

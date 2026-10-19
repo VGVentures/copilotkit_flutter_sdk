@@ -60,6 +60,42 @@ client.add(ContextAdded(AgentContextEntry(
 )));
 ```
 
+## Tools
+
+Register a `ClientTool` with `ToolRegistered`; the client sends every
+registered tool to the agent on each run. There are two kinds:
+
+- `FrontendTool` runs a handler in the app and sends its result back.
+- `HumanInTheLoopTool` has no handler: the result is the user's answer.
+
+```dart
+client.add(ToolRegistered(HumanInTheLoopTool(
+  name: 'confirmAction',
+  description: 'Ask the user to confirm an action before doing it.',
+  parameters: Ack.object({'action': Ack.string()}),
+)));
+```
+
+When the agent calls a human-in-the-loop tool and its run has finished
+streaming, the call is marked with `ToolCallView.awaitingResponse` and listed
+in `CopilotAgentState.awaitingResponseIds`. The turn waits until the app adds
+`ToolCallResponded` for the call, whenever the user decides; a `String`
+result is sent as it is, anything else JSON-encoded. The answer becomes the
+tool message and the agent runs again, unless the tool sets `followUp: false`.
+
+```dart
+client.add(ToolCallResponded(call.id, {'decision': 'approve'}));
+```
+
+The agent's `isRunning` stays `true` while a call waits, because the turn is
+still open (the client ignores another run request until it ends); use
+`awaitingResponseIds` to tell the agent waits for the user. Stopping the agent
+answers the call as cancelled, so a stop always ends the turn. So does
+unregistering the tool while a call waits. Several calls can wait together
+and be answered in any order. An answer for an unknown, already answered or
+non-human-in-the-loop call is ignored. See
+[ADR 0009](../../docs/adr/0009-human-in-the-loop-responses.md).
+
 ---
 
 ## Continuous Integration 🤖

@@ -212,8 +212,9 @@ void main() {
       );
 
       final events = verify(() => client.add(captureAny())).captured;
-      final tool = events.whereType<ToolRegistered>().single.tool;
-      expect(tool.name, 'showWeather');
+      final tools = events.whereType<ToolRegistered>().map((e) => e.tool);
+      expect(tools.map((tool) => tool.name), contains('showWeather'));
+      final tool = tools.firstWhere((tool) => tool.name == 'showWeather');
       expect(tool.parameters.toJsonSchema()['required'], ['city']);
       final entry = events.whereType<ContextAdded>().single.entry;
       expect(entry.description, 'Current user');
