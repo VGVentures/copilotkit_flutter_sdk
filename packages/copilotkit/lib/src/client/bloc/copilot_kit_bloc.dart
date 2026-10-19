@@ -34,6 +34,10 @@ typedef CopilotErrorHandler = void Function(
 
 /// Results sent to the agent for tool calls that never ran to completion.
 enum _FallbackToolResult {
+  /// A call to a component tool that nothing answered: the call is shown, and
+  /// the agent needs a result to keep a valid conversation.
+  displayed('The component was displayed to the user.'),
+
   /// A tool call cut short by a stop, or a human-in-the-loop call whose tool
   /// was unregistered while it waited for the user.
   cancelled('Tool call cancelled.'),
@@ -189,7 +193,7 @@ class CopilotKitBloc({
         for (final call in agent.state.toolCalls)
           if (call.id == toolCallId &&
               call.status == ToolCallStatus.executing &&
-              state.tools[call.name] is HumanInTheLoopTool)
+              _toolFor(agent, call.name) is HumanInTheLoopTool)
             call,
   ].isNotEmpty;
 
@@ -243,16 +247,16 @@ class CopilotKitBloc({
         await _closeOpenToolCalls(
           agent,
           _FallbackToolResult.unavailable,
-          where: (call) => !state.tools.containsKey(call.name),
+          where: (call) => _toolFor(agent, call.name) == null,
         );
         if (pending.isEmpty) return;
         await _markAwaitingResponse(agent, pending);
         var followUp = false;
         for (final (call, tool) in pending) {
-          final result = await _runTool(tool, call, signal);
+          final outcome = await _runTool(tool, call, signal);
           if (signal.isCancelled) return;
-          await _addToolResult(agent, call, result);
-          followUp |= _followsUp(tool);
+          await _addToolResult(agent, call, outcome.result);
+          followUp |= outcome.followUp;
         }
         if (!followUp) return;
       }
@@ -319,11 +323,12 @@ class CopilotKitBloc({
     messages: agent.state.messages,
     tools: [
       for (final tool in state.tools.values)
-        Tool(
-          name: tool.name,
-          description: tool.description,
-          parameters: ToolSchema(tool.parameters).toJson(),
-        ),
+        if (tool.appliesTo(agent.state.agentId))
+          Tool(
+            name: tool.name,
+            description: tool.description,
+            parameters: ToolSchema(tool.parameters).toJson(),
+          ),
     ],
     context: [
       for (final entry in state.context)
@@ -412,12 +417,18 @@ class CopilotKitBloc({
     return false;
   }
 
+  /// The registered tool [agent] can call by [name], or `null`.
+  ClientTool? _toolFor(CopilotAgentBloc agent, String name) {
+    final tool = state.tools[name];
+    return tool != null && tool.appliesTo(agent.state.agentId) ? tool : null;
+  }
+
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
   List<(ToolCallView, ClientTool)> _pendingToolCalls(CopilotAgentBloc agent) =>
       [
         for (final call in agent.state.toolCalls)
-          if ((call.status, state.tools[call.name]) case (
+          if ((call.status, _toolFor(agent, call.name)) case (
             ToolCallStatus.executing,
             final tool?,
           ))
@@ -443,24 +454,22 @@ class CopilotKitBloc({
     await _settle(agent);
   }
 
-  /// Whether the agent runs again after [tool] was answered.
-  static bool _followsUp(ClientTool tool) => switch (tool) {
-    FrontendTool() => true,
-    HumanInTheLoopTool(:final followUp) => followUp,
-  };
-
   /// Produces the result of [call] for [tool], within the turn [signal]
-  /// belongs to: by running the handler of a [FrontendTool] or by waiting for
-  /// the user to answer a [HumanInTheLoopTool].
+  /// belongs to, and whether the agent runs again because of it.
+  ///
+  /// A [FrontendTool] runs its handler and a [HumanInTheLoopTool] waits for
+  /// the user to answer; a [ComponentTool] has nothing to run, so the call is
+  /// closed with a note and the agent doesn't run again for it.
   ///
   /// Arguments that don't match `ClientTool.parameters` never reach the
   /// handler: the agent gets a result listing the problems, and they are
-  /// logged rather than sent to `onError`, since the agent is at fault.
-  Future<String> _runTool(
+  /// logged rather than sent to `onError`, since the agent is at fault. It
+  /// runs again to fix them, whatever the tool says.
+  Future<({String result, bool followUp})> _runTool(
     ClientTool tool,
     ToolCallView call,
     CancellationSignal signal,
-  ) {
+  ) async {
     final Map<String, Object?> args;
     switch (tool.parameters.safeParse(call.args)) {
       case Ok(:final value):
@@ -473,11 +482,21 @@ class CopilotKitBloc({
           level: 900, // WARNING
           error: error,
         );
-        return Future.value(result);
+        return (result: result, followUp: true);
     }
     return switch (tool) {
-      FrontendTool() => _runHandler(tool, args, signal),
-      HumanInTheLoopTool() => _awaitResponse(call, signal),
+      FrontendTool() => (
+        result: await _runHandler(tool, args, signal),
+        followUp: true,
+      ),
+      HumanInTheLoopTool(:final followUp) => (
+        result: await _awaitResponse(call, signal),
+        followUp: followUp,
+      ),
+      ComponentTool() => (
+        result: _FallbackToolResult.displayed.message,
+        followUp: false,
+      ),
     };
   }
 

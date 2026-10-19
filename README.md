@@ -94,6 +94,9 @@ Send these prompts to see each part of the SDK:
 - **Human in the loop:** "Delete my draft files." The agent calls the
   `confirmAction` tool and an approval card with **Approve** and **Reject**
   appears; the agent continues with your answer.
+- **Component from the agent:** "Give me a packing tip for Lima." The agent
+  calls the `showNote` component and a note card fills in as the arguments
+  stream.
 - **App context:** "Where do I live?" The agent answers from the current user
   that the app shares as context (Ada, from Lima).
 - **Stop:** Tap the stop button while a reply streams. The partial reply stays,
@@ -109,8 +112,8 @@ The repository is a Dart pub workspace with three packages.
 
 | Path | What it is |
 | --- | --- |
-| `packages/copilotkit` | Pure Dart core: `CopilotKitBloc` (driven by `CopilotKitEvent`s), `CopilotAgentBloc` (a bloc of `CopilotAgentState`), frontend and human-in-the-loop tools, context, and the AG-UI transport. No Flutter dependency. |
-| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `CopilotHumanInTheLoop`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, and `CopilotChatBloc`. Re-exports the core. |
+| `packages/copilotkit` | Pure Dart core: `CopilotKitBloc` (driven by `CopilotKitEvent`s), `CopilotAgentBloc` (a bloc of `CopilotAgentState`), frontend, human-in-the-loop and component tools, context, and the AG-UI transport. No Flutter dependency. |
+| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `CopilotHumanInTheLoop`, `CopilotComponent`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, and `CopilotChatBloc`. Re-exports the core. |
 | `example` | Demo app, plus the local runtime in `example/tool/`. |
 
 ## Development

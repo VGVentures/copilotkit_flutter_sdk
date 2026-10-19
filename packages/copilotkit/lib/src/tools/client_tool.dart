@@ -30,6 +30,7 @@ sealed class ClientTool extends Equatable {
     required this.name,
     required this.description,
     required this.parameters,
+    this.agentId,
   });
 
   /// Unique tool name the agent calls the tool by.
@@ -45,6 +46,20 @@ sealed class ClientTool extends Equatable {
   /// tool runs; calls that don't match never run, and the agent gets a result
   /// listing the problems instead.
   final ObjectSchema parameters;
+
+  /// Id of the only agent that gets the tool, or `null` (the default) for
+  /// every agent.
+  ///
+  /// A tool is registered by [name], so at most one tool with a given name
+  /// exists at a time, whichever agent it is for.
+  final String? agentId;
+
+  /// Whether the agent [agentId] can call this tool.
+  bool appliesTo(String agentId) =>
+      this.agentId == null || this.agentId == agentId;
+
+  @override
+  List<Object?> get props => [name, description, parameters, agentId];
 }
 
 /// A tool the agent can call that runs in the app.
@@ -59,12 +74,13 @@ class const FrontendTool({
 
   /// Runs the tool when the agent calls it.
   required final FrontendToolHandler handler,
+  super.agentId,
 }) extends ClientTool {
   /// Creates a tool the agent can call.
   this;
 
   @override
-  List<Object?> get props => [name, description, parameters, handler];
+  List<Object?> get props => [...super.props, handler];
 }
 
 /// A tool whose result is the user's answer, not the result of code.
@@ -83,6 +99,7 @@ class const HumanInTheLoopTool({
   required super.name,
   required super.description,
   required super.parameters,
+  super.agentId,
 
   /// Whether the agent runs again with the user's answer once the call is
   /// answered. When `false`, the answer is recorded and the turn ends without
@@ -93,5 +110,45 @@ class const HumanInTheLoopTool({
   this;
 
   @override
-  List<Object?> get props => [name, description, parameters, followUp];
+  List<Object?> get props => [...super.props, followUp];
+}
+
+/// A tool that only renders a component in the chat: the agent calls it with
+/// the component's arguments and the app draws them.
+///
+/// Register it with `ToolRegistered`, or with `CopilotComponent` in Flutter,
+/// which also draws the component. It has no handler and nothing waits for the
+/// user, so the client does not run, await or follow up on a call to it: the
+/// call renders from its arguments as they stream in, and the turn ends
+/// without another run (unless the same turn has other calls that follow up).
+///
+/// The conversation stays valid for the next run: a call without a result
+/// from the agent is closed by the client with a short note that the
+/// component was displayed, so an agent that needs a tool message for every
+/// tool call, such as the runtime's built-in one, gets one. A runtime that
+/// answers frontend tool calls itself, e.g. with a placeholder result in the
+/// event stream, completes the call earlier and the client adds nothing.
+///
+/// The description sent to the agent says that the tool renders a UI
+/// component, followed by the `description` given here.
+class const ComponentTool({
+  required super.name,
+  required super.parameters,
+
+  /// What the component shows and when to use it, added to the sentence
+  /// telling the agent that the tool displays the component.
+  String? description,
+  super.agentId,
+}) extends ClientTool {
+  /// Creates a tool that renders a component named [name].
+  ///
+  /// The description sent to the agent is a sentence saying that the tool
+  /// displays the "[name]" component, followed by [description] when given.
+  this
+    : super(
+        description:
+            'Use this tool to display the "$name" component in the chat. '
+            'This tool renders a visual UI component for the user.'
+            '${description == null ? '' : '\n\n$description'}',
+      );
 }

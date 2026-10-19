@@ -114,8 +114,8 @@ curl -N -X POST http://localhost:8200/api/copilotkit/agent/default/run \
 
 Use this checklist to check the app end to end against a running runtime. The
 demo in `lib/demo/weather_demo.dart` registers a `showWeather` frontend tool
-and a `confirmAction` human-in-the-loop tool (`lib/demo/approval_demo.dart`),
-and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
+a `confirmAction` human-in-the-loop tool (`lib/demo/approval_demo.dart`), a
+`showNote` component (`lib/demo/note_demo.dart`), and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
 
 <!-- prettier-ignore -->
 > [!NOTE]
@@ -162,6 +162,14 @@ These checks cover the `confirmAction` approval tool.
 - Repeat and tap **Reject**. The agent acknowledges that it did not proceed.
 - Repeat and tap **Stop** instead of answering. The card shows
   `Tool call cancelled.` and the button turns back into **Send**.
+
+### Component
+
+This check covers the `showNote` component tool.
+
+- Ask "Give me a packing tip for Lima." A note card with a title and a body
+  fills in as the arguments stream. The agent does not add another message
+  after the card (the call is not followed up), and your next message works.
 
 ### Stop
 

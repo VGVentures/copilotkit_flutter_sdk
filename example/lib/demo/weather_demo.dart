@@ -9,6 +9,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/approval_demo.dart';
 import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
+import 'package:example/demo/note_demo.dart';
 import 'package:flutter/material.dart';
 
 /// Placeholder user shared with the agent as context.
@@ -38,8 +39,8 @@ Future<String> lookUpWeather(
 }
 
 /// Placeholder demo: registers the `showWeather` tool, the `confirmAction`
-/// approval tool (see [ApprovalDemo]) and the current user context around
-/// [child].
+/// approval tool (see [ApprovalDemo]), the `showNote` component (see
+/// [NoteDemo]) and the current user context around [child].
 class const WeatherDemo({required final Widget child, super.key})
     extends StatelessWidget {
   @override
@@ -48,10 +49,12 @@ class const WeatherDemo({required final Widget child, super.key})
       description: 'Current user',
       value: demoUser,
       child: ApprovalDemo(
-        child: CopilotTool(
-          tool: _showWeather,
-          builder: (context, call) => WeatherCard(call: call),
-          child: child,
+        child: NoteDemo(
+          child: CopilotTool(
+            tool: _showWeather,
+            builder: (context, call) => WeatherCard(call: call),
+            child: child,
+          ),
         ),
       ),
     );

@@ -7,6 +7,7 @@ void main() {
       String kind(ClientTool tool) => switch (tool) {
         FrontendTool() => 'frontend',
         HumanInTheLoopTool() => 'human',
+        ComponentTool() => 'component',
       };
 
       expect(
@@ -29,6 +30,10 @@ void main() {
           ),
         ),
         'human',
+      );
+      expect(
+        kind(ComponentTool(name: 'c', parameters: Ack.object({}))),
+        'component',
       );
     });
   });
@@ -100,6 +105,84 @@ void main() {
       expect(tool(), tool());
       expect(tool(), isNot(tool(name: 'other')));
       expect(tool(), isNot(tool(followUp: false)));
+    });
+  });
+
+  group(ComponentTool, () {
+    final parameters = Ack.object({'city': Ack.string()});
+
+    test('tells the agent that it renders a component', () {
+      final tool = ComponentTool(name: 'weatherCard', parameters: parameters);
+
+      expect(tool.name, 'weatherCard');
+      expect(tool.parameters, same(parameters));
+      expect(
+        tool.description,
+        'Use this tool to display the "weatherCard" component in the chat. '
+        'This tool renders a visual UI component for the user.',
+      );
+    });
+
+    test('adds its own description after the sentence', () {
+      final tool = ComponentTool(
+        name: 'weatherCard',
+        parameters: parameters,
+        description: 'Shows the forecast for a city.',
+      );
+
+      expect(
+        tool.description,
+        'Use this tool to display the "weatherCard" component in the chat. '
+        'This tool renders a visual UI component for the user.\n\n'
+        'Shows the forecast for a city.',
+      );
+    });
+
+    test('supports value equality', () {
+      ComponentTool tool({String? description, String? agentId}) =>
+          ComponentTool(
+            name: 'weatherCard',
+            parameters: parameters,
+            description: description,
+            agentId: agentId,
+          );
+
+      expect(tool(), tool());
+      expect(tool(description: 'a'), isNot(tool()));
+      expect(tool(agentId: 'ops'), isNot(tool()));
+    });
+  });
+
+  group('agent id', () {
+    ClientTool tool({String? agentId}) => HumanInTheLoopTool(
+      name: 'confirm',
+      description: 'Confirm',
+      parameters: Ack.object({}),
+      agentId: agentId,
+    );
+
+    test('is null by default, so every agent can call the tool', () {
+      expect(tool().agentId, isNull);
+      expect(tool().appliesTo('ops'), isTrue);
+    });
+
+    test('limits the tool to one agent', () {
+      expect(tool(agentId: 'ops').agentId, 'ops');
+      expect(tool(agentId: 'ops').appliesTo('ops'), isTrue);
+      expect(tool(agentId: 'ops').appliesTo('chat'), isFalse);
+    });
+
+    test('is part of the equality of every kind of tool', () {
+      expect(tool(agentId: 'ops'), tool(agentId: 'ops'));
+      expect(tool(agentId: 'ops'), isNot(tool()));
+      final frontend = FrontendTool(
+        name: 'a',
+        description: 'A',
+        parameters: Ack.object({}),
+        handler: (args, {required signal}) async => '',
+        agentId: 'ops',
+      );
+      expect(frontend.agentId, 'ops');
     });
   });
 }

@@ -63,10 +63,12 @@ client.add(ContextAdded(AgentContextEntry(
 ## Tools
 
 Register a `ClientTool` with `ToolRegistered`; the client sends every
-registered tool to the agent on each run. There are two kinds:
+registered tool to the agent on each run (or only to the agent in the tool's
+`agentId`). There are three kinds:
 
 - `FrontendTool` runs a handler in the app and sends its result back.
 - `HumanInTheLoopTool` has no handler: the result is the user's answer.
+- `ComponentTool` only renders a component from the call's arguments.
 
 ```dart
 client.add(ToolRegistered(HumanInTheLoopTool(
@@ -95,6 +97,28 @@ unregistering the tool while a call waits. Several calls can wait together
 and be answered in any order. An answer for an unknown, already answered or
 non-human-in-the-loop call is ignored. See
 [ADR 0009](../../docs/adr/0009-human-in-the-loop-responses.md).
+
+### Component tools
+
+A `ComponentTool` is the counterpart of React's `useComponent`: the agent
+calls it to draw a component, and the app renders the call's arguments (see
+`CopilotComponent` in `copilotkit_flutter`). Its description tells the agent
+that the tool "renders a visual UI component for the user", followed by the
+description you give.
+
+It has no handler and nothing waits for the user, so the client does not
+follow up: the turn ends after the run that called it. That leaves an
+assistant tool call, and a runtime that expects a tool message for every tool
+call (the built-in agent of the Copilot Runtime does, and forwards the
+conversation as it is) would reject the next run. So the client answers the
+call itself with the note `The component was displayed to the user.`, and the
+next run sends a valid conversation. A server has nothing to add. A runtime
+that answers frontend tool calls on its own, with a `TOOL_CALL_RESULT` in the
+run (remote agents answer `Forwarded to client`), completes the call first and
+the client adds nothing.
+
+React's `useComponent` differs in two ways: its core adds an empty tool message
+and, unless the component sets `followUp: false`, runs the agent again.
 
 ---
 

@@ -18,7 +18,8 @@ final class const AgentOpened(final String agentId) extends CopilotKitEvent {
   List<Object?> get props => [agentId];
 }
 
-/// Makes [tool] available to the agent on every run.
+/// Makes [tool] available to the agent on every run, or only to the runs of
+/// `ClientTool.agentId` when it has one.
 ///
 /// A tool with the same name replaces the previous one.
 final class const ToolRegistered(final ClientTool tool)

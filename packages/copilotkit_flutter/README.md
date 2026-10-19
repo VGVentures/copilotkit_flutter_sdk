@@ -76,6 +76,29 @@ registered one, and unmounting the widget while a call waits answers the call
 as cancelled. The agent's `isRunning` stays `true` while a call waits; read
 `CopilotAgentState.awaitingResponseIds` to know the agent waits for the user.
 
+## Rendering components
+
+`CopilotComponent` lets the agent draw a widget in the chat, like React's
+`useComponent`. It registers a `ComponentTool`, so the agent calls it with the
+arguments of [parameters], and builds each call with [builder]:
+
+```dart
+CopilotComponent(
+  name: 'weatherCard',
+  description: 'Shows the forecast for a city.',
+  parameters: Ack.object({'city': Ack.string()}),
+  builder: (context, args, status) => WeatherCard(
+    city: args['city'] as String?, // partial while status is inProgress
+    loading: status == ToolCallStatus.inProgress,
+  ),
+  child: const ChatPage(),
+)
+```
+
+Nothing runs in the app and the agent is not run again after the call; the
+client answers the call itself so the conversation stays valid (see
+`ComponentTool`). Pass `agentId` to expose the component to one agent only.
+
 ---
 
 ## Continuous Integration 🤖

@@ -120,3 +120,14 @@ List<BaseEvent> approvalRun(
     RunFinishedEvent(threadId: threadId, runId: 'r1'),
   ];
 }
+
+/// A `showCard` component tool with a required `city`, matching the
+/// arguments of [toolCallRun].
+ComponentTool cardTool({String? agentId, String? description}) {
+  return ComponentTool(
+    name: 'showCard',
+    description: description,
+    parameters: Ack.object({'city': Ack.string()}),
+    agentId: agentId,
+  );
+}
