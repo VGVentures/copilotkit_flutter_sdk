@@ -75,6 +75,27 @@ jobs:
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
 
+  web:
+    needs: changes
+    if: ${{ needs.changes.outputs.example == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🌐 Build Web (WebAssembly)
+        working-directory: example
+        run: flutter build web --wasm --dart-define=RUNTIME_URL=http://localhost:8200/api/copilotkit
+
   codegen:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.example == 'true' }}
