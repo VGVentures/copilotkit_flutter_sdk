@@ -32,7 +32,7 @@ void main() {
           messages: [UserMessage(id: 'u1', content: 'Hi')],
         ),
       );
-      when(() => agent.stateStream).thenAnswer((_) => const Stream.empty());
+      when(() => agent.stream).thenAnswer((_) => const Stream.empty());
 
       await tester.pumpWidget(
         CopilotKit.value(

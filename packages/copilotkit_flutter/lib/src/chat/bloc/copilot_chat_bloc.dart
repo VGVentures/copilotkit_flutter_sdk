@@ -36,10 +36,7 @@ class CopilotChatBloc({
     // the first state even when it equals the initial one; skip that.
     final current = CopilotChatState.fromAgentState(_agent.state);
     if (current != state) emit(current);
-    await emit.forEach(
-      _agent.stateStream,
-      onData: CopilotChatState.fromAgentState,
-    );
+    await emit.forEach(_agent.stream, onData: CopilotChatState.fromAgentState);
   }
 
   void _onMessageSent(ChatMessageSent event, Emitter<CopilotChatState> emit) {

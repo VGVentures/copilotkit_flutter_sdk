@@ -42,7 +42,7 @@ void main() {
       agent = _MockCopilotAgent();
       changes = StreamController<CopilotAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);
-      when(() => agent.stateStream).thenAnswer((_) => changes.stream);
+      when(() => agent.stream).thenAnswer((_) => changes.stream);
     });
 
     tearDown(() => changes.close());

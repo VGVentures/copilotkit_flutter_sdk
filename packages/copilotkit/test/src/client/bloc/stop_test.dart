@@ -104,7 +104,7 @@ void main() {
         await startStreaming();
         await stopStreaming();
         changes = [];
-        agent.stateStream.listen(changes.add);
+        agent.stream.listen(changes.add);
 
         events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));
         await pumpEventQueue();

@@ -42,7 +42,7 @@ void main() {
     /// Records whether the agent was running on every state it emits.
     List<bool> recordRunning() {
       final running = <bool>[];
-      agent.stateStream.listen((state) => running.add(state.isRunning));
+      agent.stream.listen((state) => running.add(state.isRunning));
       return running;
     }
 
@@ -62,7 +62,7 @@ void main() {
         );
         queueToolCallAndReply();
         statuses = [];
-        agent.stateStream.listen((s) {
+        agent.stream.listen((s) {
           final status = s.toolCalls.firstOrNull?.status;
           if (status != null && statuses.lastOrNull != status) {
             statuses.add(status);

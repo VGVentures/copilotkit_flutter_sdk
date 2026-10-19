@@ -285,9 +285,7 @@ void main() {
             ]),
           );
           texts = [];
-          agent.stateStream.listen(
-            (s) => texts.add(s.messages.lastOrNull?.content),
-          );
+          agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
         },
         build: () => client,
         act: (_) => client.runAgent(agent),
@@ -318,7 +316,7 @@ void main() {
             ]),
           );
           sharedStates = [];
-          agent.stateStream
+          agent.stream
               .map((state) => state.sharedState)
               .where((shared) => shared != null)
               .distinct()
@@ -513,7 +511,7 @@ void main() {
         build: () => client,
         act: (_) async {
           agent = await client.openAgent('default');
-          changesDone = agent.stateStream.drain<void>();
+          changesDone = agent.stream.drain<void>();
         },
         verify: (_) async {
           verify(() => transport.close()).called(1);

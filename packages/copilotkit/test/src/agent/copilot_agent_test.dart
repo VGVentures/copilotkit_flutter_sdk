@@ -56,9 +56,9 @@ void main() {
       expect(agent.state.messages.single.id, 'm1');
     });
 
-    test('stateStream emits each new state, in order', () async {
+    test('stream emits each new state, in order', () async {
       final agent = buildAgent();
-      final states = agent.stateStream.toList();
+      final states = agent.stream.toList();
 
       agent
         ..addMessage(user)
@@ -73,7 +73,7 @@ void main() {
 
     test('a change that changes nothing emits nothing', () async {
       final agent = buildAgent();
-      final states = agent.stateStream.toList();
+      final states = agent.stream.toList();
 
       agent
         ..apply(const StepStartedEvent(stepName: 's'))
@@ -101,7 +101,7 @@ void main() {
           if (event is TextMessageContentEvent) event.delta,
       ];
       final agent = buildAgent();
-      final states = agent.stateStream.toList();
+      final states = agent.stream.toList();
 
       fixture.events.forEach(agent.apply);
       await agent.close();

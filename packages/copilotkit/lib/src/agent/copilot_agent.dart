@@ -9,7 +9,7 @@ import 'package:uuid/uuid.dart';
 /// A conversation with one agent on a Copilot Runtime.
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
-/// [state], and adds the new state to [stateStream] every time it changes.
+/// [state], and adds the new state to [stream] every time it changes.
 /// Open one by adding `AgentOpened` to a `CopilotKitBloc` and read it from
 /// `CopilotKitState.agents`.
 ///
@@ -40,7 +40,7 @@ class CopilotAgent({
 
   /// Every new [state], from the moment of listening. Read [state] first for
   /// the current one: the stream doesn't replay it.
-  Stream<CopilotAgentState> get stateStream => _states.stream;
+  Stream<CopilotAgentState> get stream => _states.stream;
 
   /// Whether [close] has been called. A closed agent ignores every change.
   bool get isClosed => _states.isClosed;
@@ -72,7 +72,7 @@ class CopilotAgent({
   @internal
   void fail(Object error) => _update(_state.copyWith(error: () => error));
 
-  /// Stops [stateStream]. Changes after this are ignored.
+  /// Stops [stream]. Changes after this are ignored.
   Future<void> close() => _states.close();
 
   void _update(CopilotAgentState next) {
