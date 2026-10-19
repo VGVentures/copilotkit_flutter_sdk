@@ -225,6 +225,9 @@ class CopilotKitClient({
 
     await agent.settled;
     await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+    // close() ended the turn while this stop was waiting; like close(), it
+    // sends no stop request.
+    if (agent.isClosed) return;
     agent.add(const AgentTurnEnded());
     await agent.settled;
     if (run == null) return;
@@ -430,6 +433,7 @@ class CopilotKitClient({
     ToolCallView call,
     String content,
   ) async {
+    if (agent.isClosed) return;
     agent.add(
       AgentEventReceived(
         ToolCallResultEvent(
