@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
+import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 
 /// Initial state of the agents built by [buildAgent].
 const agentState = CopilotAgentState(agentId: 'default', threadId: 'thread-1');
@@ -16,4 +17,23 @@ extension CopilotAgentBlocX on CopilotAgentBloc {
       add(AgentEventReceived(event));
     }
   }
+}
+
+/// Applies [events] to [from] one at a time with an [AgentEventReducer].
+///
+/// Returns the states that changed, in order, like an agent emits them, and
+/// the final state.
+({List<CopilotAgentState> states, CopilotAgentState state}) reduce(
+  List<BaseEvent> events, {
+  CopilotAgentState from = agentState,
+}) {
+  const reducer = AgentEventReducer();
+  final states = <CopilotAgentState>[];
+  var state = from;
+  for (final event in events) {
+    final next = reducer.reduce(state, event);
+    if (next == state) continue;
+    states.add(state = next);
+  }
+  return (states: states, state: state);
 }

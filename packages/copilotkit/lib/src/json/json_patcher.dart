@@ -1,13 +1,15 @@
+import 'package:copilotkit/src/json/models/json_patch_operation.dart';
+
 /// Applies RFC 6902 JSON Patches.
-abstract final class JsonPatch {
+class const JsonPatcher() {
+  /// Creates a patcher.
+  this;
+
   /// Applies [operations] to [document] and returns the result.
   ///
-  /// [document] is never mutated. Throws a [FormatException] when an operation
-  /// is malformed, a path doesn't exist, or a `test` operation fails.
-  static Object? apply(
-    Object? document,
-    List<Map<String, Object?>> operations,
-  ) {
+  /// [document] is never mutated. Throws a [FormatException] when a pointer
+  /// is malformed, a path doesn't exist, or a [JsonPatchTest] fails.
+  Object? apply(Object? document, List<JsonPatchOperation> operations) {
     var result = _deepCopy(document);
     for (final operation in operations) {
       result = _apply(result, operation);
@@ -15,42 +17,36 @@ abstract final class JsonPatch {
     return result;
   }
 
-  static Object? _apply(Object? document, Map<String, Object?> operation) {
-    final path = _pointer(operation, 'path');
-    switch (operation['op']) {
-      case 'add':
-        return _add(document, path, _deepCopy(operation['value']));
-      case 'remove':
-        _remove(document, path);
+  Object? _apply(Object? document, JsonPatchOperation operation) {
+    switch (operation) {
+      case JsonPatchAdd(:final path, :final value):
+        return _add(document, _pointer(path), _deepCopy(value));
+      case JsonPatchRemove(:final path):
+        _remove(document, _pointer(path));
         return document;
-      case 'replace':
-        if (path.isEmpty) return _deepCopy(operation['value']);
-        _remove(document, path);
-        return _add(document, path, _deepCopy(operation['value']));
-      case 'move':
-        final from = _pointer(operation, 'from');
-        final value = _get(document, from);
-        _remove(document, from);
-        return _add(document, path, value);
-      case 'copy':
-        final value = _deepCopy(_get(document, _pointer(operation, 'from')));
-        return _add(document, path, value);
-      case 'test':
-        if (!_deepEquals(_get(document, path), operation['value'])) {
-          throw FormatException(
-            'JSON Patch test failed at ${operation['path']}',
-          );
+      case JsonPatchReplace(:final path, :final value):
+        final tokens = _pointer(path);
+        if (tokens.isEmpty) return _deepCopy(value);
+        _remove(document, tokens);
+        return _add(document, tokens, _deepCopy(value));
+      case JsonPatchMove(:final from, :final path):
+        final fromTokens = _pointer(from);
+        final value = _get(document, fromTokens);
+        _remove(document, fromTokens);
+        return _add(document, _pointer(path), value);
+      case JsonPatchCopy(:final from, :final path):
+        final value = _deepCopy(_get(document, _pointer(from)));
+        return _add(document, _pointer(path), value);
+      case JsonPatchTest(:final path, :final value):
+        if (!_deepEquals(_get(document, _pointer(path)), value)) {
+          throw FormatException('JSON Patch test failed at $path');
         }
         return document;
-      default:
-        throw FormatException('Unknown JSON Patch op: ${operation['op']}');
     }
   }
 
-  /// Parses the RFC 6901 pointer in [operation][key] into reference tokens.
-  static List<String> _pointer(Map<String, Object?> operation, String key) {
-    final pointer = operation[key];
-    if (pointer is! String) throw FormatException('Missing JSON Patch $key');
+  /// Parses the RFC 6901 [pointer] into reference tokens.
+  List<String> _pointer(String pointer) {
     if (pointer.isEmpty) return const [];
     if (!pointer.startsWith('/')) {
       throw FormatException('Invalid JSON Pointer: $pointer');
@@ -61,7 +57,7 @@ abstract final class JsonPatch {
     ];
   }
 
-  static Object? _get(Object? document, List<String> path) {
+  Object? _get(Object? document, List<String> path) {
     var current = document;
     for (final token in path) {
       current = switch (current) {
@@ -76,7 +72,7 @@ abstract final class JsonPatch {
 
   /// The container that holds the value at the non-empty [path], and the
   /// last token, which names that value in it.
-  static ({Object? parent, String token}) _parentOf(
+  ({Object? parent, String token}) _parentOf(
     Object? document,
     List<String> path,
   ) => (
@@ -84,7 +80,7 @@ abstract final class JsonPatch {
     token: path.last,
   );
 
-  static Object? _add(Object? document, List<String> path, Object? value) {
+  Object? _add(Object? document, List<String> path, Object? value) {
     if (path.isEmpty) return value;
     final (:parent, :token) = _parentOf(document, path);
     switch (parent) {
@@ -102,7 +98,7 @@ abstract final class JsonPatch {
     return document;
   }
 
-  static void _remove(Object? document, List<String> path) {
+  void _remove(Object? document, List<String> path) {
     if (path.isEmpty) throw const FormatException('Cannot remove the root');
     final (:parent, :token) = _parentOf(document, path);
     switch (parent) {
@@ -116,7 +112,7 @@ abstract final class JsonPatch {
   }
 
   /// Parses an array index token, allowing values up to [max].
-  static int _index(List<Object?> list, String token, int max) {
+  int _index(List<Object?> list, String token, int max) {
     final index = int.tryParse(token);
     if (index == null || index < 0 || index > max) {
       throw FormatException('Invalid JSON Patch array index: $token');
@@ -124,7 +120,7 @@ abstract final class JsonPatch {
     return index;
   }
 
-  static Object? _deepCopy(Object? value) => switch (value) {
+  Object? _deepCopy(Object? value) => switch (value) {
     Map<String, Object?>() => {
       for (final entry in value.entries) entry.key: _deepCopy(entry.value),
     },
@@ -132,7 +128,7 @@ abstract final class JsonPatch {
     _ => value,
   };
 
-  static bool _deepEquals(Object? a, Object? b) {
+  bool _deepEquals(Object? a, Object? b) {
     if (a is Map<String, Object?> && b is Map<String, Object?>) {
       return a.length == b.length &&
           a.entries.every(

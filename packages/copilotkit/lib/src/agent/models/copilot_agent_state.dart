@@ -1,8 +1,10 @@
-part of 'copilot_agent_bloc.dart';
+import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:equatable/equatable.dart';
 
 /// Immutable view of an agent at one point in time.
 ///
-/// [CopilotAgentBloc] emits a new state every time an event changes the
+/// `CopilotAgentBloc` emits a new state every time an event changes the
 /// agent.
 class const CopilotAgentState({
   /// Id of the agent on the runtime, e.g. `default`.
