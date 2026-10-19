@@ -14,14 +14,17 @@ void main() {
   group(PartialJsonParser, () {
     const parser = PartialJsonParser();
 
+    /// The fields [parser] reads from [input].
+    Map<String, Object?> parse(String input) => parser.parse(input).toJson();
+
     test('complete JSON matches jsonDecode', () {
-      expect(parser.parse(_args), jsonDecode(_args));
+      expect(parse(_args), jsonDecode(_args));
     });
 
     test('every prefix parses without throwing', () {
       for (var i = 0; i <= _args.length; i++) {
         expect(
-          () => parser.parse(_args.substring(0, i)),
+          () => parse(_args.substring(0, i)),
           returnsNormally,
           reason: 'prefix of length $i',
         );
@@ -31,7 +34,7 @@ void main() {
     test('every prefix yields a map that only grows towards the result', () {
       final complete = jsonDecode(_args) as Map<String, Object?>;
       for (var i = 0; i <= _args.length; i++) {
-        final partial = parser.parse(_args.substring(0, i));
+        final partial = parse(_args.substring(0, i));
         for (final key in partial.keys) {
           expect(complete, contains(key), reason: 'prefix of length $i');
         }
@@ -39,40 +42,40 @@ void main() {
     });
 
     test('empty, whitespace and lone brace give an empty map', () {
-      expect(parser.parse(''), isEmpty);
-      expect(parser.parse('  '), isEmpty);
-      expect(parser.parse('{'), isEmpty);
-      expect(parser.parse('{ '), isEmpty);
+      expect(parse(''), isEmpty);
+      expect(parse('  '), isEmpty);
+      expect(parse('{'), isEmpty);
+      expect(parse('{ '), isEmpty);
     });
 
     test('keeps a string cut mid-value', () {
-      expect(parser.parse('{"city": "San J'), {'city': 'San J'});
+      expect(parse('{"city": "San J'), {'city': 'San J'});
     });
 
     test('drops a key cut before its value', () {
-      expect(parser.parse('{"a": 1, "ci'), {'a': 1});
-      expect(parser.parse('{"a": 1, "city"'), {'a': 1});
-      expect(parser.parse('{"a": 1, "city":'), {'a': 1});
-      expect(parser.parse('{"a": 1, "city": '), {'a': 1});
+      expect(parse('{"a": 1, "ci'), {'a': 1});
+      expect(parse('{"a": 1, "city"'), {'a': 1});
+      expect(parse('{"a": 1, "city":'), {'a': 1});
+      expect(parse('{"a": 1, "city": '), {'a': 1});
     });
 
     test('keeps the digits of a number cut mid-way', () {
-      expect(parser.parse('{"n": 12'), {'n': 12});
-      expect(parser.parse('{"n": -1.5'), {'n': -1.5});
-      expect(parser.parse('{"n": 1.'), {'n': 1});
-      expect(parser.parse('{"n": 1e'), {'n': 1});
-      expect(parser.parse('{"n": 2E+'), {'n': 2});
-      expect(parser.parse('{"n": -'), isEmpty);
+      expect(parse('{"n": 12'), {'n': 12});
+      expect(parse('{"n": -1.5'), {'n': -1.5});
+      expect(parse('{"n": 1.'), {'n': 1});
+      expect(parse('{"n": 1e'), {'n': 1});
+      expect(parse('{"n": 2E+'), {'n': 2});
+      expect(parse('{"n": -'), isEmpty);
     });
 
     test('completes a literal cut mid-way', () {
-      expect(parser.parse('{"a": t'), {'a': true});
-      expect(parser.parse('{"a": fal'), {'a': false});
-      expect(parser.parse('{"a": nu'), {'a': null});
+      expect(parse('{"a": t'), {'a': true});
+      expect(parse('{"a": fal'), {'a': false});
+      expect(parse('{"a": nu'), {'a': null});
     });
 
     test('closes nested objects and arrays', () {
-      expect(parser.parse('{"u": {"t": "C", "w": [1, {"x": "y'), {
+      expect(parse('{"u": {"t": "C", "w": [1, {"x": "y'), {
         'u': {
           't': 'C',
           'w': [
@@ -81,41 +84,41 @@ void main() {
           ],
         },
       });
-      expect(parser.parse('{"a": ['), {'a': <Object?>[]});
-      expect(parser.parse('{"a": {}, "b": [], "c'), {
+      expect(parse('{"a": ['), {'a': <Object?>[]});
+      expect(parse('{"a": {}, "b": [], "c'), {
         'a': <String, Object?>{},
         'b': <Object?>[],
       });
-      expect(parser.parse('{"a": [1,'), {
+      expect(parse('{"a": [1,'), {
         'a': [1],
       });
     });
 
     test('handles escaped quotes and a cut escape', () {
-      expect(parser.parse(r'{"q": "say \"hi\"'), {'q': 'say "hi"'});
-      expect(parser.parse(r'{"q": "a\'), {'q': 'a'});
-      expect(parser.parse(r'{"q": "a\u00'), {'q': 'a'});
-      expect(parser.parse(r'{"q": "\b\f\n\r\t\/\\'), {'q': '\b\f\n\r\t/\\'});
+      expect(parse(r'{"q": "say \"hi\"'), {'q': 'say "hi"'});
+      expect(parse(r'{"q": "a\'), {'q': 'a'});
+      expect(parse(r'{"q": "a\u00'), {'q': 'a'});
+      expect(parse(r'{"q": "\b\f\n\r\t\/\\'), {'q': '\b\f\n\r\t/\\'});
     });
 
     test('garbage gives an empty map', () {
-      expect(parser.parse('not json'), isEmpty);
-      expect(parser.parse('{"a": 1 "b": 2}'), isEmpty);
-      expect(parser.parse('{"a": @}'), isEmpty);
-      expect(parser.parse('{1: 2}'), isEmpty);
-      expect(parser.parse(r'{"a": "\x"}'), isEmpty);
-      expect(parser.parse(r'{"a": "\uZZZZ'), isEmpty);
-      expect(parser.parse('{"a": [1 2]}'), isEmpty);
-      expect(parser.parse('{"a": tx'), isEmpty);
+      expect(parse('not json'), isEmpty);
+      expect(parse('{"a": 1 "b": 2}'), isEmpty);
+      expect(parse('{"a": @}'), isEmpty);
+      expect(parse('{1: 2}'), isEmpty);
+      expect(parse(r'{"a": "\x"}'), isEmpty);
+      expect(parse(r'{"a": "\uZZZZ'), isEmpty);
+      expect(parse('{"a": [1 2]}'), isEmpty);
+      expect(parse('{"a": tx'), isEmpty);
     });
 
     test('a complete non-object gives an empty map', () {
-      expect(parser.parse('[1, 2]'), isEmpty);
-      expect(parser.parse('"text"'), isEmpty);
+      expect(parse('[1, 2]'), isEmpty);
+      expect(parse('"text"'), isEmpty);
     });
 
     test('ignores anything after the closing brace', () {
-      expect(parser.parse('{"a": 1} trailing'), {'a': 1});
+      expect(parse('{"a": 1} trailing'), {'a': 1});
     });
 
     test('every prefix of recorded tool args parses', () {
@@ -126,12 +129,12 @@ void main() {
 
       for (var i = 0; i < delta.length; i++) {
         expect(
-          () => parser.parse(delta.substring(0, i)),
+          () => parse(delta.substring(0, i)),
           returnsNormally,
           reason: 'prefix of length $i',
         );
       }
-      expect(parser.parse(delta), {'city': 'Lima'});
+      expect(parse(delta), {'city': 'Lima'});
     });
   });
 }

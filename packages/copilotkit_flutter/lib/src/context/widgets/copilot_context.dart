@@ -5,14 +5,15 @@ import 'package:flutter/widgets.dart';
 /// Shares [value] with the agent while this widget is mounted.
 ///
 /// Adds a context entry on the nearest `CopilotKit` client on mount,
-/// updates it when [value] changes and removes it on dispose. [value] must
-/// be JSON-encodable.
+/// updates it when [value] changes and removes it on dispose.
 class const CopilotContext({
   /// Tells the agent what [value] is.
   required final String description,
 
-  /// The data shared with the agent.
-  required final Object? value,
+  /// The data shared with the agent: an app model with `toJson`. Give it
+  /// value equality (e.g. `Equatable`), or the entry is sent again on every
+  /// rebuild.
+  required final JsonEncodable value,
 
   /// The subtree below this widget.
   required final Widget child,

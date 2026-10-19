@@ -14,7 +14,7 @@ class CopilotKit extends StatefulWidget {
     required Uri this._runtimeUrl,
     required this.child,
     this._headers,
-    this._properties = const {},
+    this._properties,
     this._onError,
     super.key,
   }) : _client = null;
@@ -27,13 +27,13 @@ class CopilotKit extends StatefulWidget {
     super.key,
   }) : _runtimeUrl = null,
        _headers = null,
-       _properties = const {},
+       _properties = null,
        _onError = null;
 
   final CopilotKitClient? _client;
   final Uri? _runtimeUrl;
   final HeadersBuilder? _headers;
-  final Map<String, Object?> _properties;
+  final JsonEncodable? _properties;
   final CopilotErrorHandler? _onError;
 
   /// The subtree that can read the client.

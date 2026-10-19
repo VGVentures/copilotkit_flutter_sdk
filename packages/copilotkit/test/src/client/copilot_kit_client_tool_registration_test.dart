@@ -49,6 +49,7 @@ void main() {
             name: 'refresh',
             description: 'Refresh the screen',
             parameters: Ack.object({'options': Ack.object({})}),
+            decode: JsonObject.new,
             handler: (_, {required signal}) async => '',
           ),
         );

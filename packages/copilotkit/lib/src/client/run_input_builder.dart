@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:uuid/uuid.dart';
 
@@ -16,16 +17,16 @@ class const RunInputBuilder({
 
   /// The input for a new run of [agent], with the frontend [tools], the
   /// [context] entries (each value JSON-encoded) and the forwarded
-  /// [properties].
+  /// [properties], if any.
   RunAgentInput build({
     required CopilotAgentState agent,
-    required Iterable<FrontendTool> tools,
+    required Iterable<FrontendTool<Object?>> tools,
     required Iterable<AgentContextEntry> context,
-    required Map<String, Object?> properties,
+    JsonEncodable? properties,
   }) => RunAgentInput(
     threadId: agent.threadId,
     runId: _uuid.v4(),
-    state: agent.sharedState,
+    state: agent.sharedState?.toJson(),
     messages: agent.messages,
     tools: [
       for (final tool in tools)
@@ -39,6 +40,6 @@ class const RunInputBuilder({
       for (final entry in context)
         Context(description: entry.description, value: jsonEncode(entry.value)),
     ],
-    forwardedProps: properties,
+    forwardedProps: properties?.toJson(),
   );
 }

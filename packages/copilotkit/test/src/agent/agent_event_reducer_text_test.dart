@@ -1,6 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent.dart';
@@ -55,14 +56,14 @@ void main() {
           ],
           from: agentState.copyWith(
             messages: [user],
-            sharedState: () => const {'a': 1},
+            sharedState: () => const SharedState({'a': 1}),
             error: () => 'boom',
           ),
         );
         expect(result.states, [
           agentState.copyWith(
             messages: [user],
-            sharedState: () => const {'a': 1},
+            sharedState: () => const SharedState({'a': 1}),
           ),
         ]);
       });

@@ -10,20 +10,20 @@ class ToolRegistry() {
   /// Creates an empty registry.
   this;
 
-  final _tools = <String, FrontendTool>{};
+  final _tools = <String, FrontendTool<Object?>>{};
 
   /// The registered tools, by name. A read-only view.
-  Map<String, FrontendTool> get tools => UnmodifiableMapView(_tools);
+  Map<String, FrontendTool<Object?>> get tools => UnmodifiableMapView(_tools);
 
   /// The tool registered as [name], or `null`.
-  FrontendTool? operator [](String name) => _tools[name];
+  FrontendTool<Object?>? operator [](String name) => _tools[name];
 
   /// Registers [tool], replacing a tool with the same name.
-  void register(FrontendTool tool) => _tools[tool.name] = tool;
+  void register(FrontendTool<Object?> tool) => _tools[tool.name] = tool;
 
   /// Unregisters [tool] if it is the tool registered under its name; a
   /// different tool registered later under the same name stays.
-  void unregister(FrontendTool tool) {
+  void unregister(FrontendTool<Object?> tool) {
     if (_tools[tool.name] == tool) _tools.remove(tool.name);
   }
 }

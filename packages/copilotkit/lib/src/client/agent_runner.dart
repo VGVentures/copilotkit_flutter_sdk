@@ -4,6 +4,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 import 'package:uuid/uuid.dart';
@@ -43,7 +44,7 @@ class AgentRunner({
   final HeadersBuilder? _headers,
 
   /// Sent with every run as `RunAgentInput.forwardedProps`.
-  final Map<String, Object?> _properties = const {},
+  final JsonEncodable? _properties,
 
   /// Builds the input of each run.
   final RunInputBuilder _inputBuilder = const RunInputBuilder(),
@@ -212,7 +213,9 @@ class AgentRunner({
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
-  List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
+  List<(ToolCallView, FrontendTool<Object?>)> _pendingToolCalls(
+    CopilotAgent agent,
+  ) => [
     for (final call in agent.state.toolCalls)
       if ((call.status, _tools[call.name]) case (
         ToolCallStatus.executing,

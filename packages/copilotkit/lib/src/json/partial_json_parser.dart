@@ -1,17 +1,23 @@
 import 'dart:convert';
 
-/// Parses a streamed, possibly incomplete JSON object into a best-effort map.
+import 'package:copilotkit/src/json/models/json_object.dart';
+
+/// Parses a streamed, possibly incomplete JSON object into a best-effort
+/// [JsonObject].
 ///
 /// Open strings, arrays and objects are closed; a key without a value is
 /// dropped; a number keeps its valid digits; a literal cut mid-way (`tr`,
 /// `nu`) is completed. Complete JSON gives the same result as [jsonDecode].
-/// Never throws: input that isn't a JSON object prefix gives an empty map.
+/// Never throws: input that isn't a JSON object prefix gives an empty
+/// object.
 class const PartialJsonParser() {
   /// Creates a parser.
   this;
 
-  /// Parses [input] into the map it describes so far.
-  Map<String, Object?> parse(String input) {
+  /// Parses [input] into the object it describes so far.
+  JsonObject parse(String input) => JsonObject(_fields(input));
+
+  Map<String, Object?> _fields(String input) {
     try {
       final decoded = jsonDecode(input);
       return decoded is Map<String, Object?> ? decoded : {};

@@ -1,3 +1,4 @@
+import 'package:copilotkit/src/json/models/json_encodable.dart';
 import 'package:equatable/equatable.dart';
 import 'package:uuid/uuid.dart';
 
@@ -12,8 +13,8 @@ class AgentContextEntry({
   /// Tells the agent what [value] is.
   required final String description,
 
-  /// The data shared with the agent; must be JSON-encodable.
-  final Object? value,
+  /// The data shared with the agent: an app model with `toJson`.
+  required final JsonEncodable value,
   String? id,
 }) extends Equatable {
   /// Creates an entry; a random [id] is generated when none is given.
@@ -24,7 +25,7 @@ class AgentContextEntry({
   final String id = id ?? const Uuid().v4();
 
   /// Returns a copy with [value] replaced.
-  AgentContextEntry copyWith({required Object? value}) =>
+  AgentContextEntry copyWith({required JsonEncodable value}) =>
       AgentContextEntry(id: id, description: description, value: value);
 
   @override

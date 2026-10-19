@@ -1,4 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:equatable/equatable.dart';
 
@@ -17,8 +18,8 @@ class const CopilotAgentState({
   /// while text streams in.
   final List<Message> messages = const [],
 
-  /// Shared agent state (any JSON value), or `null` if the agent sent none.
-  final Object? sharedState,
+  /// State the agent shares with the app, or `null` if it sent none.
+  final SharedState? sharedState,
 
   /// Whether the agent is working: from `CopilotKitClient.runAgent` until
   /// the whole turn ends, including frontend tool handlers and the runs that
@@ -56,7 +57,7 @@ class const CopilotAgentState({
   /// not passing it.
   CopilotAgentState copyWith({
     List<Message>? messages,
-    Object? Function()? sharedState,
+    SharedState? Function()? sharedState,
     bool? isRunning,
     List<ToolCallView>? toolCalls,
     Object? Function()? error,

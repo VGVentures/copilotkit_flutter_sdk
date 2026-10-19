@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:ack/ack.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:copilotkit/src/tools/models/fallback_tool_result.dart';
@@ -27,16 +28,17 @@ class const ToolCallExecutor() {
   /// Arguments that don't match `FrontendTool.parameters` never reach the
   /// handler: the result lists the problems so the agent can fix them, and
   /// they are logged rather than reported, since the agent is at fault. A
-  /// handler that throws gives a generic result and the error. Never throws.
+  /// decoder or handler that throws gives a generic result and the error,
+  /// since the app is at fault. Never throws.
   Future<ToolCallOutcome> execute(
-    FrontendTool tool,
+    FrontendTool<Object?> tool,
     ToolCallView call,
     CancellationSignal signal,
   ) async {
-    final Map<String, Object?> args;
-    switch (tool.parameters.safeParse(call.args)) {
+    final JsonObject args;
+    switch (tool.parameters.safeParse(call.args.toJson())) {
       case Ok(:final value):
-        args = value ?? const {};
+        args = JsonObject(value ?? const {});
       case Fail(:final error):
         final result = _invalidArgumentsResult(error);
         developer.log(
@@ -48,7 +50,7 @@ class const ToolCallExecutor() {
         return ToolCallOutcome(result: result);
     }
     try {
-      return ToolCallOutcome(result: await tool.handler(args, signal: signal));
+      return ToolCallOutcome(result: await tool.run(args, signal: signal));
     } on Object catch (error, stackTrace) {
       return ToolCallOutcome(
         result: FallbackToolResult.handlerError.message,
