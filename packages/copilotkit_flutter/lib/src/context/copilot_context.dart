@@ -2,13 +2,11 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/copilot_kit.dart';
 import 'package:flutter/widgets.dart';
 
-/// {@template copilot_context}
 /// Shares [value] with the agent while this widget is mounted.
 ///
 /// Adds a context entry (`ContextAdded`) on the nearest `CopilotKit` client
 /// on mount, updates it (`ContextUpdated`) when [value] changes and removes
 /// it (`ContextRemoved`) on dispose. [value] must be JSON-encodable.
-/// {@endtemplate}
 class const CopilotContext({
   /// Tells the agent what [value] is.
   required final String description,
@@ -20,7 +18,7 @@ class const CopilotContext({
   required final Widget child,
   super.key,
 }) extends StatefulWidget {
-  /// {@macro copilot_context}
+  /// Creates a widget that shares [value] while mounted.
   this;
 
   @override

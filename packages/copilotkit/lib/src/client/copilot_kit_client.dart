@@ -47,13 +47,11 @@ enum _FallbackToolResult {
   final String message;
 }
 
-/// {@template copilot_kit_client}
 /// Connects an app to a Copilot Runtime.
 ///
 /// Owns the agents it opened, the registered frontend tools and the context
 /// entries, all in its [state], and attaches the tools and context to every
 /// run. Drive it by adding a [CopilotKitEvent].
-/// {@endtemplate}
 class CopilotKitClient({
   /// Base URL of the runtime, e.g. `https://host/api/copilotkit`.
   required final Uri runtimeUrl,
@@ -68,7 +66,7 @@ class CopilotKitClient({
   CopilotErrorHandler? onError,
   AgentTransport? transport,
 }) extends Bloc<CopilotKitEvent, CopilotKitState> {
-  /// {@macro copilot_kit_client}
+  /// Creates a client for the runtime at [runtimeUrl].
   ///
   /// [transport] defaults to an `ag_ui`-backed transport for [runtimeUrl].
   this : super(const CopilotKitState()) {

@@ -1,9 +1,7 @@
 part of 'copilot_chat_bloc.dart';
 
-/// {@template copilot_chat_state}
 /// What a chat UI shows: ordered [rows], whether the agent [isRunning] and
 /// the [error] that ended the last run.
-/// {@endtemplate}
 final class const CopilotChatState({
   /// Rows to render, oldest first.
   final List<ChatRow> rows = const [],
@@ -14,7 +12,7 @@ final class const CopilotChatState({
   /// Error that ended the last run, or `null`.
   final Object? error,
 }) extends Equatable {
-  /// {@macro copilot_chat_state}
+  /// Creates the state of a chat.
   this;
 
   /// Builds the state shown for [agentState].

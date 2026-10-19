@@ -13,23 +13,22 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
-/// {@template copilot_agent}
 /// A conversation with one agent on a Copilot Runtime.
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
 /// [state], and emits a new [AgentState] on [stream] every time an event
-/// changes it. Get one with `CopilotKitClient.agent`.
-/// {@endtemplate}
+/// changes it. Open one by adding `AgentOpened` to a `CopilotKitClient` and
+/// read it from `CopilotKitState.agents`.
 class CopilotAgent({
   /// Id of the agent on the runtime, e.g. `default`.
   required final String agentId,
   required final CopilotKitClient _client,
   String? threadId,
 }) extends Bloc<CopilotAgentEvent, AgentState> {
-  /// {@macro copilot_agent}
+  /// Creates an agent driven by [_client].
   ///
-  /// Prefer `CopilotKitClient.agent`, which caches agents by id. A random
-  /// [threadId] is generated when none is given.
+  /// Prefer adding `AgentOpened` to the client, which tracks the agents it
+  /// runs. A random [threadId] is generated when none is given.
   this : super(const AgentState()) {
     // One handler for the whole family: the handlers are synchronous, so
     // events apply in the order they were added (ADR 0002).
