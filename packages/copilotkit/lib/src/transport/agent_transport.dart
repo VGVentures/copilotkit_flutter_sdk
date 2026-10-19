@@ -2,7 +2,7 @@ import 'package:ag_ui/ag_ui.dart';
 
 /// Moves AG-UI runs between the client and a Copilot Runtime.
 ///
-/// `CopilotKitClient` uses an `ag_ui`-backed implementation by default.
+/// `CopilotKitBloc` uses an `ag_ui`-backed implementation by default.
 /// Implement or mock it to run the client without a network.
 abstract interface class AgentTransport {
   /// Starts a run of [agentId] with [input] and streams its events.

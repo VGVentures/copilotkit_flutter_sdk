@@ -7,7 +7,7 @@ import 'dart:convert';
 import 'package:copilotkit/copilotkit.dart';
 
 Future<void> main() async {
-  final client = CopilotKitClient(
+  final client = CopilotKitBloc(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
     properties: {'userId': '42'},
@@ -52,10 +52,15 @@ Future<void> main() async {
     );
   });
 
-  await agent.addMessage(
-    UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
+  client.add(
+    AgentRunRequested(
+      'default',
+      message: UserMessage(
+        id: 'user-1',
+        content: "What's the weather in Lima?",
+      ),
+    ),
   );
-  agent.run();
   await agent.stream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();

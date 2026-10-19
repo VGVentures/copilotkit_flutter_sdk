@@ -1,12 +1,11 @@
-import 'package:ag_ui/ag_ui.dart';
-import 'package:equatable/equatable.dart';
-import 'package:meta/meta.dart';
+part of 'copilot_agent_bloc.dart';
 
-/// What can change a `CopilotAgent`.
+/// What can change a [CopilotAgentBloc].
 ///
-/// Internal: the client adds these; apps drive the agent through `run()`,
-/// `stop()` and `addMessage()` and observe it through `state` and `stream`.
-@internal
+/// Apps add [AgentMessageAdded]; the other events are internal and added by
+/// the `CopilotKitBloc` that runs the agent. Runs and stops are requested
+/// from the `CopilotKitBloc` with `AgentRunRequested` and
+/// `AgentStopRequested`.
 sealed class CopilotAgentEvent extends Equatable {
   const new();
 
@@ -26,8 +25,7 @@ final class const AgentEventReceived(final BaseEvent event)
   List<Object?> get props => [event];
 }
 
-/// The app appended [message] to the conversation.
-@internal
+/// The app appended [message] to the conversation, without starting a run.
 final class const AgentMessageAdded(final Message message)
     extends CopilotAgentEvent {
   /// Creates the event for appending [message].
@@ -60,4 +58,19 @@ final class const AgentRunFailed(final Object error) extends CopilotAgentEvent {
 
   @override
   List<Object?> get props => [error];
+}
+
+/// Asks the agent to complete [completer] once every event added before
+/// this one has been applied.
+///
+/// Bloc delivers events asynchronously; the client adds this before it reads
+/// the agent's state after adding events.
+@internal
+final class const AgentSettleRequested(final Completer<void> completer)
+    extends CopilotAgentEvent {
+  /// Creates the event for completing [completer].
+  this;
+
+  @override
+  List<Object?> get props => [completer];
 }

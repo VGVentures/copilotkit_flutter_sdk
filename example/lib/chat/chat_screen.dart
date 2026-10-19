@@ -17,7 +17,7 @@ class const ChatPage({super.key}) extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  CopilotKitClient? _client;
+  CopilotKitBloc? _client;
 
   @override
   void didChangeDependencies() {
@@ -30,14 +30,15 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocSelector<CopilotKitClient, CopilotKitState, CopilotAgent?>(
-      bloc: _client,
+    final client = _client!;
+    return BlocSelector<CopilotKitBloc, CopilotKitState, CopilotAgentBloc?>(
+      bloc: client,
       selector: (state) => state.agents[ChatPage.agentId],
       builder: (context, agent) {
         if (agent == null) return const SizedBox.shrink();
         return BlocProvider(
           create: (_) =>
-              CopilotChatBloc(agent: agent)
+              CopilotChatBloc(client: client, agent: agent)
                 ..add(const ChatSubscriptionRequested()),
           child: const ChatView(),
         );

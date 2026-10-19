@@ -3,9 +3,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
-class const _ClientProbe(final void Function(CopilotKitClient client) onBuild)
+class const _ClientProbe(final void Function(CopilotKitBloc client) onBuild)
     extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ void main() {
 
   group(CopilotKit, () {
     testWidgets('creates a client from its configuration', (tester) async {
-      late CopilotKitClient client;
+      late CopilotKitBloc client;
       Future<Map<String, String>> headers() async => {'a': 'b'};
       void onError(Object error, StackTrace stackTrace) {}
 
@@ -33,14 +33,12 @@ void main() {
         ),
       );
 
-      expect(client.runtimeUrl, runtimeUrl);
-      expect(client.headers, same(headers));
-      expect(client.properties, {'userId': '42'});
       expect(client.state, const CopilotKitState());
+      expect(client.isClosed, isFalse);
     });
 
     testWidgets('keeps the same client across rebuilds', (tester) async {
-      final clients = <CopilotKitClient>[];
+      final clients = <CopilotKitBloc>[];
       Widget build() =>
           CopilotKit(runtimeUrl: runtimeUrl, child: _ClientProbe(clients.add));
 
@@ -52,7 +50,7 @@ void main() {
     });
 
     testWidgets('disposes the client it created when removed', (tester) async {
-      late CopilotKitClient client;
+      late CopilotKitBloc client;
       await tester.pumpWidget(
         CopilotKit(
           runtimeUrl: runtimeUrl,
@@ -74,12 +72,12 @@ void main() {
     });
 
     group('value', () {
-      late _MockCopilotKitClient client;
+      late _MockCopilotKitBloc client;
 
-      setUp(() => client = _MockCopilotKitClient());
+      setUp(() => client = _MockCopilotKitBloc());
 
       testWidgets('provides the injected client', (tester) async {
-        late CopilotKitClient provided;
+        late CopilotKitBloc provided;
 
         await tester.pumpWidget(
           CopilotKit.value(
@@ -104,9 +102,9 @@ void main() {
       testWidgets('rebuilds dependents when the client changes', (
         tester,
       ) async {
-        final other = _MockCopilotKitClient();
-        final provided = <CopilotKitClient>[];
-        Widget build(CopilotKitClient c) =>
+        final other = _MockCopilotKitBloc();
+        final provided = <CopilotKitBloc>[];
+        Widget build(CopilotKitBloc c) =>
             CopilotKit.value(client: c, child: _ClientProbe(provided.add));
 
         await tester.pumpWidget(build(client));
@@ -129,7 +127,7 @@ void main() {
       });
 
       testWidgets('maybeOf returns null without an ancestor', (tester) async {
-        CopilotKitClient? client = _MockCopilotKitClient();
+        CopilotKitBloc? client = _MockCopilotKitBloc();
 
         await tester.pumpWidget(
           Builder(

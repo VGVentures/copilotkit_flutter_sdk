@@ -8,23 +8,24 @@ import 'package:uuid/uuid.dart';
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
 
-/// Drives a chat UI from a [CopilotAgent].
+/// Drives a chat UI from a [CopilotAgentBloc].
 ///
-/// Mirrors `agent.stream` into [CopilotChatState] once
+/// Mirrors the agent's state into [CopilotChatState] once
 /// [ChatSubscriptionRequested] is added, and turns [ChatMessageSent] and
-/// [ChatStopRequested] into agent calls.
-class CopilotChatBloc({required final CopilotAgent _agent})
-    extends Bloc<CopilotChatEvent, CopilotChatState> {
-  /// Creates a bloc that drives a chat UI from [_agent].
+/// [ChatStopRequested] into [CopilotKitBloc] events.
+class CopilotChatBloc({
+  required final CopilotKitBloc _client,
+  required final CopilotAgentBloc _agent,
+}) extends Bloc<CopilotChatEvent, CopilotChatState> {
+  /// Creates a bloc that drives a chat UI from [_agent], an agent opened on
+  /// [_client].
   this : super(CopilotChatState.fromAgentState(_agent.state)) {
     on<ChatSubscriptionRequested>(
       _onSubscriptionRequested,
       transformer: restartable(),
     );
-    // One send at a time: a send that arrives while another is adding its
-    // message would pass the isRunning check before the first run starts.
-    on<ChatMessageSent>(_onMessageSent, transformer: droppable());
-    on<ChatStopRequested>((_, _) => _agent.stop());
+    on<ChatMessageSent>(_onMessageSent);
+    on<ChatStopRequested>(_onStopRequested);
   }
 
   Future<void> _onSubscriptionRequested(
@@ -38,13 +39,23 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     await emit.forEach(_agent.stream, onData: CopilotChatState.fromAgentState);
   }
 
-  Future<void> _onMessageSent(
-    ChatMessageSent event,
-    Emitter<CopilotChatState> emit,
-  ) async {
+  void _onMessageSent(ChatMessageSent event, Emitter<CopilotChatState> emit) {
     final text = event.text.trim();
-    if (text.isEmpty || _agent.state.isRunning) return;
-    await _agent.addMessage(UserMessage(id: const Uuid().v4(), content: text));
-    _agent.run();
+    if (text.isEmpty) return;
+    // The client drops the run, message included, when the agent is
+    // already running.
+    _client.add(
+      AgentRunRequested(
+        _agent.state.agentId,
+        message: UserMessage(id: const Uuid().v4(), content: text),
+      ),
+    );
+  }
+
+  void _onStopRequested(
+    ChatStopRequested event,
+    Emitter<CopilotChatState> emit,
+  ) {
+    _client.add(AgentStopRequested(_agent.state.agentId));
   }
 }

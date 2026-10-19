@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:flutter/widgets.dart';
 
-/// Provides a [CopilotKitClient] to the widget tree.
+/// Provides a [CopilotKitBloc] to the widget tree.
 ///
 /// Place it near the app root and read the client with [CopilotKit.of].
 class CopilotKit extends StatefulWidget {
@@ -22,7 +22,7 @@ class CopilotKit extends StatefulWidget {
   /// Provides an existing [_client]. The caller owns it: this widget never
   /// disposes it.
   const new value({
-    required CopilotKitClient this._client,
+    required CopilotKitBloc this._client,
     required this.child,
     super.key,
   }) : _runtimeUrl = null,
@@ -30,7 +30,7 @@ class CopilotKit extends StatefulWidget {
        _properties = const {},
        _onError = null;
 
-  final CopilotKitClient? _client;
+  final CopilotKitBloc? _client;
   final Uri? _runtimeUrl;
   final HeadersBuilder? _headers;
   final Map<String, Object?> _properties;
@@ -42,7 +42,7 @@ class CopilotKit extends StatefulWidget {
   /// Returns the client of the nearest [CopilotKit] ancestor.
   ///
   /// Throws a [FlutterError] if there is none.
-  static CopilotKitClient of(BuildContext context) {
+  static CopilotKitBloc of(BuildContext context) {
     final client = maybeOf(context);
     if (client == null) {
       throw FlutterError(
@@ -55,7 +55,7 @@ class CopilotKit extends StatefulWidget {
   }
 
   /// Returns the client of the nearest [CopilotKit] ancestor, or `null`.
-  static CopilotKitClient? maybeOf(BuildContext context) =>
+  static CopilotKitBloc? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CopilotKitScope>()?.client;
 
   @override
@@ -63,11 +63,11 @@ class CopilotKit extends StatefulWidget {
 }
 
 class _CopilotKitState extends State<CopilotKit> {
-  CopilotKitClient? _ownedClient;
+  CopilotKitBloc? _ownedClient;
 
-  CopilotKitClient get _client =>
+  CopilotKitBloc get _client =>
       widget._client ??
-      (_ownedClient ??= CopilotKitClient(
+      (_ownedClient ??= CopilotKitBloc(
         runtimeUrl: widget._runtimeUrl!,
         headers: widget._headers,
         properties: widget._properties,
@@ -88,7 +88,7 @@ class _CopilotKitState extends State<CopilotKit> {
 }
 
 class const _CopilotKitScope({
-  required final CopilotKitClient client,
+  required final CopilotKitBloc client,
   required super.child,
 }) extends InheritedWidget {
   @override

@@ -2,7 +2,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 
-import 'client_x.dart';
+import 'test_copilot_kit_bloc.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
 
@@ -27,6 +27,7 @@ class ToolLoopHarness {
         headers: any(named: 'headers'),
       ),
     ).thenAnswer((_) async {});
+    when(transport.close).thenAnswer((_) async {});
   }
 
   /// Registers the fallback `RunAgentInput` used by `any` matchers.
@@ -52,14 +53,14 @@ class ToolLoopHarness {
   final List<Stream<BaseEvent>> runs = [];
 
   /// The client under test.
-  late final CopilotKitClient client = CopilotKitClient(
+  late final TestCopilotKitBloc client = TestCopilotKitBloc(
     runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
     onError: (error, _) => errors.add(error),
     transport: transport,
   );
 
   /// The default agent of [client]; set by [open].
-  late final CopilotAgent agent;
+  late final CopilotAgentBloc agent;
 
   /// Opens the default agent.
   Future<void> open() async {

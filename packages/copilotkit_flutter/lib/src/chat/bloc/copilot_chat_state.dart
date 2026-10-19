@@ -20,7 +20,7 @@ final class const CopilotChatState({
   /// User and assistant messages with text become [ChatMessageRow]s; each
   /// tool call on an assistant message follows it as a [ChatToolCallRow].
   /// Tool results, system and developer messages are not shown.
-  factory fromAgentState(AgentState agentState) {
+  factory fromAgentState(CopilotAgentState agentState) {
     final calls = {for (final call in agentState.toolCalls) call.id: call};
     return CopilotChatState(
       rows: [

@@ -26,11 +26,11 @@ class const CopilotContext({
 }
 
 class _CopilotContextState extends State<CopilotContext> {
-  CopilotKitClient? _client;
+  CopilotKitBloc? _client;
 
   /// The entry added and the client it was added to, so only that entry is
   /// updated or removed.
-  (CopilotKitClient, AgentContextEntry)? _entry;
+  (CopilotKitBloc, AgentContextEntry)? _entry;
 
   @override
   void didChangeDependencies() {

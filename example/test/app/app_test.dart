@@ -12,10 +12,7 @@ void main() {
 
       expect(find.byType(ChatPage), findsOneWidget);
       final client = CopilotKit.of(tester.element(find.byType(ChatPage)));
-      expect(
-        client.runtimeUrl,
-        Uri.parse('http://192.168.1.23:8200/api/copilotkit'),
-      );
+      expect(client.isClosed, isFalse);
       App.logError(Exception('logged, not thrown'), StackTrace.current);
     });
 

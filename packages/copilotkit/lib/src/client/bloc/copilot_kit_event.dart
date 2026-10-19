@@ -1,10 +1,8 @@
-import 'package:copilotkit/src/context/agent_context_entry.dart';
-import 'package:copilotkit/src/tools/frontend_tool.dart';
-import 'package:equatable/equatable.dart';
+part of 'copilot_kit_bloc.dart';
 
-/// What an app can ask a `CopilotKitClient` to do.
+/// What an app can ask a [CopilotKitBloc] to do.
 ///
-/// The outcome of every event is visible in `CopilotKitClient.state`, or in
+/// The outcome of every event is visible in [CopilotKitBloc.state], or in
 /// the agent's state for runs and stops.
 sealed class CopilotKitEvent extends Equatable {
   const new();
@@ -46,7 +44,7 @@ final class const ToolUnregistered(final FrontendTool tool)
 /// Shares [entry] with the agent on every run.
 ///
 /// Its value is JSON-encoded on every run; a run with a value that can't be
-/// encoded fails through `CopilotKitClient.onError`.
+/// encoded fails through the client's `onError`.
 final class const ContextAdded(final AgentContextEntry entry)
     extends CopilotKitEvent {
   /// Creates the event for adding [entry].
@@ -77,20 +75,27 @@ final class const ContextRemoved(final String id) extends CopilotKitEvent {
 
 /// Runs the open agent [agentId] with all registered tools and context.
 ///
+/// When [message] is given, it is appended to the conversation before the
+/// run, and dropped with the run when the agent is already running.
+///
 /// When the agent calls registered frontend tools, their handlers run and
 /// the agent runs again with the results, until it stops calling them. The
 /// agent's `isRunning` is true for that whole turn. Errors go to
-/// `CopilotKitClient.onError`. Tool calls that will never get a result (the
+/// the client's `onError`. Tool calls that will never get a result (the
 /// run failed, or no registered tool handles them) are closed with a result
 /// saying so, so the next run sends a valid conversation. Does nothing if
 /// the agent is not open or already running.
-final class const AgentRunRequested(final String agentId)
-    extends CopilotKitEvent {
+final class const AgentRunRequested(
+  final String agentId, {
+
+  /// Message to append before the run, e.g. what the user typed.
+  final Message? message,
+}) extends CopilotKitEvent {
   /// Creates the event for running [agentId].
   this;
 
   @override
-  List<Object?> get props => [agentId];
+  List<Object?> get props => [agentId, message];
 }
 
 /// Stops the current run of the agent [agentId], closing its connection.
@@ -99,7 +104,7 @@ final class const AgentRunRequested(final String agentId)
 /// tool handlers get their signal cancelled, and any tool call without a
 /// result is closed as cancelled so the conversation stays valid. If a
 /// stream was open, the runtime is also asked to stop the run; if that
-/// fails the error goes to `CopilotKitClient.onError`. Does nothing if the
+/// fails the error goes to the client's `onError`. Does nothing if the
 /// agent is not running.
 final class const AgentStopRequested(final String agentId)
     extends CopilotKitEvent {

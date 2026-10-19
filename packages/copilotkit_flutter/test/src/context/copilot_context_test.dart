@@ -3,24 +3,24 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
 void main() {
   setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
 
   group(CopilotContext, () {
-    late _MockCopilotKitClient client;
+    late _MockCopilotKitBloc client;
 
     /// The events added to [mock], in order.
-    List<CopilotKitEvent> eventsOf(_MockCopilotKitClient mock) =>
+    List<CopilotKitEvent> eventsOf(_MockCopilotKitBloc mock) =>
         verify(() => mock.add(captureAny())).captured.cast<CopilotKitEvent>();
 
-    setUp(() => client = _MockCopilotKitClient());
+    setUp(() => client = _MockCopilotKitBloc());
 
     Widget build(
       Object? value, {
       String description = 'Current user',
-      CopilotKitClient? withClient,
+      CopilotKitBloc? withClient,
     }) {
       return CopilotKit.value(
         client: withClient ?? client,
@@ -68,7 +68,7 @@ void main() {
     });
 
     testWidgets('moves the entry when the client changes', (tester) async {
-      final other = _MockCopilotKitClient();
+      final other = _MockCopilotKitBloc();
       await tester.pumpWidget(build(1));
 
       await tester.pumpWidget(build(1, withClient: other));
