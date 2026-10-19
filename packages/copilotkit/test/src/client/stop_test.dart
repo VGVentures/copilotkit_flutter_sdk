@@ -220,6 +220,18 @@ void main() {
       );
     });
 
+    test('can be interrupted by close', () async {
+      when(() => transport.close()).thenAnswer((_) async {});
+      await startStreaming();
+
+      final stop = client.stopAgent(agent);
+      await client.close();
+      await run;
+
+      await expectLater(stop, completes);
+      expect(agent.isClosed, isTrue);
+    });
+
     test('reports a failed runtime stop but still stops locally', () async {
       final failure = Exception('stop failed');
       when(
