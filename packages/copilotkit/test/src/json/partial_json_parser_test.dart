@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/partial_json_parser.dart';
+import 'package:copilotkit/src/json/partial_json_parser.dart';
 import 'package:test/test.dart';
 
-import '../helpers/fixtures.dart';
+import '../../helpers/fixtures.dart';
 
 const _args =
     '{"city": "San José", "days": 3, "units": {"temp": "C", "wind": null}, '

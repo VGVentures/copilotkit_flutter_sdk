@@ -1,4 +1,4 @@
-import 'package:copilotkit/src/json_patch.dart';
+import 'package:copilotkit/src/json/json_patch.dart';
 import 'package:test/test.dart';
 
 void main() {

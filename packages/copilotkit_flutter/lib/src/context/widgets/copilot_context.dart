@@ -1,5 +1,5 @@
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit_flutter/src/client/copilot_kit.dart';
+import 'package:copilotkit_flutter/src/client/client.dart';
 import 'package:flutter/widgets.dart';
 
 /// Shares [value] with the agent while this widget is mounted.

@@ -2,10 +2,8 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
-import 'package:copilotkit/src/json_patch.dart';
-import 'package:copilotkit/src/partial_json_parser.dart';
-import 'package:copilotkit/src/tools/models/tool_call_status.dart';
-import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:copilotkit/src/json/json.dart';
+import 'package:copilotkit/src/tools/tools.dart';
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
