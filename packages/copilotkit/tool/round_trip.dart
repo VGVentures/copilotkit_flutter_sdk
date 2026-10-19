@@ -8,7 +8,7 @@
 //
 // Prints the runtime info document, then every AG-UI event of one run
 // from RUN_STARTED to RUN_FINISHED (or RUN_ERROR). With --via-client, runs
-// through CopilotKitClient instead and prints the streamed reply.
+// through CopilotKitBloc instead and prints the streamed reply.
 //
 // With --record, writes the raw SSE data payloads of one run to a JSONL file
 // (one event per line, after a `{"fixture": {...}}` header line), bypassing
@@ -77,7 +77,7 @@ Future<void> main(List<String> arguments) async {
 }
 
 Future<void> _viaClient(Uri url, String agentId, String message) async {
-  final client = CopilotKitClient(
+  final client = CopilotKitBloc(
     runtimeUrl: url,
     onError: (error, stackTrace) => print('onError: $error'),
   )..add(AgentOpened(agentId));

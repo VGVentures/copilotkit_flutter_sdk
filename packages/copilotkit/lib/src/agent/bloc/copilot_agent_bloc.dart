@@ -17,7 +17,7 @@ part 'copilot_agent_state.dart';
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
 /// [state], and emits a new [CopilotAgentState] every time an event changes
-/// it. Open one by adding `AgentOpened` to a `CopilotKitClient` and read it
+/// it. Open one by adding `AgentOpened` to a `CopilotKitBloc` and read it
 /// from `CopilotKitState.agents`.
 class CopilotAgentBloc({required String agentId, String? threadId})
     extends Bloc<CopilotAgentEvent, CopilotAgentState> {

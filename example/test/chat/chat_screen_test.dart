@@ -11,7 +11,7 @@ import 'package:mocktail/mocktail.dart';
 class _MockCopilotChatBloc extends MockBloc<CopilotChatEvent, CopilotChatState>
     implements CopilotChatBloc;
 
-class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
 class _MockCopilotAgentBloc extends Mock implements CopilotAgentBloc;
 
@@ -20,7 +20,7 @@ void main() {
 
   group(ChatPage, () {
     testWidgets('provides a chat bloc for the default agent', (tester) async {
-      final client = _MockCopilotKitClient();
+      final client = _MockCopilotKitBloc();
       final agent = _MockCopilotAgentBloc();
       when(() => client.state)
           .thenReturn(CopilotKitState(agents: {ChatPage.agentId: agent}));
@@ -47,7 +47,7 @@ void main() {
     });
 
     testWidgets('shows nothing until the agent is open', (tester) async {
-      final client = _MockCopilotKitClient();
+      final client = _MockCopilotKitBloc();
       when(() => client.state).thenReturn(const CopilotKitState());
       when(() => client.stream).thenAnswer((_) => const Stream.empty());
 

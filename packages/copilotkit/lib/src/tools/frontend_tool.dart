@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 
 /// A tool the agent can call that runs in the app.
 ///
-/// Register it with `CopilotKitClient.registerTool`. When the agent calls it,
+/// Register it with `ToolRegistered`. When the agent calls it,
 /// [handler] runs, its result is appended as a tool message, and the agent
 /// continues in the same turn.
 class const FrontendTool({

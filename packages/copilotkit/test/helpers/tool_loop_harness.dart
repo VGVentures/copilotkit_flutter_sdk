@@ -1,8 +1,9 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
+import 'package:mocktail/mocktail.dart';
 
-import 'client_x.dart';
 import 'mock_agent_transport.dart';
+import 'test_copilot_kit_bloc.dart';
 
 /// A client on a mocked transport for frontend tool tests.
 ///
@@ -13,6 +14,7 @@ class ToolLoopHarness {
     transport
       ..stubRun(() => runs.removeAt(0))
       ..stubStop();
+    when(transport.close).thenAnswer((_) async {});
   }
 
   /// The mocked transport behind [client].
@@ -25,7 +27,7 @@ class ToolLoopHarness {
   final List<Stream<BaseEvent>> runs = [];
 
   /// The client under test.
-  late final CopilotKitClient client = CopilotKitClient(
+  late final TestCopilotKitBloc client = TestCopilotKitBloc(
     runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
     onError: (error, _) => errors.add(error),
     transport: transport,
