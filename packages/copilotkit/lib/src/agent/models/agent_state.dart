@@ -2,12 +2,10 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:equatable/equatable.dart';
 
-/// {@template agent_state}
 /// Immutable view of an agent at one point in time.
 ///
-/// `CopilotAgent.changes` emits a new state every time an event changes the
+/// `CopilotAgent.stream` emits a new state every time an event changes the
 /// agent.
-/// {@endtemplate}
 class const AgentState({
   /// Conversation messages, oldest first. The last assistant message grows
   /// while text streams in.
@@ -30,7 +28,7 @@ class const AgentState({
   /// transport or client error.
   final Object? error,
 }) extends Equatable {
-  /// {@macro agent_state}
+  /// Creates the state of an agent.
   this;
 
   @override

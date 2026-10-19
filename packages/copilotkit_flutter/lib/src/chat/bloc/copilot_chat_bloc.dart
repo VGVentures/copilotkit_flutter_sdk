@@ -9,15 +9,13 @@ import 'package:uuid/uuid.dart';
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
 
-/// {@template copilot_chat_bloc}
 /// Drives a chat UI from a [CopilotAgent].
 ///
 /// Mirrors `agent.stream` into [CopilotChatState] and turns
 /// [ChatMessageSent] and [ChatStopRequested] into agent calls.
-/// {@endtemplate}
 class CopilotChatBloc({required final CopilotAgent _agent})
     extends Bloc<CopilotChatEvent, CopilotChatState> {
-  /// {@macro copilot_chat_bloc}
+  /// Creates a bloc that drives a chat UI from [_agent].
   this : super(CopilotChatState.fromAgentState(_agent.state)) {
     on<_AgentStateChanged>(
       (event, emit) => emit(CopilotChatState.fromAgentState(event.state)),
