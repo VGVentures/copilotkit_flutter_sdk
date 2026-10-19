@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uuid/uuid.dart';
 
-class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
 class _MockCopilotAgentBloc extends Mock implements CopilotAgentBloc;
 
@@ -35,12 +35,12 @@ void main() {
   setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
 
   group(CopilotChatBloc, () {
-    late _MockCopilotKitClient client;
+    late _MockCopilotKitBloc client;
     late _MockCopilotAgentBloc agent;
     late StreamController<CopilotAgentState> changes;
 
     setUp(() {
-      client = _MockCopilotKitClient();
+      client = _MockCopilotKitBloc();
       agent = _MockCopilotAgentBloc();
       changes = StreamController<CopilotAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);

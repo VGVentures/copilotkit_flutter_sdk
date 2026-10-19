@@ -3,8 +3,8 @@ part of 'copilot_agent_bloc.dart';
 /// What can change a [CopilotAgentBloc].
 ///
 /// Apps add [AgentMessageAdded]; the other events are internal and added by
-/// the `CopilotKitClient` that runs the agent. Runs and stops are requested
-/// from the `CopilotKitClient` with `AgentRunRequested` and
+/// the `CopilotKitBloc` that runs the agent. Runs and stops are requested
+/// from the `CopilotKitBloc` with `AgentRunRequested` and
 /// `AgentStopRequested`.
 sealed class CopilotAgentEvent extends Equatable {
   const new();

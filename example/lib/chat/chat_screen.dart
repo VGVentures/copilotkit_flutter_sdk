@@ -17,7 +17,7 @@ class const ChatPage({super.key}) extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  CopilotKitClient? _client;
+  CopilotKitBloc? _client;
 
   @override
   void didChangeDependencies() {
@@ -31,7 +31,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final client = _client!;
-    return BlocSelector<CopilotKitClient, CopilotKitState, CopilotAgentBloc?>(
+    return BlocSelector<CopilotKitBloc, CopilotKitState, CopilotAgentBloc?>(
       bloc: client,
       selector: (state) => state.agents[ChatPage.agentId],
       builder: (context, agent) {

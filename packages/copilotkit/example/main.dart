@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:copilotkit/copilotkit.dart';
 
 Future<void> main() async {
-  final client = CopilotKitClient(
+  final client = CopilotKitBloc(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
     properties: {'userId': '42'},

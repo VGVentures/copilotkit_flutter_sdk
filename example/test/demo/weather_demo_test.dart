@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
 void main() {
   setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
@@ -200,7 +200,7 @@ void main() {
 
   group(WeatherDemo, () {
     testWidgets('registers the tool and the user context', (tester) async {
-      final client = _MockCopilotKitClient();
+      final client = _MockCopilotKitBloc();
 
       await tester.pumpWidget(
         CopilotKit.value(

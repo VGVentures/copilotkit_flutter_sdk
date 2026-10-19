@@ -12,9 +12,9 @@ part 'copilot_chat_state.dart';
 ///
 /// Mirrors the agent's state into [CopilotChatState] once
 /// [ChatSubscriptionRequested] is added, and turns [ChatMessageSent] and
-/// [ChatStopRequested] into [CopilotKitClient] events.
+/// [ChatStopRequested] into [CopilotKitBloc] events.
 class CopilotChatBloc({
-  required final CopilotKitClient _client,
+  required final CopilotKitBloc _client,
   required final CopilotAgentBloc _agent,
 }) extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// Creates a bloc that drives a chat UI from [_agent], an agent opened on

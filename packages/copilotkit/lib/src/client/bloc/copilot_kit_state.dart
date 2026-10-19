@@ -1,10 +1,6 @@
-import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
-import 'package:copilotkit/src/client/models/turn_state.dart';
-import 'package:copilotkit/src/context/agent_context_entry.dart';
-import 'package:copilotkit/src/tools/frontend_tool.dart';
-import 'package:equatable/equatable.dart';
+part of 'copilot_kit_bloc.dart';
 
-/// What a `CopilotKitClient` holds: the agents it opened, the registered
+/// What a [CopilotKitBloc] holds: the agents it opened, the registered
 /// frontend tools, the context entries sent with every run and the turns in
 /// progress.
 class const CopilotKitState({

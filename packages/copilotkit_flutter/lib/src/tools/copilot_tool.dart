@@ -28,11 +28,11 @@ class const CopilotTool({
 }
 
 class _CopilotToolState extends State<CopilotTool> {
-  CopilotKitClient? _client;
+  CopilotKitBloc? _client;
 
   /// The tool instance registered and the client it was registered on, so
   /// only that registration is undone.
-  (CopilotKitClient, FrontendTool)? _registered;
+  (CopilotKitBloc, FrontendTool)? _registered;
 
   @override
   void didChangeDependencies() {
