@@ -15,10 +15,6 @@ class const TurnState({
   /// Creates the state of a turn.
   this;
 
-  /// Returns a copy with [run] replaced; `run: () => null` clears it.
-  TurnState copyWith({RunState? Function()? run}) =>
-      TurnState(signal: signal, run: run == null ? this.run : run());
-
   @override
   List<Object?> get props => [signal, run];
 }
