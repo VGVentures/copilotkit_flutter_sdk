@@ -6,24 +6,13 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/client_x.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('stopAgent', () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<Object> errors;
     late CopilotKitClient client;
     late CopilotAgent agent;
@@ -32,25 +21,13 @@ void main() {
     late Future<void> run;
 
     setUp(() async {
-      transport = _MockAgentTransport();
+      transport = MockAgentTransport();
       errors = [];
       cancelled = false;
       events = StreamController<BaseEvent>(onCancel: () => cancelled = true);
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => events.stream);
-      when(
-        () => transport.stop(
-          agentId: any(named: 'agentId'),
-          threadId: any(named: 'threadId'),
-          runId: any(named: 'runId'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) async {});
+      transport
+        ..stubRun(() => events.stream)
+        ..stubStop();
       client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         headers: () async => {'Authorization': 'Bearer token'},
@@ -67,19 +44,6 @@ void main() {
         ..add(const TextMessageStartEvent(messageId: 'm1'))
         ..add(const TextMessageContentEvent(messageId: 'm1', delta: 'Hal'));
       await pumpEventQueue();
-    }
-
-    String sentRunId() {
-      final input =
-          verify(
-                () => transport.run(
-                  agentId: any(named: 'agentId'),
-                  input: captureAny(named: 'input'),
-                  headers: any(named: 'headers'),
-                ),
-              ).captured.single
-              as RunAgentInput;
-      return input.runId;
     }
 
     test(
@@ -106,7 +70,7 @@ void main() {
         await client.stopAgent(agent);
         await run;
 
-        final runId = sentRunId();
+        final runId = transport.sentInputs().single.runId;
         verify(
           () => transport.stop(
             agentId: 'default',
@@ -146,16 +110,6 @@ void main() {
         agent = await client.openAgent('default');
       });
 
-      void verifyNoRequest() {
-        verifyNever(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: any(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        );
-      }
-
       test('stop sends no request', () async {
         run = client.runAgent(agent);
         await pumpEventQueue();
@@ -164,7 +118,7 @@ void main() {
         headers.complete({});
         await run;
 
-        verifyNoRequest();
+        transport.verifyNoRun();
         expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       });
@@ -178,7 +132,7 @@ void main() {
         headers.complete({});
         await run;
 
-        verifyNoRequest();
+        transport.verifyNoRun();
         expect(errors, isEmpty);
       });
     });
@@ -210,14 +164,7 @@ void main() {
     test('does nothing when the agent is not running', () async {
       await client.stopAgent(agent);
 
-      verifyNever(
-        () => transport.stop(
-          agentId: any(named: 'agentId'),
-          threadId: any(named: 'threadId'),
-          runId: any(named: 'runId'),
-          headers: any(named: 'headers'),
-        ),
-      );
+      transport.verifyNoStop();
     });
 
     test('can be interrupted by close', () async {
@@ -234,14 +181,7 @@ void main() {
 
     test('reports a failed runtime stop but still stops locally', () async {
       final failure = Exception('stop failed');
-      when(
-        () => transport.stop(
-          agentId: any(named: 'agentId'),
-          threadId: any(named: 'threadId'),
-          runId: any(named: 'runId'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenThrow(failure);
+      transport.stubStopThrows(failure);
       await startStreaming();
 
       await expectLater(client.stopAgent(agent), completes);
@@ -255,14 +195,8 @@ void main() {
       await startStreaming();
       await client.stopAgent(agent);
       await run;
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer(
-        (_) => Stream.fromIterable([
+      transport.stubRun(
+        () => Stream.fromIterable([
           RunStartedEvent(threadId: agent.threadId, runId: 'r2'),
           const TextMessageStartEvent(messageId: 'm2'),
           const TextMessageContentEvent(messageId: 'm2', delta: 'Again'),

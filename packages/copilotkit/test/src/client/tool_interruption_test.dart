@@ -2,21 +2,21 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/client_x.dart';
+import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_loop_harness.dart';
 
 void main() {
-  setUpAll(ToolLoopHarness.registerFallbacks);
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late CopilotKitClient client;
     late CopilotAgent agent;
     late List<Stream<BaseEvent>> runs;
-    late AgentTransport transport;
+    late MockAgentTransport transport;
 
     setUp(() async {
       harness = ToolLoopHarness();
@@ -27,7 +27,7 @@ void main() {
       transport = harness.transport;
     });
 
-    List<RunAgentInput> sentInputs() => harness.sentInputs();
+    List<RunAgentInput> sentInputs() => harness.transport.sentInputs();
 
     group('a failed run closes open calls', () {
       void expectClosedAsFailed() {
@@ -108,14 +108,7 @@ void main() {
           agent.state.messages.whereType<ToolMessage>().single.content,
           'Tool call cancelled.',
         );
-        verifyNever(
-          () => transport.stop(
-            agentId: any(named: 'agentId'),
-            threadId: any(named: 'threadId'),
-            runId: any(named: 'runId'),
-            headers: any(named: 'headers'),
-          ),
-        );
+        transport.verifyNoStop();
       });
 
       test('while args stream closes the call as cancelled', () async {

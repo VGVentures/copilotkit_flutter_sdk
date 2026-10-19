@@ -1,26 +1,14 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent_reducer.dart';
 import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('CopilotAgent reduces state', () {
     test('StateSnapshot replaces the state', () async {
@@ -115,20 +103,14 @@ void main() {
 
   group('CopilotAgent state', () {
     test('sharedState follows snapshots and deltas', () async {
-      final transport = _MockAgentTransport();
+      final transport = MockAgentTransport();
       final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
       );
       final agent = await client.openAgent('default');
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer(
-        (_) => Stream.fromIterable([
+      transport.stubRun(
+        () => Stream.fromIterable([
           RunStartedEvent(threadId: agent.threadId, runId: 'r'),
           const StateSnapshotEvent(snapshot: {'count': 1}),
           const TextMessageStartEvent(messageId: 'm1'),
@@ -158,20 +140,14 @@ void main() {
     });
 
     test('state_snapshot_delta fixture applies the recorded patch', () async {
-      final transport = _MockAgentTransport();
+      final transport = MockAgentTransport();
       final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
       );
       final agent = await client.openAgent('default');
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer(
-        (_) => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
+      transport.stubRun(
+        () => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
       );
 
       await client.runAgent(agent);

@@ -7,37 +7,19 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_x.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('context', () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<Object> errors;
     late CopilotKitClient client;
 
     setUp(() {
-      transport = _MockAgentTransport();
+      transport = MockAgentTransport()..stubRun(Stream<BaseEvent>.empty);
       errors = [];
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => const Stream.empty());
       client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         onError: (error, _) => errors.add(error),
@@ -48,16 +30,7 @@ void main() {
     Future<List<Context>> runAndCaptureContext() async {
       clearInteractions(transport);
       await client.runAgent(await client.openAgent('default'));
-      final input =
-          verify(
-                () => transport.run(
-                  agentId: any(named: 'agentId'),
-                  input: captureAny(named: 'input'),
-                  headers: any(named: 'headers'),
-                ),
-              ).captured.single
-              as RunAgentInput;
-      return input.context;
+      return transport.sentInputs().single.context;
     }
 
     test('sends entries in order with JSON-encoded values', () async {
@@ -135,13 +108,7 @@ void main() {
       await client.runAgent(await client.openAgent('default'));
 
       expect(errors.single, isA<JsonUnsupportedObjectError>());
-      verifyNever(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      );
+      transport.verifyNoRun();
     });
   });
 

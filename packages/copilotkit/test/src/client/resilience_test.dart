@@ -1,34 +1,22 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('resilience', () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<Object> errors;
     late CopilotKitClient client;
     late CopilotAgent agent;
 
     setUp(() async {
-      transport = _MockAgentTransport();
+      transport = MockAgentTransport();
       errors = [];
       client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
@@ -39,13 +27,7 @@ void main() {
     });
 
     void stubRun(List<BaseEvent> events) {
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => Stream.fromIterable(events));
+      transport.stubRun(() => Stream.fromIterable(events));
     }
 
     test(
