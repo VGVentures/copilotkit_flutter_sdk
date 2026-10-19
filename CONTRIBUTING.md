@@ -56,13 +56,16 @@ models and keep plain `test`s for equality and `copyWith`.
 
 ## One public type per file
 
-Each file declares one public type (class, enum, extension type or typedef)
-and is named after it in `snake_case`. Private helper types may live in the
-file that uses them.
+Each file declares one public type (class, enum or extension type) and is
+named after it in `snake_case`. Private helper types may live in the file
+that uses them.
 
-The exception is a sealed family: the sealed type and its direct subtypes stay
-in one file named after the sealed type, so an exhaustive `switch` has one
-import.
+There are two exceptions:
+
+- A sealed family: the sealed type and its direct subtypes stay in one file
+  named after the sealed type, so an exhaustive `switch` has one import.
+- A typedef: it lives in the file of the type that uses it, above that type,
+  instead of in a file of its own.
 
 ```dart
 // Bad: tools.dart
@@ -82,6 +85,10 @@ enum ToolCallStatus { ... }
 sealed class ChatRow { ... }
 class ChatMessageRow extends ChatRow { ... }
 class ChatToolCallRow extends ChatRow { ... }
+
+// Good: the handler typedef in tools/frontend_tool.dart
+typedef FrontendToolHandler = Future<String> Function(...);
+class FrontendTool { ... }
 ```
 
 ## No top-level functions or variables
