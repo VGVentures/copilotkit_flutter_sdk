@@ -27,8 +27,10 @@ class CopilotAgent({
 }) extends Bloc<CopilotAgentEvent, AgentState> {
   /// Creates an agent driven by [_client].
   ///
-  /// Prefer adding `AgentOpened` to the client, which tracks the agents it
-  /// runs. A random [threadId] is generated when none is given.
+  /// Internal: only the client creates agents, on `AgentOpened`, so it
+  /// tracks every agent it runs. A random [threadId] is generated when none
+  /// is given.
+  @internal
   this : super(const AgentState()) {
     // One handler for the whole family: the handlers are synchronous, so
     // events apply in the order they were added (ADR 0002).
