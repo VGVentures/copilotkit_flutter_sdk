@@ -15,7 +15,13 @@ class const CopilotAgentState({
   /// while text streams in.
   final List<Message> messages = const [],
 
-  /// Shared agent state (any JSON value), or `null` if the agent sent none.
+  /// Shared agent state (any JSON value), or `null` if neither the agent nor
+  /// the app set one.
+  ///
+  /// Sent as `RunAgentInput.state` on every run. Change it from the app with
+  /// `AgentStateSet` and `AgentStatePatched`; the agent changes it with
+  /// `STATE_SNAPSHOT` and `STATE_DELTA` events. Debug builds of `ag_ui`
+  /// assert that it is a JSON object (a `Map`) or `null` when a run is sent.
   final Object? sharedState,
 
   /// Whether the agent is working: from `AgentRunRequested` until the whole

@@ -45,6 +45,11 @@ class CopilotAgentBloc({required String agentId, String? threadId})
       AgentMessageAdded(:final message) => state.copyWith(
         messages: [...state.messages, message],
       ),
+      AgentMessagesSet(:final messages) => _setMessages(messages),
+      AgentStateSet(state: final value) => state.copyWith(
+        sharedState: () => value,
+      ),
+      AgentStatePatched(:final operations) => _patchState(operations),
       AgentTurnStarted() => state.copyWith(isRunning: true, error: () => null),
       AgentTurnEnded() => state.copyWith(isRunning: false),
       AgentRunFailed(:final error) => state.copyWith(error: () => error),
@@ -54,6 +59,38 @@ class CopilotAgentBloc({required String agentId, String? threadId})
     // consumers only want changes.
     if (next == state) return;
     emit(next);
+  }
+
+  /// The state with [messages] as the conversation, and without the tool
+  /// calls they no longer hold.
+  CopilotAgentState _setMessages(List<Message> messages) {
+    final callIds = {
+      for (final message in messages.whereType<AssistantMessage>())
+        for (final call in message.toolCalls ?? const <ToolCall>[]) call.id,
+    };
+    return state.copyWith(
+      messages: messages,
+      toolCalls: [
+        for (final view in state.toolCalls)
+          if (callIds.contains(view.id)) view,
+      ],
+    );
+  }
+
+  /// The state patched with [operations], or the same state, after reporting
+  /// the error, when they don't apply.
+  CopilotAgentState _patchState(List<Map<String, Object?>> operations) {
+    try {
+      return state.copyWith(
+        sharedState: () => JsonPatch.apply(
+          state.sharedState ?? const <String, Object?>{},
+          operations,
+        ),
+      );
+    } on FormatException catch (error, stackTrace) {
+      addError(error, stackTrace);
+      return state;
+    }
   }
 
   /// Completes [completer] and keeps the state: every event added before
@@ -131,13 +168,19 @@ class CopilotAgentBloc({required String agentId, String? threadId})
 
   /// A delta that doesn't apply (e.g. it was computed against a state this
   /// client never saw) is dropped; the next snapshot resyncs the state.
+  ///
+  /// Before any state exists the delta applies to an empty object, as in the
+  /// AG-UI client, instead of being dropped.
   static CopilotAgentState _applyStateDelta(
     CopilotAgentState snapshot,
     List<Map<String, Object?>> delta,
   ) {
     try {
       return snapshot.copyWith(
-        sharedState: () => JsonPatch.apply(snapshot.sharedState, delta),
+        sharedState: () => JsonPatch.apply(
+          snapshot.sharedState ?? const <String, Object?>{},
+          delta,
+        ),
       );
     } on FormatException {
       return snapshot;

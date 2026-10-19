@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
+import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -105,6 +107,135 @@ void main() {
         agentState.copyWith(messages: [user], isRunning: true),
       ],
     );
+
+    group(AgentStateSet, () {
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'replaces the shared state',
+        build: buildAgent,
+        seed: () => agentState.copyWith(sharedState: () => {'old': true}),
+        act: (agent) => agent.add(const AgentStateSet({'count': 1})),
+        expect: () => [
+          agentState.copyWith(sharedState: () => {'count': 1}),
+        ],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'clears the shared state with null',
+        build: buildAgent,
+        seed: () => agentState.copyWith(sharedState: () => {'old': true}),
+        act: (agent) => agent.add(const AgentStateSet(null)),
+        expect: () => [agentState],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'an equal state emits nothing',
+        build: buildAgent,
+        seed: () => agentState.copyWith(sharedState: () => {'count': 1}),
+        act: (agent) => agent.add(const AgentStateSet({'count': 1})),
+        expect: () => const <CopilotAgentState>[],
+      );
+    });
+
+    group(AgentStatePatched, () {
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'applies the operations to the shared state',
+        build: buildAgent,
+        seed: () => agentState.copyWith(
+          sharedState: () => {
+            'count': 1,
+            'items': ['a'],
+          },
+        ),
+        act: (agent) => agent.add(
+          const AgentStatePatched([
+            {'op': 'replace', 'path': '/count', 'value': 2},
+            {'op': 'add', 'path': '/items/-', 'value': 'b'},
+          ]),
+        ),
+        expect: () => [
+          agentState.copyWith(
+            sharedState: () => {
+              'count': 2,
+              'items': ['a', 'b'],
+            },
+          ),
+        ],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'patches a missing state as an empty object',
+        build: buildAgent,
+        act: (agent) => agent.add(
+          const AgentStatePatched([
+            {'op': 'add', 'path': '/count', 'value': 1},
+          ]),
+        ),
+        expect: () => [
+          agentState.copyWith(sharedState: () => {'count': 1}),
+        ],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'keeps the state and reports the error when an operation fails',
+        build: buildAgent,
+        seed: () => agentState.copyWith(sharedState: () => {'count': 1}),
+        act: (agent) => agent.add(
+          const AgentStatePatched([
+            {'op': 'replace', 'path': '/count', 'value': 2},
+            {'op': 'remove', 'path': '/missing'},
+          ]),
+        ),
+        expect: () => const <CopilotAgentState>[],
+        errors: () => [isA<FormatException>()],
+        verify: (agent) => expect(agent.state.sharedState, {'count': 1}),
+      );
+    });
+
+    group(AgentMessagesSet, () {
+      const assistant = AssistantMessage(
+        id: 'a1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(name: 'showWeather', arguments: '{}'),
+          ),
+        ],
+      );
+      const kept = ToolCallView(
+        id: 'c1',
+        name: 'showWeather',
+        status: ToolCallStatus.complete,
+      );
+      const dropped = ToolCallView(
+        id: 'c2',
+        name: 'showWeather',
+        status: ToolCallStatus.complete,
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'replaces the messages',
+        build: buildAgent,
+        seed: () => agentState.copyWith(messages: [user]),
+        act: (agent) => agent.add(const AgentMessagesSet([])),
+        expect: () => [agentState],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'drops the tool calls no message refers to',
+        build: buildAgent,
+        seed: () => agentState.copyWith(
+          messages: [user, assistant],
+          toolCalls: [kept, dropped],
+        ),
+        act: (agent) => agent.add(const AgentMessagesSet([assistant])),
+        expect: () => [
+          agentState.copyWith(
+            messages: const [assistant],
+            toolCalls: const [kept],
+          ),
+        ],
+      );
+    });
 
     final fixture = loadFixture('text_stream');
     final deltas = [

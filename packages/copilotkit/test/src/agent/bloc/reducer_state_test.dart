@@ -97,5 +97,52 @@ void main() {
       act: (agent) => agent.receive([MessagesSnapshotEvent(messages: fresh)]),
       expect: () => [agentState.copyWith(messages: fresh)],
     );
+
+    blocTest<CopilotAgentBloc, CopilotAgentState>(
+      'StateDelta applies to an empty object when there is no state yet',
+      build: buildAgent,
+      act: (agent) => agent.receive(const [
+        StateDeltaEvent(
+          delta: [
+            {'op': 'add', 'path': '/count', 'value': 1},
+          ],
+        ),
+      ]),
+      expect: () => [
+        agentState.copyWith(sharedState: () => {'count': 1}),
+      ],
+    );
+
+    blocTest<CopilotAgentBloc, CopilotAgentState>(
+      'StateSnapshot overwrites a local edit',
+      build: buildAgent,
+      act: (agent) => agent
+        ..add(const AgentStateSet({'count': 5}))
+        ..receive(const [
+          StateSnapshotEvent(snapshot: {'count': 1}),
+        ]),
+      expect: () => [
+        agentState.copyWith(sharedState: () => {'count': 5}),
+        agentState.copyWith(sharedState: () => {'count': 1}),
+      ],
+    );
+
+    blocTest<CopilotAgentBloc, CopilotAgentState>(
+      'StateDelta patches a local edit',
+      build: buildAgent,
+      act: (agent) => agent
+        ..add(const AgentStateSet({'count': 5}))
+        ..receive(const [
+          StateDeltaEvent(
+            delta: [
+              {'op': 'replace', 'path': '/count', 'value': 6},
+            ],
+          ),
+        ]),
+      expect: () => [
+        agentState.copyWith(sharedState: () => {'count': 5}),
+        agentState.copyWith(sharedState: () => {'count': 6}),
+      ],
+    );
   });
 }

@@ -16,6 +16,30 @@ Install via `dart pub add`:
 dart pub add copilotkit
 ```
 
+## Shared state
+
+An agent's `CopilotAgentState.sharedState` is sent with every run as
+`RunAgentInput.state`, and the agent updates it with `STATE_SNAPSHOT` and
+`STATE_DELTA` events. The app edits it by adding events to the agent:
+
+```dart
+agent
+  ..add(const AgentStateSet({'theme': 'dark'}))
+  ..add(const AgentStatePatched([
+    {'op': 'add', 'path': '/units', 'value': 'metric'},
+  ]))
+  ..add(const AgentMessagesSet([])); // e.g. to reset the conversation
+
+client.add(const AgentRunRequested('default')); // sends the edits above
+```
+
+The agent applies events in order and a run reads the agent after every event
+added before it, so an edit followed by a run in the same tick is sent with
+that run. A snapshot from the runtime replaces a local edit, like in the
+AG-UI client. `AgentStatePatched` takes RFC 6902 operations; when one does not
+apply the state stays as it was and the error goes to
+`BlocObserver.onError`.
+
 ---
 
 ## Continuous Integration 🤖

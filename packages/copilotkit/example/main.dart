@@ -33,10 +33,10 @@ Future<void> main() async {
     ..add(ToolRegistered(showWeather))
     ..add(ContextAdded(user))
     ..add(const AgentOpened('default'));
-  final agent = await client.stream
+  final agent = (await client.stream
       .map((state) => state.agents['default'])
-      .firstWhere((agent) => agent != null);
-  final subscription = agent!.stream.listen((state) {
+      .firstWhere((agent) => agent != null))!;
+  final subscription = agent.stream.listen((state) {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
@@ -50,6 +50,16 @@ Future<void> main() async {
       'messages: ${state.messages.length}',
     );
   });
+
+  // Shared state is sent with every run. Edits made before a run, even in the
+  // same tick, are part of that run's input.
+  agent
+    ..add(const AgentStateSet({'theme': 'dark'}))
+    ..add(
+      const AgentStatePatched([
+        {'op': 'add', 'path': '/units', 'value': 'metric'},
+      ]),
+    );
 
   client.add(
     AgentRunRequested(

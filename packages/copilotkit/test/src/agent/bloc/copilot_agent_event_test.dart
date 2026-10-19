@@ -13,6 +13,24 @@ void main() {
 
       expect(AgentEventReceived(event), AgentEventReceived(event));
       expect(AgentMessageAdded(user), AgentMessageAdded(user));
+      expect(AgentMessagesSet([user]), AgentMessagesSet([user]));
+      expect(AgentMessagesSet([user]), isNot(const AgentMessagesSet([])));
+      expect(const AgentStateSet({'a': 1}), const AgentStateSet({'a': 1}));
+      expect(const AgentStateSet({'a': 1}), isNot(const AgentStateSet(null)));
+      expect(
+        const AgentStatePatched([
+          {'op': 'remove', 'path': '/a'},
+        ]),
+        const AgentStatePatched([
+          {'op': 'remove', 'path': '/a'},
+        ]),
+      );
+      expect(
+        const AgentStatePatched([
+          {'op': 'remove', 'path': '/a'},
+        ]),
+        isNot(const AgentStatePatched([])),
+      );
       // Non-const instances, so equality goes through props.
       // ignore: prefer_const_constructors
       expect(AgentTurnStarted(), AgentTurnStarted());
