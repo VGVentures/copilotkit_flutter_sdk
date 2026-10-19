@@ -264,6 +264,28 @@ class CopilotKitClient({
     },
   );
 
+  /// The input for a new run of [agent], with the registered tools and
+  /// context.
+  RunAgentInput _buildInput(CopilotAgent agent) => RunAgentInput(
+    threadId: agent.threadId,
+    runId: const Uuid().v4(),
+    state: agent.state.sharedState,
+    messages: agent.state.messages,
+    tools: [
+      for (final tool in state.tools.values)
+        Tool(
+          name: tool.name,
+          description: tool.description,
+          parameters: ToolSchema(tool.parameters).toJson(),
+        ),
+    ],
+    context: [
+      for (final entry in state.context)
+        Context(description: entry.description, value: jsonEncode(entry.value)),
+    ],
+    forwardedProps: properties,
+  );
+
   /// Streams one run of [agent] within the turn [signal] belongs to.
   /// Returns whether it finished successfully and wasn't stopped.
   Future<bool> _runOnce(
@@ -275,28 +297,7 @@ class CopilotKitClient({
     final Map<String, String> requestHeaders;
     final Stream<BaseEvent> events;
     try {
-      input = RunAgentInput(
-        threadId: agent.threadId,
-        runId: const Uuid().v4(),
-        state: agent.state.sharedState,
-        messages: agent.state.messages,
-        tools: [
-          for (final tool in state.tools.values)
-            Tool(
-              name: tool.name,
-              description: tool.description,
-              parameters: ToolSchema(tool.parameters).toJson(),
-            ),
-        ],
-        context: [
-          for (final entry in state.context)
-            Context(
-              description: entry.description,
-              value: jsonEncode(entry.value),
-            ),
-        ],
-        forwardedProps: properties,
-      );
+      input = _buildInput(agent);
       requestHeaders = await headers?.call() ?? const {};
       // Stopped or closed while the headers were being built.
       if (signal.isCancelled) return false;
