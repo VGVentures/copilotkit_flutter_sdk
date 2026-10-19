@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:developer' as developer;
 
-import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/client/agent_runner.dart';
 import 'package:copilotkit/src/client/models/run_state.dart';
 import 'package:copilotkit/src/client/models/turn_state.dart';
+import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
@@ -17,38 +16,6 @@ import 'package:uuid/uuid.dart';
 
 part 'copilot_kit_event.dart';
 part 'copilot_kit_state.dart';
-
-/// Returns the headers sent with a run; called once per run.
-typedef HeadersBuilder = Future<Map<String, String>> Function();
-
-/// Receives errors from runs, transports and tool handlers.
-typedef CopilotErrorHandler = void Function(
-  Object error,
-  StackTrace stackTrace,
-);
-
-/// Results sent to the agent for tool calls that never ran to completion.
-enum _FallbackToolResult {
-  /// A tool call cut short by a stop.
-  cancelled('Tool call cancelled.'),
-
-  /// A tool call left open by a failed run.
-  failed('Tool call failed: the run ended early.'),
-
-  /// A call to a tool that isn't registered, e.g. because its `CopilotTool`
-  /// was unmounted. Backend tool calls never get it: the runtime sends their
-  /// results within the run.
-  unavailable('Tool is not available.'),
-
-  /// A handler threw. The error itself goes to `onError` only, so exception
-  /// details never reach the model.
-  handlerError('Tool failed.');
-
-  new(this.message);
-
-  /// The result text sent to the agent.
-  final String message;
-}
 
 /// Connects an app to a Copilot Runtime.
 ///
@@ -61,6 +28,8 @@ class CopilotKitBloc({
   final Map<String, Object?> _properties = const {},
   CopilotErrorHandler? onError,
   AgentTransport? transport,
+  final RunInputBuilder _inputBuilder = const RunInputBuilder(),
+  final ToolCallExecutor _executor = const ToolCallExecutor(),
 }) extends Bloc<CopilotKitEvent, CopilotKitState> {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -175,7 +144,7 @@ class CopilotKitBloc({
         final pending = _pendingToolCalls(agent);
         _closeOpenToolCalls(
           agent,
-          _FallbackToolResult.unavailable,
+          FallbackToolResult.unavailable,
           where: (call) => !state.tools.containsKey(call.name),
         );
         if (pending.isEmpty) return;
@@ -208,7 +177,7 @@ class CopilotKitBloc({
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+    _closeOpenToolCalls(agent, FallbackToolResult.cancelled);
     // close() ended the turn while this stop was waiting; like close(), it
     // sends no stop request.
     if (agent.isClosed) return;
@@ -238,24 +207,11 @@ class CopilotKitBloc({
 
   /// The input for a new run of [agent], with the registered tools and
   /// context.
-  RunAgentInput _buildInput(CopilotAgent agent) => RunAgentInput(
-    threadId: agent.state.threadId,
-    runId: const Uuid().v4(),
-    state: agent.state.sharedState,
-    messages: agent.state.messages,
-    tools: [
-      for (final tool in state.tools.values)
-        Tool(
-          name: tool.name,
-          description: tool.description,
-          parameters: ToolSchema(tool.parameters).toJson(),
-        ),
-    ],
-    context: [
-      for (final entry in state.context)
-        Context(description: entry.description, value: jsonEncode(entry.value)),
-    ],
-    forwardedProps: _properties,
+  RunAgentInput _buildInput(CopilotAgent agent) => _inputBuilder.build(
+    agent: agent.state,
+    tools: state.tools.values,
+    context: state.context,
+    properties: _properties,
   );
 
   /// Streams one run of [agent] within the turn [signal] belongs to.
@@ -332,7 +288,7 @@ class CopilotKitBloc({
     if (signal.isCancelled) return false;
     emit(_withTurn(agent.state.agentId, TurnState(signal: signal)));
     if (agent.state.error == null) return true;
-    _closeOpenToolCalls(agent, _FallbackToolResult.failed);
+    _closeOpenToolCalls(agent, FallbackToolResult.failed);
     return false;
   }
 
@@ -347,37 +303,18 @@ class CopilotKitBloc({
         (call, tool),
   ];
 
-  /// Runs the handler of [tool] for [call] with the turn's [signal] and
-  /// returns the result for the agent.
-  ///
-  /// Arguments that don't match `FrontendTool.parameters` never reach the
-  /// handler: the agent gets a result listing the problems, and they are
-  /// logged rather than sent to `onError`, since the agent is at fault.
+  /// Runs the handler of [tool] for [call] with the turn's [signal],
+  /// reports a handler error, and returns the result for the agent.
   Future<String> _runHandler(
     FrontendTool tool,
     ToolCallView call,
     CancellationSignal signal,
   ) async {
-    final Map<String, Object?> args;
-    switch (tool.parameters.safeParse(call.args)) {
-      case Ok(:final value):
-        args = value ?? const {};
-      case Fail(:final error):
-        final result = ToolSchema.invalidArgumentsResult(error);
-        developer.log(
-          'Invalid arguments for tool "${call.name}":\n$result',
-          name: 'copilotkit',
-          level: 900, // WARNING
-          error: error,
-        );
-        return result;
+    final outcome = await _executor.execute(tool, call, signal);
+    if (outcome.error case final error?) {
+      addError(error, outcome.stackTrace ?? StackTrace.current);
     }
-    try {
-      return await tool.handler(args, signal: signal);
-    } on Object catch (error, stackTrace) {
-      addError(error, stackTrace);
-      return _FallbackToolResult.handlerError.message;
-    }
+    return outcome.result;
   }
 
   /// Stops all runs, closes the agents and releases the transport.
@@ -400,7 +337,7 @@ class CopilotKitBloc({
   /// the message of [result], so the conversation stays valid for the next run.
   void _closeOpenToolCalls(
     CopilotAgent agent,
-    _FallbackToolResult result, {
+    FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
   }) {
     for (final call in agent.state.toolCalls) {

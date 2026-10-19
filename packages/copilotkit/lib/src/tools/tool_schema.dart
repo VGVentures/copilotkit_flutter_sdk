@@ -2,16 +2,6 @@ import 'package:ack/ack.dart';
 
 /// The parameter schema of a frontend tool, as sent to the agent.
 extension type const ToolSchema(ObjectSchema schema) {
-  /// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
-  static final _rootPointer = RegExp('^#/?');
-
-  /// Ack's prefix on constraint errors; the path already says what failed.
-  static const _constraintsPrefix = 'Constraints not met: ';
-
-  static const _invalidArgumentsSummary =
-      "The tool didn't run: its arguments don't match its parameters. "
-      'Fix them and call it again.';
-
   /// Encodes [schema] as the JSON Schema sent in `RunAgentInput.tools`.
   ///
   /// Ack omits `properties` on empty objects, at any depth, and some
@@ -19,17 +9,7 @@ extension type const ToolSchema(ObjectSchema schema) {
   /// an empty `properties` map when it has none.
   Map<String, Object?> toJson() => _withProperties(schema.toJsonSchema());
 
-  /// The tool result sent instead of running a handler whose arguments
-  /// failed validation with [error].
-  ///
-  /// Lists one problem per line, by argument path, so the agent can fix the
-  /// arguments and call the tool again.
-  static String invalidArgumentsResult(SchemaError error) => [
-    _invalidArgumentsSummary,
-    for (final problem in _problems(error)) '- ${_describe(problem)}',
-  ].join('\n');
-
-  static Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
+  Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
     for (final MapEntry(:key, :value) in schema.entries)
       key: switch (value) {
         final Map<String, Object?> properties when key == 'properties' =>
@@ -46,25 +26,8 @@ extension type const ToolSchema(ObjectSchema schema) {
       'properties': <String, Object?>{},
   };
 
-  static Object? _subschema(Object? value) =>
+  Object? _subschema(Object? value) =>
       value is Map<String, Object?> ? _withProperties(value) : value;
-
-  /// The innermost errors under [error].
-  static Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
-    SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
-      _problems,
-    ),
-    _ => [error],
-  };
-
-  /// Describes [error] as `path: message`, e.g. `unit.step: Expected
-  /// integer, got string.`; root errors have no path.
-  static String _describe(SchemaError error) {
-    final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
-    var message = error.message.replaceFirst(_constraintsPrefix, '');
-    if (!message.endsWith('.')) message = '$message.';
-    return path.isEmpty ? message : '$path: $message';
-  }
 }
 
 /// JSON Schema keys whose value is a subschema.
