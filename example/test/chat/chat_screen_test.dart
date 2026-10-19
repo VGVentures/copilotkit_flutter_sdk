@@ -16,17 +16,21 @@ class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 class _MockCopilotAgent extends Mock implements CopilotAgent;
 
 void main() {
+  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
+
   group(ChatPage, () {
     testWidgets('provides a chat bloc for the default agent', (tester) async {
       final client = _MockCopilotKitClient();
       final agent = _MockCopilotAgent();
-      when(() => client.agent('default')).thenReturn(agent);
-      when(() => agent.snapshot).thenReturn(
+      when(() => client.state)
+          .thenReturn(CopilotKitState(agents: {ChatPage.agentId: agent}));
+      when(() => client.stream).thenAnswer((_) => const Stream.empty());
+      when(() => agent.state).thenReturn(
         AgentState(
           messages: [UserMessage(id: 'u1', content: 'Hi')],
         ),
       );
-      when(() => agent.changes).thenAnswer((_) => const Stream.empty());
+      when(() => agent.stream).thenAnswer((_) => const Stream.empty());
 
       await tester.pumpWidget(
         CopilotKit.value(
@@ -37,6 +41,22 @@ void main() {
 
       expect(find.byType(ChatView), findsOneWidget);
       expect(find.text('Hi'), findsOneWidget);
+      verify(() => client.add(const AgentOpened(ChatPage.agentId))).called(1);
+    });
+
+    testWidgets('shows nothing until the agent is open', (tester) async {
+      final client = _MockCopilotKitClient();
+      when(() => client.state).thenReturn(const CopilotKitState());
+      when(() => client.stream).thenAnswer((_) => const Stream.empty());
+
+      await tester.pumpWidget(
+        CopilotKit.value(
+          client: client,
+          child: const MaterialApp(home: ChatPage()),
+        ),
+      );
+
+      expect(find.byType(ChatView), findsNothing);
     });
   });
 

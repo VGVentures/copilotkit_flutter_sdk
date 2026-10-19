@@ -8,29 +8,28 @@ sealed class CopilotChatEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-/// {@template chat_message_sent}
+/// The chat view is shown: mirror the agent's state until the bloc closes.
+final class const ChatSubscriptionRequested() extends CopilotChatEvent {
+  /// Creates the event for subscribing to the agent.
+  this;
+}
+
 /// The user sent [text]; it is added as a user message and the agent runs.
 ///
 /// Ignored when [text] is blank or the agent is already running.
-/// {@endtemplate}
 final class const ChatMessageSent(
   /// What the user typed.
   final String text,
 ) extends CopilotChatEvent {
-  /// {@macro chat_message_sent}
+  /// Creates the event for sending [text].
   this;
 
   @override
   List<Object?> get props => [text];
 }
 
-/// {@template chat_stop_requested}
 /// The user asked to stop the current run.
-/// {@endtemplate}
 final class const ChatStopRequested() extends CopilotChatEvent {
-  /// {@macro chat_stop_requested}
+  /// Creates the event for stopping the run.
   this;
 }
-
-final class const _ChatSnapshotChanged(final AgentState snapshot)
-    extends CopilotChatEvent;

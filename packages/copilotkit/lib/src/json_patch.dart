@@ -74,10 +74,19 @@ abstract final class JsonPatch {
     return current;
   }
 
+  /// The container that holds the value at the non-empty [path], and the
+  /// last token, which names that value in it.
+  static ({Object? parent, String token}) _parentOf(
+    Object? document,
+    List<String> path,
+  ) => (
+    parent: _get(document, path.sublist(0, path.length - 1)),
+    token: path.last,
+  );
+
   static Object? _add(Object? document, List<String> path, Object? value) {
     if (path.isEmpty) return value;
-    final parent = _get(document, path.sublist(0, path.length - 1));
-    final token = path.last;
+    final (:parent, :token) = _parentOf(document, path);
     switch (parent) {
       case Map<String, Object?>():
         parent[token] = value;
@@ -95,8 +104,7 @@ abstract final class JsonPatch {
 
   static void _remove(Object? document, List<String> path) {
     if (path.isEmpty) throw const FormatException('Cannot remove the root');
-    final parent = _get(document, path.sublist(0, path.length - 1));
-    final token = path.last;
+    final (:parent, :token) = _parentOf(document, path);
     switch (parent) {
       case Map<String, Object?>() when parent.containsKey(token):
         parent.remove(token);

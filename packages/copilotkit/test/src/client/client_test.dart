@@ -1,35 +1,38 @@
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
+import 'package:bloc/bloc.dart';
+import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/client_x.dart';
+import '../../helpers/mock_agent_transport.dart';
+
+class _ErrorObserver extends BlocObserver {
+  final List<(BlocBase<Object?>, Object)> errors = [];
+
+  @override
+  void onError(BlocBase<Object?> bloc, Object error, StackTrace stackTrace) {
+    super.onError(bloc, error, stackTrace);
+    errors.add((bloc, error));
+  }
+}
 
 final Uri _runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: <Context>[],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group(CopilotKitClient, () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<(Object, StackTrace)> errors;
     late CopilotKitClient client;
 
-    setUp(() {
-      transport = _MockAgentTransport();
+    setUp(() async {
+      transport = MockAgentTransport();
       when(() => transport.close()).thenAnswer((_) async {});
       errors = [];
       client = CopilotKitClient(
@@ -42,39 +45,105 @@ void main() {
     });
 
     void stubRun(Stream<BaseEvent> events) {
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => events);
+      transport.stubRun(() => events);
     }
 
-    test('exposes its configuration', () {
+    test('exposes its configuration', () async {
       expect(client.runtimeUrl, _runtimeUrl);
       expect(client.properties, {'userId': '42'});
       expect(client.headers, isNotNull);
-      expect(client.onError, isNotNull);
+      expect(client.state, const CopilotKitState());
     });
 
     test('creates a default transport when none is given', () async {
       final defaultClient = CopilotKitClient(runtimeUrl: _runtimeUrl);
 
-      await expectLater(defaultClient.dispose(), completes);
+      await expectLater(defaultClient.close(), completes);
+    });
+
+    group('state', () {
+      final tool = FrontendTool(
+        name: 'showWeather',
+        description: 'Weather',
+        parameters: Ack.object({}),
+        handler: (_, {required signal}) async => '',
+      );
+      final entry = AgentContextEntry(
+        id: 'e1',
+        description: 'Unread',
+        value: 3,
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'AgentOpened opens an agent once',
+        build: () => client,
+        act: (client) => client
+          ..add(const AgentOpened('default'))
+          ..add(const AgentOpened('default')),
+        expect: () => [
+          isA<CopilotKitState>().having(
+            (state) => state.agents.keys,
+            'agents',
+            ['default'],
+          ),
+        ],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ToolRegistered and ToolUnregistered add and remove the tool',
+        build: () => client,
+        act: (client) => client
+          ..add(ToolRegistered(tool))
+          ..add(ToolUnregistered(tool)),
+        expect: () => [
+          CopilotKitState(tools: {'showWeather': tool}),
+          const CopilotKitState(),
+        ],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ToolUnregistered ignores an equal tool that is not the registered one',
+        build: () => client,
+        seed: () => CopilotKitState(tools: {'showWeather': tool}),
+        act: (client) => client.add(
+          ToolUnregistered(
+            FrontendTool(
+              name: tool.name,
+              description: tool.description,
+              parameters: tool.parameters,
+              handler: tool.handler,
+            ),
+          ),
+        ),
+        expect: () => <CopilotKitState>[],
+      );
+
+      blocTest<CopilotKitClient, CopilotKitState>(
+        'ContextAdded, ContextUpdated and ContextRemoved edit the context',
+        build: () => client,
+        act: (client) => client
+          ..add(ContextAdded(entry))
+          ..add(const ContextUpdated('e1', 4))
+          ..add(const ContextRemoved('e1')),
+        expect: () => [
+          CopilotKitState(context: [entry]),
+          CopilotKitState(context: [entry.copyWith(value: 4)]),
+          const CopilotKitState(),
+        ],
+      );
     });
 
     group('agent', () {
-      test('returns the same agent for the same id', () {
-        final agent = client.agent('default');
+      test('returns the same agent for the same id', () async {
+        final agent = await client.openAgent('default');
 
-        expect(client.agent('default'), same(agent));
+        expect(await client.openAgent('default'), same(agent));
         expect(agent.agentId, 'default');
       });
 
-      test('gives each agent its own thread', () {
-        final a = client.agent('a');
-        final b = client.agent('b');
+      test('gives each agent its own thread', () async {
+        final a = await client.openAgent('a');
+        final b = await client.openAgent('b');
 
         expect(Uuid.isValidUUID(fromString: a.threadId), isTrue);
         expect(a.threadId, isNot(b.threadId));
@@ -84,7 +153,7 @@ void main() {
     group('runAgent', () {
       test('sends messages, state, properties and headers', () async {
         stubRun(const Stream.empty());
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final message = UserMessage(id: 'u1', content: 'Hi');
         await agent.addMessage(message);
 
@@ -109,18 +178,12 @@ void main() {
 
       test('uses a new run id for every run', () async {
         stubRun(const Stream.empty());
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await client.runAgent(agent);
         await client.runAgent(agent);
 
-        final runIds = verify(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: captureAny(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        ).captured.cast<RunAgentInput>().map((input) => input.runId);
+        final runIds = transport.sentInputs().map((input) => input.runId);
         expect(runIds.toSet(), hasLength(2));
       });
 
@@ -131,7 +194,7 @@ void main() {
         );
         stubRun(const Stream.empty());
 
-        await client.runAgent(client.agent('default'));
+        await client.runAgent(await client.openAgent('default'));
 
         verify(
           () => transport.run(
@@ -142,7 +205,7 @@ void main() {
       });
 
       test('streams the assistant reply into messages', () async {
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         stubRun(
           Stream.fromIterable([
             RunStartedEvent(threadId: agent.threadId, runId: 'r'),
@@ -153,50 +216,51 @@ void main() {
           ]),
         );
         final texts = <String?>[];
-        agent.changes.listen((s) => texts.add(s.messages.lastOrNull?.content));
+        agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
 
-        await agent.run();
+        await client.runAgent(agent);
         await pumpEventQueue();
 
-        expect(agent.messages.single.content, 'Hello');
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.messages.single.content, 'Hello');
+        expect(agent.state.isRunning, isFalse);
         expect(texts, containsAllInOrder(['', 'Hel', 'Hello']));
         expect(errors, isEmpty);
       });
 
-      test('emits every runtime event on events', () async {
-        final agent = client.agent('default');
-        final started = RunStartedEvent(threadId: agent.threadId, runId: 'r');
-        final finished = RunFinishedEvent(threadId: agent.threadId, runId: 'r');
-        stubRun(Stream.fromIterable([started, finished]));
-        final events = <BaseEvent>[];
-        agent.events.listen(events.add);
+      test('run and stop add the client events', () async {
+        final events = StreamController<BaseEvent>();
+        stubRun(events.stream);
+        transport.stubStop();
+        final agent = await client.openAgent('default');
 
-        await agent.run();
-        await pumpEventQueue();
+        agent.run();
+        await agent.stream.firstWhere((state) => state.isRunning);
+        agent.stop();
+        await agent.stream.firstWhere((state) => !state.isRunning);
 
-        expect(events, [same(started), same(finished)]);
+        expect(agent.state.isRunning, isFalse);
+        await events.close();
       });
 
       test('is running as soon as the run starts', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         final run = client.runAgent(agent);
         await pumpEventQueue();
-        expect(agent.isRunning, isTrue);
+        expect(agent.state.isRunning, isTrue);
 
         events.add(RunFinishedEvent(threadId: agent.threadId, runId: 'r'));
         await events.close();
         await run;
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
       });
 
       test('ignores a run while one is in progress', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final first = client.runAgent(agent);
         await pumpEventQueue();
 
@@ -217,34 +281,28 @@ void main() {
       test('reports transport errors and ends the run', () async {
         final failure = Exception('connection refused');
         stubRun(Stream.error(failure));
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await expectLater(client.runAgent(agent), completes);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
-        expect(agent.snapshot.error, same(failure));
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, same(failure));
       });
 
       test('reports a transport that throws synchronously', () async {
         final failure = StateError('bad transport');
-        when(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: any(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        ).thenThrow(failure);
-        final agent = client.agent('default');
+        transport.stubRunThrows(failure);
+        final agent = await client.openAgent('default');
 
         await expectLater(client.runAgent(agent), completes);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.isRunning, isFalse);
       });
 
       test('reports a stream that ends before the run finishes', () async {
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         stubRun(
           Stream.value(RunStartedEvent(threadId: agent.threadId, runId: 'r')),
         );
@@ -252,8 +310,8 @@ void main() {
         await client.runAgent(agent);
 
         expect(errors.single.$1, isA<StateError>());
-        expect(agent.isRunning, isFalse);
-        expect(agent.snapshot.error, isA<StateError>());
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, isA<StateError>());
       });
 
       test('reports header builder errors without running', () async {
@@ -264,19 +322,13 @@ void main() {
           onError: (error, stackTrace) => errors.add((error, stackTrace)),
           transport: transport,
         );
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
 
         await client.runAgent(agent);
 
         expect(errors.single.$1, same(failure));
-        expect(agent.isRunning, isFalse);
-        verifyNever(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: any(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        );
+        expect(agent.state.isRunning, isFalse);
+        transport.verifyNoRun();
       });
 
       test('does not throw without an onError handler', () async {
@@ -286,21 +338,44 @@ void main() {
         );
         stubRun(Stream.error(Exception('boom')));
 
-        await expectLater(client.runAgent(client.agent('default')), completes);
+        await expectLater(
+          client.runAgent(await client.openAgent('default')),
+          completes,
+        );
+      });
+
+      test('reports errors to the BlocObserver and onError once', () async {
+        final observer = _ErrorObserver();
+        final previous = Bloc.observer;
+        Bloc.observer = observer;
+        addTearDown(() => Bloc.observer = previous);
+        // A bloc reads the observer when it is created.
+        client = CopilotKitClient(
+          runtimeUrl: _runtimeUrl,
+          onError: (error, stackTrace) => errors.add((error, stackTrace)),
+          transport: transport,
+        );
+        final failure = Exception('connection refused');
+        stubRun(Stream.error(failure));
+
+        await client.runAgent(await client.openAgent('default'));
+
+        expect(observer.errors.single.$1, same(client));
+        expect(observer.errors.single.$2, same(failure));
+        expect(errors.single.$1, same(failure));
       });
     });
 
     group('dispose', () {
       test('closes the transport and the agent streams', () async {
-        final agent = client.agent('default');
-        final changesDone = agent.changes.drain<void>();
-        final eventsDone = agent.events.drain<void>();
+        final agent = await client.openAgent('default');
+        final changesDone = agent.stream.drain<void>();
 
-        await client.dispose();
+        await client.close();
 
         verify(() => transport.close()).called(1);
         await expectLater(changesDone, completes);
-        await expectLater(eventsDone, completes);
+        expect(agent.isClosed, isTrue);
       });
 
       test('cancels active runs', () async {
@@ -309,11 +384,11 @@ void main() {
           onCancel: () => cancelled = true,
         );
         stubRun(events.stream);
-        final agent = client.agent('default');
+        final agent = await client.openAgent('default');
         final run = client.runAgent(agent);
         await pumpEventQueue();
 
-        await client.dispose();
+        await client.close();
         await run;
 
         expect(cancelled, isTrue);
@@ -324,24 +399,24 @@ void main() {
   group(CopilotAgent, () {
     late CopilotKitClient client;
 
-    setUp(() {
+    setUp(() async {
       client = CopilotKitClient(
         runtimeUrl: _runtimeUrl,
-        transport: _MockAgentTransport(),
+        transport: MockAgentTransport(),
       );
     });
 
-    test('starts idle and empty', () {
-      final agent = client.agent('default');
+    test('starts idle and empty', () async {
+      final agent = await client.openAgent('default');
 
-      expect(agent.messages, isEmpty);
-      expect(agent.state, isNull);
-      expect(agent.isRunning, isFalse);
-      expect(agent.toolCalls, isEmpty);
-      expect(agent.snapshot.error, isNull);
+      expect(agent.state.messages, isEmpty);
+      expect(agent.state.sharedState, isNull);
+      expect(agent.state.isRunning, isFalse);
+      expect(agent.state.toolCalls, isEmpty);
+      expect(agent.state.error, isNull);
     });
 
-    test('uses the given thread id', () {
+    test('uses the given thread id', () async {
       final agent = CopilotAgent(
         agentId: 'default',
         client: client,
@@ -352,26 +427,14 @@ void main() {
     });
 
     test('addMessage appends the message and emits a change', () async {
-      final agent = client.agent('default');
+      final agent = await client.openAgent('default');
       final message = UserMessage(id: 'u1', content: 'Hi');
-      final change = agent.changes.first;
+      final change = agent.stream.first;
 
       await agent.addMessage(message);
 
-      expect(agent.messages, [message]);
+      expect(agent.state.messages, [message]);
       expect((await change).messages, [message]);
-    });
-
-    test('stateStream does not emit when only messages change', () async {
-      final agent = client.agent('default');
-      final states = <Object?>[];
-      agent.stateStream.listen(states.add);
-
-      await agent.addMessage(UserMessage(id: 'u1', content: 'Hi'));
-      await agent.addMessage(UserMessage(id: 'u2', content: 'Again'));
-      await pumpEventQueue();
-
-      expect(states, isEmpty);
     });
   });
 }

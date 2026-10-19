@@ -1,9 +1,7 @@
 part of 'copilot_chat_bloc.dart';
 
-/// {@template copilot_chat_state}
 /// What a chat UI shows: ordered [rows], whether the agent [isRunning] and
 /// the [error] that ended the last run.
-/// {@endtemplate}
 final class const CopilotChatState({
   /// Rows to render, oldest first.
   final List<ChatRow> rows = const [],
@@ -14,22 +12,22 @@ final class const CopilotChatState({
   /// Error that ended the last run, or `null`.
   final Object? error,
 }) extends Equatable {
-  /// {@macro copilot_chat_state}
+  /// Creates the state of a chat.
   this;
 
-  /// Builds the state shown for [snapshot].
+  /// Builds the state shown for [agentState].
   ///
   /// User and assistant messages with text become [ChatMessageRow]s; each
   /// tool call on an assistant message follows it as a [ChatToolCallRow].
   /// Tool results, system and developer messages are not shown.
-  factory fromAgentState(AgentState snapshot) {
-    final calls = {for (final call in snapshot.toolCalls) call.id: call};
+  factory fromAgentState(AgentState agentState) {
+    final calls = {for (final call in agentState.toolCalls) call.id: call};
     return CopilotChatState(
       rows: [
-        for (final message in snapshot.messages) ..._rowsFor(message, calls),
+        for (final message in agentState.messages) ..._rowsFor(message, calls),
       ],
-      isRunning: snapshot.isRunning,
-      error: snapshot.error,
+      isRunning: agentState.isRunning,
+      error: agentState.error,
     );
   }
 

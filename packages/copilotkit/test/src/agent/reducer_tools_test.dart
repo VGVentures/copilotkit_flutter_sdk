@@ -1,13 +1,10 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/agent_state.dart';
-import 'package:copilotkit/src/agent/reducer.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/agent_reducer.dart';
 import '../../helpers/fixtures.dart';
-
-AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
-    events.fold(initial ?? const AgentState(), reduceAgentEvent);
 
 const _start = ToolCallStartEvent(
   toolCallId: 'c1',
@@ -16,9 +13,9 @@ const _start = ToolCallStartEvent(
 );
 
 void main() {
-  group('reduceAgentEvent tool calls', () {
-    test('Start adds an in-progress view with empty args', () {
-      final snapshot = reduceAgentEvent(const AgentState(), _start);
+  group('CopilotAgent reduces tool calls', () {
+    test('Start adds an in-progress view with empty args', () async {
+      final snapshot = await reduce(const AgentState(), _start);
 
       final view = snapshot.toolCalls.single;
       expect(view.id, 'c1');
@@ -28,8 +25,8 @@ void main() {
       expect(view.result, isNull);
     });
 
-    test('Start records the call on a new assistant message', () {
-      final snapshot = reduceAgentEvent(const AgentState(), _start);
+    test('Start records the call on a new assistant message', () async {
+      final snapshot = await reduce(const AgentState(), _start);
 
       final message = snapshot.messages.single as AssistantMessage;
       expect(message.id, 'm1');
@@ -40,8 +37,8 @@ void main() {
       expect(call.function.arguments, '');
     });
 
-    test('Start without a parent message uses the call id', () {
-      final snapshot = reduceAgentEvent(
+    test('Start without a parent message uses the call id', () async {
+      final snapshot = await reduce(
         const AgentState(),
         const ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
       );
@@ -49,8 +46,8 @@ void main() {
       expect(snapshot.messages.single.id, 'c1');
     });
 
-    test('Start adds the call to an existing assistant message', () {
-      final snapshot = _replay(const [
+    test('Start adds the call to an existing assistant message', () async {
+      final snapshot = await replay(const [
         TextMessageStartEvent(messageId: 'm1'),
         TextMessageContentEvent(messageId: 'm1', delta: 'Checking'),
         _start,
@@ -67,19 +64,19 @@ void main() {
       expect(snapshot.toolCalls.map((v) => v.id), ['c1', 'c2']);
     });
 
-    test('a repeated Start is ignored', () {
-      final started = reduceAgentEvent(const AgentState(), _start);
+    test('a repeated Start is ignored', () async {
+      final started = await reduce(const AgentState(), _start);
 
-      expect(reduceAgentEvent(started, _start), same(started));
+      expect(await reduce(started, _start), same(started));
     });
 
-    test('Args grow the raw arguments and the parsed partial args', () {
-      final started = reduceAgentEvent(const AgentState(), _start);
-      final partial = reduceAgentEvent(
+    test('Args grow the raw arguments and the parsed partial args', () async {
+      final started = await reduce(const AgentState(), _start);
+      final partial = await reduce(
         started,
         const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
       );
-      final complete = reduceAgentEvent(
+      final complete = await reduce(
         partial,
         const ToolCallArgsEvent(toolCallId: 'c1', delta: 'ma"}'),
       );
@@ -92,10 +89,10 @@ void main() {
       expect(started.toolCalls.single.args, isEmpty);
     });
 
-    test('Args leave other messages untouched', () {
+    test('Args leave other messages untouched', () async {
       final user = UserMessage(id: 'u1', content: 'Weather?');
 
-      final snapshot = _replay(const [
+      final snapshot = await replay(const [
         _start,
         ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
       ], AgentState(messages: [user]));
@@ -103,11 +100,11 @@ void main() {
       expect(snapshot.messages.first, same(user));
     });
 
-    test('Args for an unknown call are ignored', () {
+    test('Args for an unknown call are ignored', () async {
       const snapshot = AgentState();
 
       expect(
-        reduceAgentEvent(
+        await reduce(
           snapshot,
           const ToolCallArgsEvent(toolCallId: 'x', delta: '{}'),
         ),
@@ -115,8 +112,8 @@ void main() {
       );
     });
 
-    test('End moves the call to executing', () {
-      final snapshot = _replay(const [
+    test('End moves the call to executing', () async {
+      final snapshot = await replay(const [
         _start,
         ToolCallEndEvent(toolCallId: 'c1'),
       ]);
@@ -124,17 +121,17 @@ void main() {
       expect(snapshot.toolCalls.single.status, ToolCallStatus.executing);
     });
 
-    test('End for an unknown call is ignored', () {
+    test('End for an unknown call is ignored', () async {
       const snapshot = AgentState();
 
       expect(
-        reduceAgentEvent(snapshot, const ToolCallEndEvent(toolCallId: 'x')),
+        await reduce(snapshot, const ToolCallEndEvent(toolCallId: 'x')),
         same(snapshot),
       );
     });
 
-    test('Result completes the call and appends a tool message', () {
-      final snapshot = _replay(const [
+    test('Result completes the call and appends a tool message', () async {
+      final snapshot = await replay(const [
         _start,
         ToolCallEndEvent(toolCallId: 'c1'),
         ToolCallResultEvent(
@@ -153,8 +150,8 @@ void main() {
       expect(message.content, '{"forecast": "sunny"}');
     });
 
-    test('Result for an unknown call still appends the tool message', () {
-      final snapshot = reduceAgentEvent(
+    test('Result for an unknown call still appends the tool message', () async {
+      final snapshot = await reduce(
         const AgentState(),
         const ToolCallResultEvent(
           messageId: 't1',
@@ -167,20 +164,20 @@ void main() {
       expect(snapshot.messages.single, isA<ToolMessage>());
     });
 
-    test('a repeated Result is ignored', () {
+    test('a repeated Result is ignored', () async {
       const result = ToolCallResultEvent(
         messageId: 't1',
         toolCallId: 'c1',
         content: 'done',
       );
-      final completed = _replay(const [_start, result]);
+      final completed = await replay(const [_start, result]);
 
-      expect(reduceAgentEvent(completed, result), same(completed));
+      expect(await reduce(completed, result), same(completed));
     });
 
     group('chunks', () {
-      test('first chunk starts the call, later chunks grow its args', () {
-        final snapshot = _replay(const [
+      test('first chunk starts the call, later chunks grow its args', () async {
+        final snapshot = await replay(const [
           ToolCallChunkEvent(
             toolCallId: 'c1',
             toolCallName: 'showWeather',
@@ -197,24 +194,24 @@ void main() {
         expect(snapshot.messages.single.id, 'm1');
       });
 
-      test('a chunk without a name for an unknown call is ignored', () {
+      test('a chunk without a name for an unknown call is ignored', () async {
         const snapshot = AgentState();
 
         expect(
-          reduceAgentEvent(
+          await reduce(
             snapshot,
             const ToolCallChunkEvent(toolCallId: 'c1', delta: '{}'),
           ),
           same(snapshot),
         );
         expect(
-          reduceAgentEvent(snapshot, const ToolCallChunkEvent(delta: '{}')),
+          await reduce(snapshot, const ToolCallChunkEvent(delta: '{}')),
           same(snapshot),
         );
       });
 
-      test('a chunk without delta only starts the call', () {
-        final snapshot = reduceAgentEvent(
+      test('a chunk without delta only starts the call', () async {
+        final snapshot = await reduce(
           const AgentState(),
           const ToolCallChunkEvent(toolCallId: 'c1', toolCallName: 'tool'),
         );
@@ -223,8 +220,8 @@ void main() {
       });
     });
 
-    test('RunFinished moves calls still in progress to executing', () {
-      final snapshot = _replay(const [
+    test('RunFinished moves calls still in progress to executing', () async {
+      final snapshot = await replay(const [
         _start,
         ToolCallStartEvent(toolCallId: 'c2', toolCallName: 'done'),
         ToolCallResultEvent(messageId: 't', toolCallId: 'c2', content: 'ok'),
@@ -237,8 +234,8 @@ void main() {
       ]);
     });
 
-    test('frontend_tool_call fixture leaves the call executing', () {
-      final snapshot = _replay(loadFixture('frontend_tool_call').events);
+    test('frontend_tool_call fixture leaves the call executing', () async {
+      final snapshot = await replay(loadFixture('frontend_tool_call').events);
 
       final view = snapshot.toolCalls.single;
       expect(view.name, 'showWeather');

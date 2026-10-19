@@ -1,32 +1,18 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/agent/reducer.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/agent_reducer.dart';
+import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
-
-AgentState _replay(List<BaseEvent> events, [AgentState? initial]) =>
-    events.fold(initial ?? const AgentState(), reduceAgentEvent);
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
-  group('reduceAgentEvent state', () {
-    test('StateSnapshot replaces the state', () {
-      final snapshot = _replay(const [
+  group('CopilotAgent reduces state', () {
+    test('StateSnapshot replaces the state', () async {
+      final snapshot = await replay(const [
         StateSnapshotEvent(snapshot: {'count': 1}),
         StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
@@ -34,8 +20,8 @@ void main() {
       expect(snapshot.sharedState, {'items': <Object?>[]});
     });
 
-    test('StateDelta applies a JSON Patch to the state', () {
-      final snapshot = _replay(const [
+    test('StateDelta applies a JSON Patch to the state', () async {
+      final snapshot = await replay(const [
         StateSnapshotEvent(
           snapshot: {
             'count': 1,
@@ -56,8 +42,8 @@ void main() {
       });
     });
 
-    test('StateDelta does not mutate the previous state', () {
-      final before = reduceAgentEvent(
+    test('StateDelta does not mutate the previous state', () async {
+      final before = await reduce(
         const AgentState(),
         const StateSnapshotEvent(
           snapshot: {
@@ -66,7 +52,7 @@ void main() {
         ),
       );
 
-      reduceAgentEvent(
+      await reduce(
         before,
         const StateDeltaEvent(
           delta: [
@@ -80,30 +66,33 @@ void main() {
       });
     });
 
-    test('a StateDelta that does not apply leaves the snapshot unchanged', () {
-      const snapshot = AgentState(sharedState: {'count': 1});
+    test(
+      'a StateDelta that does not apply leaves the snapshot unchanged',
+      () async {
+        const snapshot = AgentState(sharedState: {'count': 1});
 
-      expect(
-        reduceAgentEvent(
-          snapshot,
-          const StateDeltaEvent(
-            delta: [
-              {'op': 'remove', 'path': '/missing'},
-            ],
+        expect(
+          await reduce(
+            snapshot,
+            const StateDeltaEvent(
+              delta: [
+                {'op': 'remove', 'path': '/missing'},
+              ],
+            ),
           ),
-        ),
-        same(snapshot),
-      );
-    });
+          same(snapshot),
+        );
+      },
+    );
 
-    test('MessagesSnapshot replaces the messages', () {
+    test('MessagesSnapshot replaces the messages', () async {
       final old = UserMessage(id: 'u0', content: 'Old');
       final fresh = [
         UserMessage(id: 'u1', content: 'Hi'),
         const AssistantMessage(id: 'a1', content: 'Hello'),
       ];
 
-      final snapshot = reduceAgentEvent(
+      final snapshot = await reduce(
         AgentState(messages: [old]),
         MessagesSnapshotEvent(messages: fresh),
       );
@@ -113,20 +102,15 @@ void main() {
   });
 
   group('CopilotAgent state', () {
-    test('state and stateStream follow snapshots and deltas', () async {
-      final transport = _MockAgentTransport();
-      final agent = CopilotKitClient(
+    test('sharedState follows snapshots and deltas', () async {
+      final transport = MockAgentTransport();
+      final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
-      ).agent('default');
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer(
-        (_) => Stream.fromIterable([
+      );
+      final agent = await client.openAgent('default');
+      transport.stubRun(
+        () => Stream.fromIterable([
           RunStartedEvent(threadId: agent.threadId, runId: 'r'),
           const StateSnapshotEvent(snapshot: {'count': 1}),
           const TextMessageStartEvent(messageId: 'm1'),
@@ -139,12 +123,16 @@ void main() {
         ]),
       );
       final states = <Object?>[];
-      agent.stateStream.listen(states.add);
+      agent.stream
+          .map((state) => state.sharedState)
+          .where((shared) => shared != null)
+          .distinct()
+          .listen(states.add);
 
-      await agent.run();
+      await client.runAgent(agent);
       await pumpEventQueue();
 
-      expect(agent.state, {'count': 2});
+      expect(agent.state.sharedState, {'count': 2});
       expect(states, [
         {'count': 1},
         {'count': 2},
@@ -152,24 +140,19 @@ void main() {
     });
 
     test('state_snapshot_delta fixture applies the recorded patch', () async {
-      final transport = _MockAgentTransport();
-      final agent = CopilotKitClient(
+      final transport = MockAgentTransport();
+      final client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         transport: transport,
-      ).agent('default');
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer(
-        (_) => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
+      );
+      final agent = await client.openAgent('default');
+      transport.stubRun(
+        () => Stream.fromIterable(loadFixture('state_snapshot_delta').events),
       );
 
-      await agent.run();
+      await client.runAgent(agent);
 
-      expect(agent.state, {
+      expect(agent.state.sharedState, {
         'todos': ['buy milk', 'walk dog'],
       });
     });

@@ -1,10 +1,12 @@
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/client_x.dart';
+import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_loop_harness.dart';
 
 void main() {
-  setUpAll(ToolLoopHarness.registerFallbacks);
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('frontend tools', () {
     late ToolLoopHarness harness;
@@ -12,21 +14,24 @@ void main() {
     late CopilotAgent agent;
     late List<Stream<BaseEvent>> runs;
 
-    setUp(() {
+    setUp(() async {
       harness = ToolLoopHarness();
+      await harness.open();
       client = harness.client;
       agent = harness.agent;
       runs = harness.runs;
     });
 
-    List<RunAgentInput> sentInputs() => harness.sentInputs();
+    List<RunAgentInput> sentInputs() => harness.transport.sentInputs();
 
     group('registerTool', () {
       test('sends registered tools with their JSON Schema', () async {
-        client.registerTool(weatherTool((_, {required signal}) async => ''));
+        await client.registerTool(
+          weatherTool((_, {required signal}) async => ''),
+        );
         runs.add(const Stream.empty());
 
-        await agent.run();
+        await client.runAgent(agent);
 
         final tool = sentInputs().single.tools.single;
         expect(tool.name, 'showWeather');
@@ -43,7 +48,7 @@ void main() {
       });
 
       test('sends empty properties for empty object schemas', () async {
-        client.registerTool(
+        await client.registerTool(
           FrontendTool(
             name: 'refresh',
             description: 'Refresh the screen',
@@ -53,7 +58,7 @@ void main() {
         );
         runs.add(const Stream.empty());
 
-        await agent.run();
+        await client.runAgent(agent);
 
         expect(sentInputs().single.tools.single.parameters, {
           'type': 'object',
@@ -69,29 +74,32 @@ void main() {
         });
       });
 
-      test('the returned function unregisters the tool', () async {
-        client.registerTool(weatherTool((_, {required signal}) async => ''))();
+      test('ToolUnregistered removes the tool', () async {
+        final tool = weatherTool((_, {required signal}) async => '');
+        await client.registerTool(tool);
+        expect(client.state.tools, {'showWeather': tool});
+
+        await client.unregisterTool(tool);
         runs.add(const Stream.empty());
+        await client.runAgent(agent);
 
-        await agent.run();
-
+        expect(client.state.tools, isEmpty);
         expect(sentInputs().single.tools, isEmpty);
       });
 
       test(
-        'a stale unregister keeps a newer tool with the same name',
+        'a stale ToolUnregistered keeps a newer tool with the same name',
         () async {
-          final unregisterOld = client.registerTool(
-            weatherTool((_, {required signal}) async => 'old'),
-          );
-          client.registerTool(
-            weatherTool((_, {required signal}) async => 'new'),
-          );
-          unregisterOld();
+          final old = weatherTool((_, {required signal}) async => 'old');
+          final newer = weatherTool((_, {required signal}) async => 'new');
+          await client.registerTool(old);
+          await client.registerTool(newer);
+
+          await client.unregisterTool(old);
           runs.add(const Stream.empty());
+          await client.runAgent(agent);
 
-          await agent.run();
-
+          expect(client.state.tools, {'showWeather': newer});
           expect(sentInputs().single.tools, hasLength(1));
         },
       );

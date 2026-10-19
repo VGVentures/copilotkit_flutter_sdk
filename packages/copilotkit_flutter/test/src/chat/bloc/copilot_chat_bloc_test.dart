@@ -37,9 +37,8 @@ void main() {
     setUp(() {
       agent = _MockCopilotAgent();
       changes = StreamController<AgentState>.broadcast();
-      when(() => agent.snapshot).thenReturn(const AgentState());
-      when(() => agent.changes).thenAnswer((_) => changes.stream);
-      when(() => agent.isRunning).thenReturn(false);
+      when(() => agent.state).thenReturn(const AgentState());
+      when(() => agent.stream).thenAnswer((_) => changes.stream);
       when(() => agent.addMessage(any())).thenAnswer((_) async {});
       when(() => agent.run()).thenAnswer((_) async {});
       when(() => agent.stop()).thenAnswer((_) async {});
@@ -47,8 +46,8 @@ void main() {
 
     tearDown(() => changes.close());
 
-    test('starts from the agent snapshot', () {
-      when(() => agent.snapshot).thenReturn(
+    test('starts from the agent state', () {
+      when(() => agent.state).thenReturn(
         AgentState(messages: [_user], isRunning: true, error: 'boom'),
       );
 
@@ -66,9 +65,11 @@ void main() {
     });
 
     blocTest<CopilotChatBloc, CopilotChatState>(
-      'maps every agent snapshot to a chat state',
+      'maps every agent state to a chat state',
       build: () => CopilotChatBloc(agent: agent),
-      act: (_) {
+      act: (bloc) async {
+        bloc.add(const ChatSubscriptionRequested());
+        await pumpEventQueue();
         changes
           ..add(AgentState(messages: [_user], isRunning: true))
           ..add(
@@ -105,6 +106,25 @@ void main() {
           error: 'boom',
         ),
       ],
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'ChatSubscriptionRequested catches up with the agent first',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (bloc) {
+        when(() => agent.state).thenReturn(AgentState(messages: [_user]));
+        bloc.add(const ChatSubscriptionRequested());
+      },
+      expect: () => [
+        CopilotChatState(rows: [ChatMessageRow(_user)]),
+      ],
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'mirrors nothing before ChatSubscriptionRequested',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (_) => changes.add(AgentState(messages: [_user])),
+      expect: () => <CopilotChatState>[],
     );
 
     group('rows', () {
@@ -166,15 +186,38 @@ void main() {
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatMessageSent gives each message its own id',
       build: () => CopilotChatBloc(agent: agent),
-      act: (bloc) => bloc
-        ..add(const ChatMessageSent('one'))
-        ..add(const ChatMessageSent('two')),
+      act: (bloc) async {
+        bloc.add(const ChatMessageSent('one'));
+        await pumpEventQueue();
+        bloc.add(const ChatMessageSent('two'));
+      },
       verify: (_) {
         final ids = verify(() => agent.addMessage(captureAny())).captured
             .cast<UserMessage>()
             .map((m) => m.id);
         expect(ids.toSet(), hasLength(2));
         expect(ids.every((id) => Uuid.isValidUUID(fromString: id!)), isTrue);
+      },
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'ChatMessageSent drops a send while another is in flight',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (bloc) async {
+        final added = Completer<void>();
+        when(() => agent.addMessage(any())).thenAnswer((_) => added.future);
+        bloc
+          ..add(const ChatMessageSent('one'))
+          ..add(const ChatMessageSent('two'));
+        await pumpEventQueue();
+        added.complete();
+      },
+      verify: (_) {
+        final message =
+            verify(() => agent.addMessage(captureAny())).captured.single
+                as UserMessage;
+        expect(message.content, 'one');
+        verify(() => agent.run()).called(1);
       },
     );
 
@@ -190,7 +233,8 @@ void main() {
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatMessageSent is ignored while the agent runs',
-      setUp: () => when(() => agent.isRunning).thenReturn(true),
+      setUp: () =>
+          when(() => agent.state).thenReturn(const AgentState(isRunning: true)),
       build: () => CopilotChatBloc(agent: agent),
       act: (bloc) => bloc.add(const ChatMessageSent('Hi')),
       verify: (_) {
@@ -207,7 +251,9 @@ void main() {
     );
 
     test('close stops listening to the agent', () async {
-      final bloc = CopilotChatBloc(agent: agent);
+      final bloc = CopilotChatBloc(agent: agent)
+        ..add(const ChatSubscriptionRequested());
+      await pumpEventQueue();
       expect(changes.hasListener, isTrue);
 
       await bloc.close();
@@ -221,6 +267,7 @@ void main() {
       expect(ChatMessageSent('a'), ChatMessageSent('a'));
       expect(ChatMessageSent('a'), isNot(ChatMessageSent('b')));
       expect(ChatStopRequested(), ChatStopRequested());
+      expect(ChatSubscriptionRequested(), ChatSubscriptionRequested());
     });
   });
 }

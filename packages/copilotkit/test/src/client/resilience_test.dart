@@ -1,48 +1,33 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('resilience', () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<Object> errors;
+    late CopilotKitClient client;
     late CopilotAgent agent;
 
-    setUp(() {
-      transport = _MockAgentTransport();
+    setUp(() async {
+      transport = MockAgentTransport();
       errors = [];
-      agent = CopilotKitClient(
+      client = CopilotKitClient(
         runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
         onError: (error, _) => errors.add(error),
         transport: transport,
-      ).agent('default');
+      );
+      agent = await client.openAgent('default');
     });
 
     void stubRun(List<BaseEvent> events) {
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => Stream.fromIterable(events));
+      transport.stubRun(() => Stream.fromIterable(events));
     }
 
     test(
@@ -66,10 +51,10 @@ void main() {
           RunFinishedEvent(threadId: agent.threadId, runId: 'r'),
         ]);
 
-        await agent.run();
+        await client.runAgent(agent);
 
-        expect(agent.messages.single.content, 'Hello');
-        expect(agent.isRunning, isFalse);
+        expect(agent.state.messages.single.content, 'Hello');
+        expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       },
     );
@@ -83,50 +68,53 @@ void main() {
         runError,
       ]);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors, [same(runError)]);
-      expect(agent.isRunning, isFalse);
-      expect(agent.snapshot.error, same(runError));
-      expect(agent.messages.single.content, 'Par');
+      expect(agent.state.isRunning, isFalse);
+      expect(agent.state.error, same(runError));
+      expect(agent.state.messages.single.content, 'Par');
     });
 
     test('unknown_events fixture keeps the text reply', () async {
       stubRun(loadFixture('unknown_events').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
-      expect(agent.messages.single.content, 'Hello! Wonderful to meet you.');
-      expect(agent.isRunning, isFalse);
+      expect(
+        agent.state.messages.single.content,
+        'Hello! Wonderful to meet you.',
+      );
+      expect(agent.state.isRunning, isFalse);
       expect(errors, isEmpty);
     });
 
     test('recorded run_error fixture reports the runtime error', () async {
       stubRun(loadFixture('run_error').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors.single, isA<RunErrorEvent>());
       expect(
-        agent.snapshot.error,
+        agent.state.error,
         isA<RunErrorEvent>().having(
           (error) => error.message,
           'message',
           contains('gemini-2.5-flash'),
         ),
       );
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.isRunning, isFalse);
     });
 
     test('dropped_connection fixture fails the run and keeps the partial '
         'reply', () async {
       stubRun(loadFixture('dropped_connection').events);
 
-      await agent.run();
+      await client.runAgent(agent);
 
       expect(errors.single, isA<StateError>());
-      expect(agent.messages.single.content, 'Hello! Wonderful to');
-      expect(agent.isRunning, isFalse);
+      expect(agent.state.messages.single.content, 'Hello! Wonderful to');
+      expect(agent.state.isRunning, isFalse);
     });
   });
 }

@@ -36,7 +36,7 @@ void main() {
       expect(client.runtimeUrl, runtimeUrl);
       expect(client.headers, same(headers));
       expect(client.properties, {'userId': '42'});
-      expect(client.onError, same(onError));
+      expect(client.state, const CopilotKitState());
     });
 
     testWidgets('keeps the same client across rebuilds', (tester) async {
@@ -59,16 +59,18 @@ void main() {
           child: _ClientProbe((c) => client = c),
         ),
       );
-      var changesClosed = false;
-      client
-          .agent('default')
-          .changes
-          .listen(null, onDone: () => changesClosed = true);
+      client.add(const AgentOpened('default'));
+      await tester.pumpAndSettle();
+      final agent = client.state.agents['default']!;
 
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump();
+      // Bloc's close() only completes with a real event loop.
+      await tester.runAsync(() async {
+        await tester.pumpWidget(const SizedBox());
+        await Future<void>.delayed(Duration.zero);
+      });
 
-      expect(changesClosed, isTrue);
+      expect(agent.isClosed, isTrue);
+      expect(client.isClosed, isTrue);
     });
 
     group('value', () {
@@ -96,7 +98,7 @@ void main() {
 
         await tester.pumpWidget(const SizedBox());
 
-        verifyNever(() => client.dispose());
+        verifyNever(() => client.close());
       });
 
       testWidgets('rebuilds dependents when the client changes', (

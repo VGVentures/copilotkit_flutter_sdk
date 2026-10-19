@@ -10,6 +10,10 @@ class const App({
   required final String runtimeUrl,
   super.key,
 }) extends StatelessWidget {
+  /// Logs an SDK error; the client calls it instead of throwing.
+  static void logError(Object error, StackTrace stackTrace) =>
+      log('CopilotKit error', error: error, stackTrace: stackTrace);
+
   @override
   Widget build(BuildContext context) {
     final uri = Uri.tryParse(runtimeUrl);
@@ -22,12 +26,7 @@ class const App({
           : const _MissingRuntimeScreen(),
     );
     if (!isValid) return app;
-    return CopilotKit(
-      runtimeUrl: uri,
-      onError: (error, stackTrace) =>
-          log('CopilotKit error', error: error, stackTrace: stackTrace),
-      child: app,
-    );
+    return CopilotKit(runtimeUrl: uri, onError: logError, child: app);
   }
 }
 
