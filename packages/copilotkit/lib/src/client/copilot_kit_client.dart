@@ -6,8 +6,7 @@ import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
-import 'package:copilotkit/src/agent/copilot_agent.dart';
-import 'package:copilotkit/src/agent/copilot_agent_event.dart';
+import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
 import 'package:copilotkit/src/client/copilot_error_handler.dart';
 import 'package:copilotkit/src/client/copilot_kit_event.dart';
 import 'package:copilotkit/src/client/headers_builder.dart';
@@ -130,7 +129,7 @@ class CopilotKitClient({
       state.copyWith(
         agents: {
           ...state.agents,
-          event.agentId: CopilotAgent(agentId: event.agentId, client: this),
+          event.agentId: CopilotAgentBloc(agentId: event.agentId),
         },
       ),
     );
@@ -194,8 +193,14 @@ class CopilotKitClient({
     if (agent == null || state.turns.containsKey(event.agentId)) return;
     final signal = CancellationSignal();
     emit(_withTurn(event.agentId, TurnState(signal: signal)));
+    // Started first, so the agent's first new state is already running.
     agent.add(const AgentTurnStarted());
+    if (event.message case final message?) {
+      agent.add(AgentMessageAdded(message));
+    }
     try {
+      // Messages the app added before this run go into its input.
+      await _settle(agent);
       while (await _runOnce(agent, signal, emit)) {
         final pending = _pendingToolCalls(agent);
         await _closeOpenToolCalls(
@@ -217,7 +222,7 @@ class CopilotKitClient({
           identical(state.turns[event.agentId]?.signal, signal)) {
         emit(_withTurn(event.agentId, null));
         agent.add(const AgentTurnEnded());
-        await agent.settled;
+        await _settle(agent);
       }
     }
   }
@@ -234,18 +239,18 @@ class CopilotKitClient({
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    await agent.settled;
+    await _settle(agent);
     await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
     // close() ended the turn while this stop was waiting; like close(), it
     // sends no stop request.
     if (agent.isClosed) return;
     agent.add(const AgentTurnEnded());
-    await agent.settled;
+    await _settle(agent);
     if (run == null) return;
     try {
       await _transport.stop(
-        agentId: agent.agentId,
-        threadId: agent.threadId,
+        agentId: agent.state.agentId,
+        threadId: agent.state.threadId,
         runId: run.runId,
         headers: run.headers,
       );
@@ -266,8 +271,8 @@ class CopilotKitClient({
 
   /// The input for a new run of [agent], with the registered tools and
   /// context.
-  RunAgentInput _buildInput(CopilotAgent agent) => RunAgentInput(
-    threadId: agent.threadId,
+  RunAgentInput _buildInput(CopilotAgentBloc agent) => RunAgentInput(
+    threadId: agent.state.threadId,
     runId: const Uuid().v4(),
     state: agent.state.sharedState,
     messages: agent.state.messages,
@@ -289,7 +294,7 @@ class CopilotKitClient({
   /// Streams one run of [agent] within the turn [signal] belongs to.
   /// Returns whether it finished successfully and wasn't stopped.
   Future<bool> _runOnce(
-    CopilotAgent agent,
+    CopilotAgentBloc agent,
     CancellationSignal signal,
     Emitter<CopilotKitState> emit,
   ) async {
@@ -302,7 +307,7 @@ class CopilotKitClient({
       // Stopped or closed while the headers were being built.
       if (signal.isCancelled) return false;
       events = _transport.run(
-        agentId: agent.agentId,
+        agentId: agent.state.agentId,
         input: input,
         headers: requestHeaders,
       );
@@ -345,7 +350,7 @@ class CopilotKitClient({
     );
     emit(
       _withTurn(
-        agent.agentId,
+        agent.state.agentId,
         TurnState(
           signal: signal,
           run: RunState(
@@ -357,9 +362,9 @@ class CopilotKitClient({
       ),
     );
     await Future.any([streamDone.future, signal.whenCancelled]);
-    await agent.settled;
+    await _settle(agent);
     if (signal.isCancelled) return false;
-    emit(_withTurn(agent.agentId, TurnState(signal: signal)));
+    emit(_withTurn(agent.state.agentId, TurnState(signal: signal)));
     if (agent.state.error == null) return true;
     await _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
@@ -367,7 +372,9 @@ class CopilotKitClient({
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
-  List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
+  List<(ToolCallView, FrontendTool)> _pendingToolCalls(
+    CopilotAgentBloc agent,
+  ) => [
     for (final call in agent.state.toolCalls)
       if ((call.status, state.tools[call.name]) case (
         ToolCallStatus.executing,
@@ -428,7 +435,7 @@ class CopilotKitClient({
   /// Gives every tool call without a result (and matching [where], if set)
   /// the message of [result], so the conversation stays valid for the next run.
   Future<void> _closeOpenToolCalls(
-    CopilotAgent agent,
+    CopilotAgentBloc agent,
     _FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
   }) async {
@@ -441,7 +448,7 @@ class CopilotKitClient({
   }
 
   Future<void> _addToolResult(
-    CopilotAgent agent,
+    CopilotAgentBloc agent,
     ToolCallView call,
     String content,
   ) async {
@@ -455,10 +462,18 @@ class CopilotKitClient({
         ),
       ),
     );
-    await agent.settled;
+    await _settle(agent);
   }
 
-  void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
+  /// Completes once every event added to [agent] so far has been applied.
+  static Future<void> _settle(CopilotAgentBloc agent) {
+    if (agent.isClosed) return Future.value();
+    final completer = Completer<void>();
+    agent.add(AgentSettleRequested(completer));
+    return completer.future;
+  }
+
+  void _fail(CopilotAgentBloc agent, Object error, StackTrace stackTrace) {
     agent.add(AgentRunFailed(error));
     addError(error, stackTrace);
   }

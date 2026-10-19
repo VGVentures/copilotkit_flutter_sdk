@@ -14,7 +14,7 @@ void main() {
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late CopilotKitClient client;
-    late CopilotAgent agent;
+    late CopilotAgentBloc agent;
     late List<Stream<BaseEvent>> runs;
     late MockAgentTransport transport;
 
@@ -44,7 +44,7 @@ void main() {
           weatherTool((_, {required signal}) async => ''),
         );
         runs.add(
-          Stream.fromIterable(toolCallRun(agent.threadId)..removeLast()),
+          Stream.fromIterable(toolCallRun(agent.state.threadId)..removeLast()),
         );
 
         await client.runAgent(agent);
@@ -56,7 +56,7 @@ void main() {
       test('when the runtime reports an error mid-args', () async {
         runs.add(
           Stream.fromIterable([
-            ...toolCallRun(agent.threadId).take(3),
+            ...toolCallRun(agent.state.threadId).take(3),
             const RunErrorEvent(message: 'model error'),
           ]),
         );
@@ -68,8 +68,12 @@ void main() {
 
       test('so the next run sends a valid conversation', () async {
         runs
-          ..add(Stream.fromIterable(toolCallRun(agent.threadId)..removeLast()))
-          ..add(Stream.fromIterable(replyRun(agent.threadId)));
+          ..add(
+            Stream.fromIterable(
+              toolCallRun(agent.state.threadId)..removeLast(),
+            ),
+          )
+          ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
         await client.runAgent(agent);
 
         await client.runAgent(agent);
@@ -90,7 +94,7 @@ void main() {
             return handlerDone.future;
           }),
         );
-        runs.add(Stream.fromIterable(toolCallRun(agent.threadId)));
+        runs.add(Stream.fromIterable(toolCallRun(agent.state.threadId)));
         final run = client.runAgent(agent);
         await pumpEventQueue();
 
@@ -116,7 +120,7 @@ void main() {
         runs.add(events.stream);
         final run = client.runAgent(agent);
         events
-          ..add(RunStartedEvent(threadId: agent.threadId, runId: 'r1'))
+          ..add(RunStartedEvent(threadId: agent.state.threadId, runId: 'r1'))
           ..add(
             const ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
           )

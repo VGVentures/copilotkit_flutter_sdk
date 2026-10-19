@@ -11,7 +11,7 @@ void main() {
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late CopilotKitClient client;
-    late CopilotAgent agent;
+    late CopilotAgentBloc agent;
     late List<Stream<BaseEvent>> runs;
 
     setUp(() async {

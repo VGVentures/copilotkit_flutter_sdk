@@ -2,95 +2,44 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
-import 'package:copilotkit/src/agent/copilot_agent_event.dart';
-import 'package:copilotkit/src/agent/models/agent_state.dart';
-import 'package:copilotkit/src/client/copilot_kit_client.dart';
-import 'package:copilotkit/src/client/copilot_kit_event.dart';
 import 'package:copilotkit/src/json_patch.dart';
 import 'package:copilotkit/src/partial_json_parser.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
+
+part 'copilot_agent_event.dart';
+part 'copilot_agent_state.dart';
 
 /// A conversation with one agent on a Copilot Runtime.
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
-/// [state], and emits a new [AgentState] on [stream] every time an event
-/// changes it. Open one by adding `AgentOpened` to a `CopilotKitClient` and
-/// read it from `CopilotKitState.agents`.
-class CopilotAgent({
-  /// Id of the agent on the runtime, e.g. `default`.
-  required final String agentId,
-  required final CopilotKitClient _client,
-  String? threadId,
-}) extends Bloc<CopilotAgentEvent, AgentState> {
-  /// Creates an agent driven by [_client].
+/// [state], and emits a new [CopilotAgentState] every time an event changes
+/// it. Open one by adding `AgentOpened` to a `CopilotKitClient` and read it
+/// from `CopilotKitState.agents`.
+class CopilotAgentBloc({required String agentId, String? threadId})
+    extends Bloc<CopilotAgentEvent, CopilotAgentState> {
+  /// Creates the agent [agentId].
   ///
   /// Internal: only the client creates agents, on `AgentOpened`, so it
   /// tracks every agent it runs. A random [threadId] is generated when none
   /// is given.
   @internal
-  this : super(const AgentState()) {
+  this
+    : super(
+        CopilotAgentState(
+          agentId: agentId,
+          threadId: threadId ?? const Uuid().v4(),
+        ),
+      ) {
     // One handler for the whole family: the handlers are synchronous, so
     // events apply in the order they were added (ADR 0002).
     on<CopilotAgentEvent>(_onEvent);
   }
 
-  /// Events added and not yet applied, and who is waiting for that
-  /// (ADR 0008, exception 4).
-  int _pending = 0;
-  Completer<void>? _settled;
-
-  /// Id of the conversation thread sent with every run.
-  final String threadId = threadId ?? const Uuid().v4();
-
-  /// Completes once every event added so far has been applied.
-  ///
-  /// Bloc delivers events asynchronously; the client awaits this before it
-  /// reads [state] after adding events.
-  @internal
-  Future<void> get settled =>
-      _pending == 0 ? Future.value() : (_settled ??= Completer<void>()).future;
-
-  @override
-  void add(CopilotAgentEvent event) {
-    super.add(event);
-    _pending++;
-  }
-
-  /// Appends [message] to the conversation without starting a run.
-  Future<void> addMessage(Message message) async {
-    add(AgentMessageAdded(message));
-    await settled;
-  }
-
-  /// Runs the agent on the current messages.
-  ///
-  /// Same as adding `AgentRunRequested(agentId)` to the client. [state]
-  /// reports `isRunning` until the whole turn ends; errors go to
-  /// `CopilotKitClient.onError`.
-  void run() => _client.add(AgentRunRequested(agentId));
-
-  /// Stops the current run, if any.
-  ///
-  /// Same as adding `AgentStopRequested(agentId)` to the client.
-  void stop() => _client.add(AgentStopRequested(agentId));
-
-  @override
-  void onDone(
-    CopilotAgentEvent event, [
-    Object? error,
-    StackTrace? stackTrace,
-  ]) {
-    super.onDone(event, error, stackTrace);
-    if (--_pending == 0) {
-      _settled?.complete();
-      _settled = null;
-    }
-  }
-
-  void _onEvent(CopilotAgentEvent event, Emitter<AgentState> emit) {
+  void _onEvent(CopilotAgentEvent event, Emitter<CopilotAgentState> emit) {
     final next = switch (event) {
       AgentEventReceived(:final event) => _reduce(state, event),
       AgentMessageAdded(:final message) => state.copyWith(
@@ -99,11 +48,19 @@ class CopilotAgent({
       AgentTurnStarted() => state.copyWith(isRunning: true, error: () => null),
       AgentTurnEnded() => state.copyWith(isRunning: false),
       AgentRunFailed(:final error) => state.copyWith(error: () => error),
+      AgentSettleRequested(:final completer) => _settle(completer),
     };
     // Bloc emits the first state even when it equals the initial one;
     // consumers only want changes.
     if (next == state) return;
     emit(next);
+  }
+
+  /// Completes [completer] and keeps the state: every event added before
+  /// the [AgentSettleRequested] has been applied by now.
+  CopilotAgentState _settle(Completer<void> completer) {
+    completer.complete();
+    return state;
   }
 
   /// Applies an AG-UI [event] to [snapshot] and returns the resulting state.
@@ -113,7 +70,10 @@ class CopilotAgent({
   ///
   /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
   /// don't change the agent return [snapshot] itself.
-  static AgentState _reduce(AgentState snapshot, BaseEvent event) {
+  static CopilotAgentState _reduce(
+    CopilotAgentState snapshot,
+    BaseEvent event,
+  ) {
     return switch (event) {
       RunStartedEvent() => snapshot.copyWith(error: () => null),
       RunFinishedEvent() => _finishToolArgs(snapshot),
@@ -171,8 +131,8 @@ class CopilotAgent({
 
   /// A delta that doesn't apply (e.g. it was computed against a state this
   /// client never saw) is dropped; the next snapshot resyncs the state.
-  static AgentState _applyStateDelta(
-    AgentState snapshot,
+  static CopilotAgentState _applyStateDelta(
+    CopilotAgentState snapshot,
     List<Map<String, Object?>> delta,
   ) {
     try {
@@ -184,8 +144,8 @@ class CopilotAgent({
     }
   }
 
-  static AgentState _startToolCall(
-    AgentState snapshot,
+  static CopilotAgentState _startToolCall(
+    CopilotAgentState snapshot,
     String toolCallId,
     String name,
     String? parentMessageId,
@@ -230,8 +190,8 @@ class CopilotAgent({
     );
   }
 
-  static AgentState _appendToolArgs(
-    AgentState snapshot,
+  static CopilotAgentState _appendToolArgs(
+    CopilotAgentState snapshot,
     String toolCallId,
     String delta,
   ) {
@@ -277,8 +237,8 @@ class CopilotAgent({
         message,
   ];
 
-  static AgentState _applyToolChunk(
-    AgentState snapshot,
+  static CopilotAgentState _applyToolChunk(
+    CopilotAgentState snapshot,
     ToolCallChunkEvent event,
   ) {
     final id = event.toolCallId ?? snapshot.toolCalls.lastOrNull?.id;
@@ -293,8 +253,8 @@ class CopilotAgent({
     return delta == null ? next : _appendToolArgs(next, id, delta);
   }
 
-  static AgentState _completeToolCall(
-    AgentState snapshot,
+  static CopilotAgentState _completeToolCall(
+    CopilotAgentState snapshot,
     String messageId,
     String toolCallId,
     String content,
@@ -317,7 +277,7 @@ class CopilotAgent({
 
   /// Calls streamed as chunks have no End event; once the run finishes their
   /// arguments are complete.
-  static AgentState _finishToolArgs(AgentState snapshot) {
+  static CopilotAgentState _finishToolArgs(CopilotAgentState snapshot) {
     if (!snapshot.toolCalls.any((v) => v.status == ToolCallStatus.inProgress)) {
       return snapshot;
     }
@@ -332,8 +292,8 @@ class CopilotAgent({
     );
   }
 
-  static AgentState _updateToolCall(
-    AgentState snapshot,
+  static CopilotAgentState _updateToolCall(
+    CopilotAgentState snapshot,
     String toolCallId,
     ToolCallView Function(ToolCallView view) update,
   ) {
@@ -355,8 +315,8 @@ class CopilotAgent({
 
   /// A chunk without [messageId] continues the last message, but only when it
   /// has the chunk's role, so assistant text never lands in a user message.
-  static AgentState _appendChunk(
-    AgentState snapshot,
+  static CopilotAgentState _appendChunk(
+    CopilotAgentState snapshot,
     String? messageId,
     TextMessageRole? role,
     String delta,
@@ -380,8 +340,8 @@ class CopilotAgent({
 
   /// Appends [delta] to message [messageId], creating it with [role] when it
   /// doesn't exist yet.
-  static AgentState _appendText(
-    AgentState snapshot,
+  static CopilotAgentState _appendText(
+    CopilotAgentState snapshot,
     String messageId,
     TextMessageRole role,
     String delta,

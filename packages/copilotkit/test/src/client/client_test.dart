@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_x.dart';
+import '../../helpers/fixtures.dart';
 import '../../helpers/mock_agent_transport.dart';
 
 class _ErrorObserver extends BlocObserver {
@@ -138,15 +139,15 @@ void main() {
         final agent = await client.openAgent('default');
 
         expect(await client.openAgent('default'), same(agent));
-        expect(agent.agentId, 'default');
+        expect(agent.state.agentId, 'default');
       });
 
       test('gives each agent its own thread', () async {
         final a = await client.openAgent('a');
         final b = await client.openAgent('b');
 
-        expect(Uuid.isValidUUID(fromString: a.threadId), isTrue);
-        expect(a.threadId, isNot(b.threadId));
+        expect(Uuid.isValidUUID(fromString: a.state.threadId), isTrue);
+        expect(a.state.threadId, isNot(b.state.threadId));
       });
     });
 
@@ -155,7 +156,7 @@ void main() {
         stubRun(const Stream.empty());
         final agent = await client.openAgent('default');
         final message = UserMessage(id: 'u1', content: 'Hi');
-        await agent.addMessage(message);
+        agent.add(AgentMessageAdded(message));
 
         await client.runAgent(agent);
 
@@ -168,7 +169,7 @@ void main() {
                   ),
                 ).captured.single
                 as RunAgentInput;
-        expect(input.threadId, agent.threadId);
+        expect(input.threadId, agent.state.threadId);
         expect(Uuid.isValidUUID(fromString: input.runId), isTrue);
         expect(input.messages, [message]);
         expect(input.tools, isEmpty);
@@ -208,11 +209,11 @@ void main() {
         final agent = await client.openAgent('default');
         stubRun(
           Stream.fromIterable([
-            RunStartedEvent(threadId: agent.threadId, runId: 'r'),
+            RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
             const TextMessageStartEvent(messageId: 'm1'),
             const TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
             const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-            RunFinishedEvent(threadId: agent.threadId, runId: 'r'),
+            RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
           ]),
         );
         final texts = <String?>[];
@@ -227,19 +228,80 @@ void main() {
         expect(errors, isEmpty);
       });
 
-      test('run and stop add the client events', () async {
+      test('appends the given message before the run', () async {
+        stubRun(const Stream.empty());
+        final agent = await client.openAgent('default');
+        final message = UserMessage(id: 'u1', content: 'Hi');
+
+        await client.runAgent(agent, message: message);
+
+        expect(transport.sentInputs().single.messages, [message]);
+        expect(agent.state.messages, [message]);
+      });
+
+      test('drops the given message when the agent is running', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        transport.stubStop();
         final agent = await client.openAgent('default');
+        final first = client.runAgent(agent);
+        await pumpEventQueue();
 
-        agent.run();
-        await agent.stream.firstWhere((state) => state.isRunning);
-        agent.stop();
-        await agent.stream.firstWhere((state) => !state.isRunning);
+        await client.runAgent(
+          agent,
+          message: UserMessage(id: 'u1', content: 'Hi'),
+        );
 
-        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.messages, isEmpty);
+        events.add(
+          RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+        );
         await events.close();
+        await first;
+      });
+
+      test('applies state snapshots and deltas to sharedState', () async {
+        final agent = await client.openAgent('default');
+        stubRun(
+          Stream.fromIterable([
+            RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
+            const StateSnapshotEvent(snapshot: {'count': 1}),
+            const TextMessageStartEvent(messageId: 'm1'),
+            const StateDeltaEvent(
+              delta: [
+                {'op': 'replace', 'path': '/count', 'value': 2},
+              ],
+            ),
+            RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+          ]),
+        );
+        final states = <Object?>[];
+        agent.stream
+            .map((state) => state.sharedState)
+            .where((shared) => shared != null)
+            .distinct()
+            .listen(states.add);
+
+        await client.runAgent(agent);
+        await pumpEventQueue();
+
+        expect(agent.state.sharedState, {'count': 2});
+        expect(states, [
+          {'count': 1},
+          {'count': 2},
+        ]);
+      });
+
+      test('applies the recorded state_snapshot_delta patch', () async {
+        final agent = await client.openAgent('default');
+        stubRun(
+          Stream.fromIterable(loadFixture('state_snapshot_delta').events),
+        );
+
+        await client.runAgent(agent);
+
+        expect(agent.state.sharedState, {
+          'todos': ['buy milk', 'walk dog'],
+        });
       });
 
       test('is running as soon as the run starts', () async {
@@ -251,7 +313,9 @@ void main() {
         await pumpEventQueue();
         expect(agent.state.isRunning, isTrue);
 
-        events.add(RunFinishedEvent(threadId: agent.threadId, runId: 'r'));
+        events.add(
+          RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+        );
         await events.close();
         await run;
         expect(agent.state.isRunning, isFalse);
@@ -273,7 +337,9 @@ void main() {
             headers: any(named: 'headers'),
           ),
         ).called(1);
-        events.add(RunFinishedEvent(threadId: agent.threadId, runId: 'r'));
+        events.add(
+          RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+        );
         await events.close();
         await first;
       });
@@ -304,7 +370,9 @@ void main() {
       test('reports a stream that ends before the run finishes', () async {
         final agent = await client.openAgent('default');
         stubRun(
-          Stream.value(RunStartedEvent(threadId: agent.threadId, runId: 'r')),
+          Stream.value(
+            RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
+          ),
         );
 
         await client.runAgent(agent);
@@ -393,48 +461,6 @@ void main() {
 
         expect(cancelled, isTrue);
       });
-    });
-  });
-
-  group(CopilotAgent, () {
-    late CopilotKitClient client;
-
-    setUp(() async {
-      client = CopilotKitClient(
-        runtimeUrl: _runtimeUrl,
-        transport: MockAgentTransport(),
-      );
-    });
-
-    test('starts idle and empty', () async {
-      final agent = await client.openAgent('default');
-
-      expect(agent.state.messages, isEmpty);
-      expect(agent.state.sharedState, isNull);
-      expect(agent.state.isRunning, isFalse);
-      expect(agent.state.toolCalls, isEmpty);
-      expect(agent.state.error, isNull);
-    });
-
-    test('uses the given thread id', () async {
-      final agent = CopilotAgent(
-        agentId: 'default',
-        client: client,
-        threadId: 'thread-1',
-      );
-
-      expect(agent.threadId, 'thread-1');
-    });
-
-    test('addMessage appends the message and emits a change', () async {
-      final agent = await client.openAgent('default');
-      final message = UserMessage(id: 'u1', content: 'Hi');
-      final change = agent.stream.first;
-
-      await agent.addMessage(message);
-
-      expect(agent.state.messages, [message]);
-      expect((await change).messages, [message]);
     });
   });
 }

@@ -51,10 +51,15 @@ Future<void> main() async {
     );
   });
 
-  await agent.addMessage(
-    UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
+  client.add(
+    AgentRunRequested(
+      'default',
+      message: UserMessage(
+        id: 'user-1',
+        content: "What's the weather in Lima?",
+      ),
+    ),
   );
-  agent.run();
   await agent.stream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();
