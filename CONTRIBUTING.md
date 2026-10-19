@@ -1,8 +1,6 @@
 # Contributing
 
 This guide covers the conventions and the commands used in this repository.
-Decisions with a rationale live in `docs/adr/`; this file only states the
-rules.
 
 ## Layout
 

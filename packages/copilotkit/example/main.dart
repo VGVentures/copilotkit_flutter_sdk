@@ -1,5 +1,4 @@
-// Headless use of the CopilotKit core: the API sketch from
-// docs/requirements.md without Flutter.
+// Headless use of the CopilotKit core without Flutter.
 // ignore_for_file: avoid_print
 
 import 'dart:convert';
