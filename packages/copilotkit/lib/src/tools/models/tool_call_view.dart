@@ -18,6 +18,12 @@ class const ToolCallView({
 
   /// Result string; set once [status] is [ToolCallStatus.complete].
   final String? result,
+
+  /// Whether the call waits for the user: the agent called a
+  /// `HumanInTheLoopTool` and the app has yet to answer with
+  /// `ToolCallResponded`. Only set while [status] is
+  /// [ToolCallStatus.executing].
+  final bool awaitingResponse = false,
 }) extends Equatable {
   /// Creates a view of a tool call.
   this;
@@ -30,6 +36,7 @@ class const ToolCallView({
     ToolCallStatus? status,
     Map<String, Object?>? args,
     String? Function()? result,
+    bool? awaitingResponse,
   }) {
     return ToolCallView(
       id: id,
@@ -37,9 +44,10 @@ class const ToolCallView({
       status: status ?? this.status,
       args: args ?? this.args,
       result: result == null ? this.result : result(),
+      awaitingResponse: awaitingResponse ?? this.awaitingResponse,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, status, args, result];
+  List<Object?> get props => [id, name, status, args, result, awaitingResponse];
 }

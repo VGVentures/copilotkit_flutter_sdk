@@ -4,9 +4,10 @@ enum ToolCallStatus {
   /// partial.
   inProgress,
 
-  /// The arguments are complete and the handler is running.
+  /// The arguments are complete and the call has no result yet: a handler is
+  /// running or the user is answering (`ToolCallView.awaitingResponse`).
   executing,
 
-  /// The handler finished; `ToolCallView.result` is set.
+  /// The call has its result; `ToolCallView.result` is set.
   complete,
 }

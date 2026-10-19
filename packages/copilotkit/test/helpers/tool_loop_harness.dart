@@ -79,3 +79,44 @@ List<BaseEvent> replyRun(String threadId) {
     RunFinishedEvent(threadId: threadId, runId: 'r2'),
   ];
 }
+
+/// A `confirmAction` human-in-the-loop tool with a required `action`.
+HumanInTheLoopTool approvalTool({bool followUp = true}) {
+  return HumanInTheLoopTool(
+    name: 'confirmAction',
+    description: 'Ask the user to confirm an action',
+    parameters: Ack.object({'action': Ack.string()}),
+    followUp: followUp,
+  );
+}
+
+/// The events that start the `confirmAction` call [id] with [args], without
+/// ending the run.
+List<BaseEvent> approvalCall(
+  String id, {
+  String args = '{"action": "delete"}',
+  String parentMessageId = 'a1',
+}) {
+  return [
+    ToolCallStartEvent(
+      toolCallId: id,
+      toolCallName: 'confirmAction',
+      parentMessageId: parentMessageId,
+    ),
+    ToolCallArgsEvent(toolCallId: id, delta: args),
+    ToolCallEndEvent(toolCallId: id),
+  ];
+}
+
+/// A run that calls `confirmAction` once per id in [ids], in one message.
+List<BaseEvent> approvalRun(
+  String threadId, {
+  List<String> ids = const ['c1'],
+  String args = '{"action": "delete"}',
+}) {
+  return [
+    RunStartedEvent(threadId: threadId, runId: 'r1'),
+    for (final id in ids) ...approvalCall(id, args: args),
+    RunFinishedEvent(threadId: threadId, runId: 'r1'),
+  ];
+}

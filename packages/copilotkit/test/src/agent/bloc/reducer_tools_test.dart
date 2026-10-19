@@ -362,5 +362,119 @@ void main() {
         verify: (agent) => expect(agent.state.toolCalls, isEmpty),
       );
     });
+
+    group('awaiting a response', () {
+      const executing = [_start, ToolCallEndEvent(toolCallId: 'c1')];
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'AgentToolCallAwaiting marks an executing call',
+        build: buildAgent,
+        act: (agent) => agent
+          ..receive(executing)
+          ..add(const AgentToolCallAwaiting('c1')),
+        verify: (agent) {
+          final view = agent.state.toolCalls.single;
+          expect(view.status, ToolCallStatus.executing);
+          expect(view.awaitingResponse, isTrue);
+          expect(agent.state.awaitingResponseIds, ['c1']);
+        },
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'AgentToolCallAwaiting ignores a call that is still streaming',
+        build: buildAgent,
+        act: (agent) => agent
+          ..receive(const [_start])
+          ..add(const AgentToolCallAwaiting('c1')),
+        verify: (agent) =>
+            expect(agent.state.toolCalls.single.awaitingResponse, isFalse),
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'AgentToolCallAwaiting ignores an unknown call',
+        build: buildAgent,
+        act: (agent) => agent.add(const AgentToolCallAwaiting('missing')),
+        expect: () => const <CopilotAgentState>[],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'a result completes the call and stops it from awaiting',
+        build: buildAgent,
+        act: (agent) => agent
+          ..receive(executing)
+          ..add(const AgentToolCallAwaiting('c1'))
+          ..receive(const [
+            ToolCallResultEvent(
+              messageId: 't1',
+              toolCallId: 'c1',
+              content: 'ok',
+            ),
+          ]),
+        verify: (agent) {
+          final view = agent.state.toolCalls.single;
+          expect(view.status, ToolCallStatus.complete);
+          expect(view.awaitingResponse, isFalse);
+        },
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'a snapshot that holds the result stops the call from awaiting',
+        build: buildAgent,
+        act: (agent) => agent
+          ..receive(executing)
+          ..add(const AgentToolCallAwaiting('c1'))
+          ..receive([
+            MessagesSnapshotEvent(
+              messages: const [
+                AssistantMessage(
+                  id: 'm1',
+                  toolCalls: [
+                    ToolCall(
+                      id: 'c1',
+                      function: FunctionCall(
+                        name: 'showWeather',
+                        arguments: '{}',
+                      ),
+                    ),
+                  ],
+                ),
+                ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
+              ],
+            ),
+          ]),
+        verify: (agent) {
+          expect(agent.state.toolCalls.single.awaitingResponse, isFalse);
+          expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
+        },
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'a snapshot that does not hold the result keeps the call awaiting',
+        build: buildAgent,
+        act: (agent) => agent
+          ..receive(executing)
+          ..add(const AgentToolCallAwaiting('c1'))
+          ..receive([
+            MessagesSnapshotEvent(
+              messages: const [
+                AssistantMessage(
+                  id: 'm1',
+                  toolCalls: [
+                    ToolCall(
+                      id: 'c1',
+                      function: FunctionCall(
+                        name: 'showWeather',
+                        arguments: '{}',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ]),
+        verify: (agent) =>
+            expect(agent.state.toolCalls.single.awaitingResponse, isTrue),
+      );
+    });
   });
 }

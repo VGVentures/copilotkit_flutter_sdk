@@ -27,6 +27,13 @@ class const CopilotAgentState({
   /// Whether the agent is working: from `AgentRunRequested` until the whole
   /// turn ends, including frontend tool handlers and the runs that follow
   /// them.
+  ///
+  /// It stays `true` while a `HumanInTheLoopTool` call waits for the user,
+  /// because the turn is still open: the client ignores another
+  /// `AgentRunRequested` for the agent until it ends, and the chat bloc
+  /// ignores sent messages while it is `true`. Use [awaitingResponseIds] to
+  /// tell an agent that waits for the user from one that is streaming, for
+  /// example to pause the app's own automatic runs.
   final bool isRunning = false,
 
   /// Tool calls made by the agent, in call order.
@@ -41,6 +48,15 @@ class const CopilotAgentState({
 }) extends Equatable {
   /// Creates the state of an agent.
   this;
+
+  /// Ids of the tool calls that wait for the user's answer, in call order.
+  ///
+  /// Empty unless a `HumanInTheLoopTool` call is awaiting a
+  /// `ToolCallResponded`; see `ToolCallView.awaitingResponse`.
+  List<String> get awaitingResponseIds => [
+    for (final call in toolCalls)
+      if (call.awaitingResponse) call.id,
+  ];
 
   @override
   List<Object?> get props => [

@@ -19,6 +19,15 @@ void main() {
       expect(AgentOpened('a'), isNot(AgentOpened('b')));
       expect(ToolRegistered(tool), ToolRegistered(tool));
       expect(ToolUnregistered(tool), ToolUnregistered(tool));
+      expect(ToolCallResponded('c1', 'ok'), ToolCallResponded('c1', 'ok'));
+      expect(
+        ToolCallResponded('c1', 'ok'),
+        isNot(ToolCallResponded('c1', 'no')),
+      );
+      expect(
+        ToolCallResponded('c1', 'ok'),
+        isNot(ToolCallResponded('c2', 'ok')),
+      );
       expect(ContextAdded(entry), ContextAdded(entry));
       expect(ContextUpdated('e1', 2), ContextUpdated('e1', 2));
       expect(ContextUpdated('e1', 2), isNot(ContextUpdated('e1', 3)));

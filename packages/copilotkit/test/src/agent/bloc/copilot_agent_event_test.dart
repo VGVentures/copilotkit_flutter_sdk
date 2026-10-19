@@ -37,6 +37,14 @@ void main() {
       // Same reason as above.
       // ignore: prefer_const_constructors
       expect(AgentTurnEnded(), AgentTurnEnded());
+      expect(
+        const AgentToolCallAwaiting('c1'),
+        const AgentToolCallAwaiting('c1'),
+      );
+      expect(
+        const AgentToolCallAwaiting('c1'),
+        isNot(const AgentToolCallAwaiting('c2')),
+      );
       expect(const AgentRunFailed('boom'), const AgentRunFailed('boom'));
       expect(const AgentRunFailed('boom'), isNot(const AgentRunFailed('x')));
       expect(AgentSettleRequested(completer), AgentSettleRequested(completer));

@@ -15,6 +15,7 @@ void main() {
       expect(view.status, ToolCallStatus.inProgress);
       expect(view.args, isEmpty);
       expect(view.result, isNull);
+      expect(view.awaitingResponse, isFalse);
     });
 
     test('holds args and result', () {
@@ -51,6 +52,7 @@ void main() {
       );
       expect(view, isNot(view.copyWith(status: ToolCallStatus.executing)));
       expect(view, isNot(view.copyWith(args: {'city': 'Quito'})));
+      expect(view, isNot(view.copyWith(awaitingResponse: true)));
     });
 
     group('copyWith', () {
@@ -78,6 +80,17 @@ void main() {
         expect(copy.status, ToolCallStatus.complete);
         expect(copy.args, {'city': 'Quito'});
         expect(copy.result, 'sunny');
+      });
+
+      test('can set and clear awaitingResponse', () {
+        final waiting = view.copyWith(awaitingResponse: true);
+
+        expect(waiting.awaitingResponse, isTrue);
+        expect(waiting.copyWith().awaitingResponse, isTrue);
+        expect(
+          waiting.copyWith(awaitingResponse: false).awaitingResponse,
+          isFalse,
+        );
       });
 
       test('can clear the result', () {
