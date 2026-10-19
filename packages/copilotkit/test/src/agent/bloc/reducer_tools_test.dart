@@ -266,5 +266,101 @@ void main() {
         expect(view.result, isNull);
       },
     );
+
+    group('MessagesSnapshot', () {
+      const assistant = AssistantMessage(
+        id: 'a1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(
+              name: 'showWeather',
+              arguments: '{"city": "Lima"}',
+            ),
+          ),
+          ToolCall(
+            id: 'c2',
+            function: FunctionCall(name: 'showMap', arguments: '{"zoom": 3}'),
+          ),
+        ],
+      );
+      const result = ToolMessage(
+        id: 't1',
+        toolCallId: 'c1',
+        content: '{"forecast": "sunny"}',
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'rebuilds the tool calls held by its messages',
+        build: buildAgent,
+        act: (agent) => agent.receive([
+          MessagesSnapshotEvent(messages: [assistant, result]),
+        ]),
+        verify: (agent) {
+          final [first, second] = agent.state.toolCalls;
+          expect(first.name, 'showWeather');
+          expect(first.args, {'city': 'Lima'});
+          expect(first.status, ToolCallStatus.complete);
+          expect(first.result, '{"forecast": "sunny"}');
+          expect(second.name, 'showMap');
+          expect(second.args, {'zoom': 3});
+          expect(second.status, ToolCallStatus.executing);
+          expect(second.result, isNull);
+        },
+      );
+
+      const weatherMessage = AssistantMessage(
+        id: 'm1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(name: 'showWeather', arguments: '{}'),
+          ),
+        ],
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'keeps the view of a call it already knows',
+        build: buildAgent,
+        act: (agent) => agent.receive([
+          _start,
+          const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
+          MessagesSnapshotEvent(messages: const [weatherMessage]),
+        ]),
+        verify: (agent) {
+          final view = agent.state.toolCalls.single;
+          expect(view.status, ToolCallStatus.inProgress);
+          expect(view.args, {'city': 'Li'});
+        },
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'completes a known call whose result it holds',
+        build: buildAgent,
+        act: (agent) => agent.receive([
+          _start,
+          const ToolCallEndEvent(toolCallId: 'c1'),
+          MessagesSnapshotEvent(
+            messages: const [
+              weatherMessage,
+              ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
+            ],
+          ),
+        ]),
+        verify: (agent) {
+          final view = agent.state.toolCalls.single;
+          expect(view.status, ToolCallStatus.complete);
+          expect(view.result, 'ok');
+        },
+      );
+
+      blocTest<CopilotAgentBloc, CopilotAgentState>(
+        'drops the calls its messages no longer hold',
+        build: buildAgent,
+        act: (agent) =>
+            agent.receive([_start, MessagesSnapshotEvent(messages: const [])]),
+        verify: (agent) => expect(agent.state.toolCalls, isEmpty),
+      );
+    });
   });
 }

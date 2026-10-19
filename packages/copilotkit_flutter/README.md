@@ -16,6 +16,31 @@ Install via `flutter pub add`:
 dart pub add copilotkit_flutter
 ```
 
+## Reading the agent below the client
+
+`CopilotAgentScope` opens an agent on the nearest `CopilotKit` client and
+provides it to its subtree, so a tool card, a form or any other widget can
+read the agent's state or edit its shared state without wiring the client by
+hand. The client owns the agent: the scope never closes it.
+
+```dart
+CopilotAgentScope(
+  agentId: 'ops',
+  child: AgentStateBuilder<Object?>(
+    selector: (state) => state.sharedState,
+    builder: (context, shared) => Text('$shared'),
+  ),
+)
+
+// Below the scope, e.g. in a tool card or a button (`read` comes from
+// package:flutter_bloc):
+context.read<CopilotAgentBloc>().add(const AgentStateSet({'theme': 'dark'}));
+```
+
+The agent's conversation is rebuilt when the runtime sends a
+`MESSAGES_SNAPSHOT`, tool calls included, so tool calls that only exist in a
+snapshot (a loaded history) render through `ToolCallWidget` like live ones.
+
 ---
 
 ## Continuous Integration 🤖
