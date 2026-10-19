@@ -1,3 +1,4 @@
+import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/context/agent_context_entry.dart';
 import 'package:copilotkit/src/tools/frontend_tool.dart';
 import 'package:equatable/equatable.dart';
@@ -77,6 +78,9 @@ final class const ContextRemoved(final String id) extends CopilotKitEvent {
 
 /// Runs the open agent [agentId] with all registered tools and context.
 ///
+/// When [message] is given, it is appended to the conversation before the
+/// run, and dropped with the run when the agent is already running.
+///
 /// When the agent calls registered frontend tools, their handlers run and
 /// the agent runs again with the results, until it stops calling them. The
 /// agent's `isRunning` is true for that whole turn. Errors go to
@@ -84,13 +88,17 @@ final class const ContextRemoved(final String id) extends CopilotKitEvent {
 /// run failed, or no registered tool handles them) are closed with a result
 /// saying so, so the next run sends a valid conversation. Does nothing if
 /// the agent is not open or already running.
-final class const AgentRunRequested(final String agentId)
-    extends CopilotKitEvent {
+final class const AgentRunRequested(
+  final String agentId, {
+
+  /// Message to append before the run, e.g. what the user typed.
+  final Message? message,
+}) extends CopilotKitEvent {
   /// Creates the event for running [agentId].
   this;
 
   @override
-  List<Object?> get props => [agentId];
+  List<Object?> get props => [agentId, message];
 }
 
 /// Stops the current run of the agent [agentId], closing its connection.

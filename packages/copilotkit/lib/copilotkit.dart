@@ -20,8 +20,13 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent/copilot_agent.dart';
-export 'src/agent/models/agent_state.dart';
+export 'src/agent/bloc/copilot_agent_bloc.dart'
+    hide
+        AgentEventReceived,
+        AgentRunFailed,
+        AgentSettleRequested,
+        AgentTurnEnded,
+        AgentTurnStarted;
 export 'src/client/copilot_error_handler.dart';
 export 'src/client/copilot_kit_client.dart';
 export 'src/client/copilot_kit_event.dart';

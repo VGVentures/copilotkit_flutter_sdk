@@ -16,7 +16,7 @@ void main() {
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late CopilotKitClient client;
-    late CopilotAgent agent;
+    late CopilotAgentBloc agent;
     late List<Stream<BaseEvent>> runs;
     late List<Object> errors;
 
@@ -42,8 +42,8 @@ void main() {
         }),
       );
       runs
-        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
       final statuses = <ToolCallStatus>[];
       agent.stream.listen((s) {
         final status = s.toolCalls.firstOrNull?.status;
@@ -86,8 +86,8 @@ void main() {
         weatherTool((_, {required signal}) => handlerDone.future),
       );
       runs
-        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
 
       final run = client.runAgent(agent);
       await pumpEventQueue();
@@ -104,8 +104,8 @@ void main() {
         weatherTool((_, {required signal}) async => 'ok'),
       );
       runs
-        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
       final running = <bool>[];
       agent.stream.listen((snapshot) => running.add(snapshot.isRunning));
 
@@ -119,7 +119,7 @@ void main() {
     test('stays running until a failed turn ends', () async {
       runs.add(
         Stream.fromIterable([
-          RunStartedEvent(threadId: agent.threadId, runId: 'r1'),
+          RunStartedEvent(threadId: agent.state.threadId, runId: 'r1'),
           const RunErrorEvent(message: 'model error'),
         ]),
       );
@@ -142,8 +142,8 @@ void main() {
           weatherTool((_, {required signal}) async => throw failure),
         );
         runs
-          ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-          ..add(Stream.fromIterable(replyRun(agent.threadId)));
+          ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+          ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
 
         await client.runAgent(agent);
 
@@ -171,8 +171,8 @@ void main() {
         ),
       );
       runs
-        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
 
       await client.runAgent(agent);
 
@@ -187,14 +187,14 @@ void main() {
           return '';
         }),
       );
-      final events = toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.state.threadId)
         ..[2] = const ToolCallArgsEvent(
           toolCallId: 'c1',
           delta: '{"days": "3"}',
         );
       runs
         ..add(Stream.fromIterable(events))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
 
       await client.runAgent(agent);
 
@@ -215,7 +215,7 @@ void main() {
     });
 
     test('closes calls to unregistered tools as unavailable', () async {
-      runs.add(Stream.fromIterable(toolCallRun(agent.threadId)));
+      runs.add(Stream.fromIterable(toolCallRun(agent.state.threadId)));
 
       await client.runAgent(agent);
 
@@ -230,7 +230,7 @@ void main() {
       await client.registerTool(
         weatherTool((_, {required signal}) async => 'ok'),
       );
-      final events = toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.state.threadId)
         ..insertAll(4, const [
           ToolCallStartEvent(
             toolCallId: 'c2',
@@ -241,7 +241,7 @@ void main() {
         ]);
       runs
         ..add(Stream.fromIterable(events))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
 
       await client.runAgent(agent);
 
@@ -261,7 +261,7 @@ void main() {
           return '';
         }),
       );
-      final events = toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.state.threadId)
         ..insert(
           4,
           const ToolCallResultEvent(
@@ -287,7 +287,7 @@ void main() {
           return '';
         }),
       );
-      final events = toolCallRun(agent.threadId)
+      final events = toolCallRun(agent.state.threadId)
         ..[4] = const RunErrorEvent(message: 'model error');
       runs.add(Stream.fromIterable(events));
 
@@ -303,8 +303,8 @@ void main() {
         weatherTool((_, {required signal}) => handlerDone.future),
       );
       runs
-        ..add(Stream.fromIterable(toolCallRun(agent.threadId)))
-        ..add(Stream.fromIterable(replyRun(agent.threadId)));
+        ..add(Stream.fromIterable(toolCallRun(agent.state.threadId)))
+        ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
       final run = client.runAgent(agent);
       await pumpEventQueue();
 

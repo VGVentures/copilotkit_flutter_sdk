@@ -89,8 +89,12 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
       '${last?.content}',
     );
   });
-  await agent.addMessage(UserMessage(id: 'user-1', content: message));
-  agent.run();
+  client.add(
+    AgentRunRequested(
+      agentId,
+      message: UserMessage(id: 'user-1', content: message),
+    ),
+  );
   await agent.stream.firstWhere((state) => !state.isRunning);
   await subscription.cancel();
   print(

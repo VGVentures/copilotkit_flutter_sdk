@@ -32,7 +32,7 @@ class ToolLoopHarness {
   );
 
   /// The default agent of [client]; set by [open].
-  late final CopilotAgent agent;
+  late final CopilotAgentBloc agent;
 
   /// Opens the default agent.
   Future<void> open() async {

@@ -15,7 +15,7 @@ void main() {
     late MockAgentTransport transport;
     late List<Object> errors;
     late CopilotKitClient client;
-    late CopilotAgent agent;
+    late CopilotAgentBloc agent;
     late StreamController<BaseEvent> events;
     late bool cancelled;
     late Future<void> run;
@@ -40,7 +40,7 @@ void main() {
     Future<void> startStreaming() async {
       run = client.runAgent(agent);
       events
-        ..add(RunStartedEvent(threadId: agent.threadId, runId: 'r'))
+        ..add(RunStartedEvent(threadId: agent.state.threadId, runId: 'r'))
         ..add(const TextMessageStartEvent(messageId: 'm1'))
         ..add(const TextMessageContentEvent(messageId: 'm1', delta: 'Hal'));
       await pumpEventQueue();
@@ -74,7 +74,7 @@ void main() {
         verify(
           () => transport.stop(
             agentId: 'default',
-            threadId: agent.threadId,
+            threadId: agent.state.threadId,
             runId: runId,
             headers: {'Authorization': 'Bearer token'},
           ),
@@ -86,7 +86,7 @@ void main() {
       await startStreaming();
       await client.stopAgent(agent);
       await run;
-      final changes = <AgentState>[];
+      final changes = <CopilotAgentState>[];
       agent.stream.listen(changes.add);
 
       events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));
@@ -197,10 +197,10 @@ void main() {
       await run;
       transport.stubRun(
         () => Stream.fromIterable([
-          RunStartedEvent(threadId: agent.threadId, runId: 'r2'),
+          RunStartedEvent(threadId: agent.state.threadId, runId: 'r2'),
           const TextMessageStartEvent(messageId: 'm2'),
           const TextMessageContentEvent(messageId: 'm2', delta: 'Again'),
-          RunFinishedEvent(threadId: agent.threadId, runId: 'r2'),
+          RunFinishedEvent(threadId: agent.state.threadId, runId: 'r2'),
         ]),
       );
 
@@ -215,7 +215,7 @@ void main() {
 
       await startStreaming();
 
-      final turn = client.state.turns[agent.agentId]!;
+      final turn = client.state.turns[agent.state.agentId]!;
       expect(turn.signal.isCancelled, isFalse);
       expect(turn.run?.headers, {'Authorization': 'Bearer token'});
 
@@ -249,8 +249,8 @@ void main() {
       expect(other.state.isRunning, isTrue);
 
       otherEvents
-        ..add(RunStartedEvent(threadId: other.threadId, runId: 'o'))
-        ..add(RunFinishedEvent(threadId: other.threadId, runId: 'o'));
+        ..add(RunStartedEvent(threadId: other.state.threadId, runId: 'o'))
+        ..add(RunFinishedEvent(threadId: other.state.threadId, runId: 'o'));
       await otherEvents.close();
       await otherRun;
 

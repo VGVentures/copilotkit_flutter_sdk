@@ -13,7 +13,7 @@ void main() {
     late MockAgentTransport transport;
     late List<Object> errors;
     late CopilotKitClient client;
-    late CopilotAgent agent;
+    late CopilotAgentBloc agent;
 
     setUp(() async {
       transport = MockAgentTransport();
@@ -34,7 +34,7 @@ void main() {
       'reasoning, activity, raw and custom events leave text intact',
       () async {
         stubRun([
-          RunStartedEvent(threadId: agent.threadId, runId: 'r'),
+          RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
           const ReasoningStartEvent(messageId: 'think'),
           const ReasoningMessageContentEvent(messageId: 'think', delta: 'Hmm'),
           const TextMessageStartEvent(messageId: 'm1'),
@@ -48,7 +48,7 @@ void main() {
           const RawEvent(event: {'anything': true}),
           const CustomEvent(name: 'progress', value: 0.5),
           const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-          RunFinishedEvent(threadId: agent.threadId, runId: 'r'),
+          RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
         ]);
 
         await client.runAgent(agent);
@@ -62,7 +62,7 @@ void main() {
     test('RUN_ERROR ends the run and reports the error once', () async {
       const runError = RunErrorEvent(message: 'Invalid API key', code: 'AUTH');
       stubRun([
-        RunStartedEvent(threadId: agent.threadId, runId: 'r'),
+        RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
         const TextMessageStartEvent(messageId: 'm1'),
         const TextMessageContentEvent(messageId: 'm1', delta: 'Par'),
         runError,
