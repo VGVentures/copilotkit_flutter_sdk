@@ -110,8 +110,6 @@ The repository is a Dart pub workspace with three packages.
 | `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotTool`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, and `CopilotChatBloc`. Re-exports the core. |
 | `example` | Demo app, plus the local runtime in `example/tool/`. |
 
-Planning documents live in `docs/requirements.md` and `tasks/`.
-
 ## Development
 
 Conventions, the checks CI runs and how to run them locally are in
