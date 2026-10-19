@@ -62,7 +62,8 @@ class CopilotKitClient({
   /// Sent with every run as `RunAgentInput.forwardedProps`.
   final Map<String, Object?> properties = const {},
 
-  /// Called with errors instead of throwing them.
+  /// Called with errors instead of throwing them, after
+  /// `BlocObserver.onError`.
   CopilotErrorHandler? onError,
   AgentTransport? transport,
 }) extends Bloc<CopilotKitEvent, CopilotKitState> {
@@ -100,6 +101,16 @@ class CopilotKitClient({
     _awaited.add((event, completer));
     add(event);
     return completer.future;
+  }
+
+  /// Reports [error] to the `onError` callback, after `BlocObserver.onError`.
+  ///
+  /// The client reports its errors with [addError] instead of throwing them,
+  /// so observers and the callback see the same errors.
+  @override
+  void onError(Object error, StackTrace stackTrace) {
+    super.onError(error, stackTrace);
+    _onError?.call(error, stackTrace);
   }
 
   @override
@@ -239,7 +250,7 @@ class CopilotKitClient({
         headers: run.headers,
       );
     } on Object catch (error, stackTrace) {
-      _onError?.call(error, stackTrace);
+      addError(error, stackTrace);
     }
   }
 
@@ -313,7 +324,7 @@ class CopilotKitClient({
       (event) {
         if (event is RunFinishedEvent || event is RunErrorEvent) ended = true;
         agent.add(AgentEventReceived(event));
-        if (event is RunErrorEvent) _onError?.call(event, StackTrace.current);
+        if (event is RunErrorEvent) addError(event, StackTrace.current);
       },
       onError: (Object error, StackTrace stackTrace) {
         _fail(agent, error, stackTrace);
@@ -392,7 +403,7 @@ class CopilotKitClient({
     try {
       return await tool.handler(args, signal: signal);
     } on Object catch (error, stackTrace) {
-      _onError?.call(error, stackTrace);
+      addError(error, stackTrace);
       return _FallbackToolResult.handlerError.message;
     }
   }
@@ -448,6 +459,6 @@ class CopilotKitClient({
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
     agent.add(AgentRunFailed(error));
-    _onError?.call(error, stackTrace);
+    addError(error, stackTrace);
   }
 }

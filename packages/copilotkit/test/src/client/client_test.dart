@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
+import 'package:bloc/bloc.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -9,6 +10,16 @@ import 'package:uuid/uuid.dart';
 import '../../helpers/client_x.dart';
 
 class _MockAgentTransport extends Mock implements AgentTransport;
+
+class _ErrorObserver extends BlocObserver {
+  final List<(BlocBase<Object?>, Object)> errors = [];
+
+  @override
+  void onError(BlocBase<Object?> bloc, Object error, StackTrace stackTrace) {
+    super.onError(bloc, error, stackTrace);
+    errors.add((bloc, error));
+  }
+}
 
 final Uri _runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
 
@@ -300,6 +311,27 @@ void main() {
           client.runAgent(await client.openAgent('default')),
           completes,
         );
+      });
+
+      test('reports errors to the BlocObserver and onError once', () async {
+        final observer = _ErrorObserver();
+        final previous = Bloc.observer;
+        Bloc.observer = observer;
+        addTearDown(() => Bloc.observer = previous);
+        // A bloc reads the observer when it is created.
+        client = CopilotKitClient(
+          runtimeUrl: _runtimeUrl,
+          onError: (error, stackTrace) => errors.add((error, stackTrace)),
+          transport: transport,
+        );
+        final failure = Exception('connection refused');
+        stubRun(Stream.error(failure));
+
+        await client.runAgent(await client.openAgent('default'));
+
+        expect(observer.errors.single.$1, same(client));
+        expect(observer.errors.single.$2, same(failure));
+        expect(errors.single.$1, same(failure));
       });
     });
 
