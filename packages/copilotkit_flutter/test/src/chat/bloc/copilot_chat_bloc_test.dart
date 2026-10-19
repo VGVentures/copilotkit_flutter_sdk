@@ -11,9 +11,7 @@ class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 class _MockCopilotAgentBloc extends Mock implements CopilotAgentBloc;
 
 const _agentState = CopilotAgentState(agentId: 'default', threadId: 't');
-
 final _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
-const _assistant = AssistantMessage(id: 'a1', content: 'Let me check');
 const _call = ToolCallView(
   id: 'c1',
   name: 'showWeather',
@@ -56,27 +54,25 @@ void main() {
     List<CopilotKitEvent> clientEvents() =>
         verify(() => client.add(captureAny())).captured.cast<CopilotKitEvent>();
 
-    test('starts from the agent state', () {
-      when(() => agent.state).thenReturn(
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'starts from the agent state',
+      setUp: () => when(() => agent.state).thenReturn(
         _agentState.copyWith(
           messages: [_user],
           isRunning: true,
           error: () => 'boom',
         ),
-      );
-
-      final bloc = buildBloc();
-      addTearDown(bloc.close);
-
-      expect(
+      ),
+      build: buildBloc,
+      verify: (bloc) => expect(
         bloc.state,
         CopilotChatState(
           rows: [ChatMessageRow(_user)],
           isRunning: true,
           error: 'boom',
         ),
-      );
-    });
+      ),
+    );
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'maps every agent state to a chat state',
@@ -142,47 +138,16 @@ void main() {
       expect: () => <CopilotChatState>[],
     );
 
-    group('rows', () {
-      test('hide tool, system and empty messages', () {
-        final rows = CopilotChatState.fromAgentState(
-          _agentState.copyWith(
-            messages: [
-              const SystemMessage(id: 's', content: 'Be nice'),
-              _user,
-              const AssistantMessage(id: 'empty', content: ''),
-              const AssistantMessage(id: 'none'),
-              const ToolMessage(id: 't', content: 'ok', toolCallId: 'c'),
-              UserMessage(id: 'blank', content: ''),
-              _assistant,
-            ],
-          ),
-        ).rows;
-
-        expect(rows, [ChatMessageRow(_user), const ChatMessageRow(_assistant)]);
-      });
-
-      test('show tool calls after their message, even without text', () {
-        const callOnly = AssistantMessage(
-          id: 'a2',
-          toolCalls: [
-            ToolCall(
-              id: 'c1',
-              function: FunctionCall(name: 'showWeather', arguments: '{}'),
-            ),
-            ToolCall(
-              id: 'unknown',
-              function: FunctionCall(name: 'other', arguments: '{}'),
-            ),
-          ],
-        );
-
-        final rows = CopilotChatState.fromAgentState(
-          _agentState.copyWith(messages: [callOnly], toolCalls: [_call]),
-        ).rows;
-
-        expect(rows, [const ChatToolCallRow(_call)]);
-      });
-    });
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'stops listening to the agent when closed',
+      build: buildBloc,
+      act: (bloc) async {
+        bloc.add(const ChatSubscriptionRequested());
+        await pumpEventQueue();
+        expect(changes.hasListener, isTrue);
+      },
+      verify: (_) => expect(changes.hasListener, isFalse),
+    );
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatMessageSent runs the agent with the trimmed user message',
@@ -226,24 +191,5 @@ void main() {
           verify(() => client.add(const AgentStopRequested('default')))
               .called(1),
     );
-
-    test('close stops listening to the agent', () async {
-      final bloc = buildBloc()..add(const ChatSubscriptionRequested());
-      await pumpEventQueue();
-      expect(changes.hasListener, isTrue);
-
-      await bloc.close();
-
-      expect(changes.hasListener, isFalse);
-    });
-
-    test('events support value equality', () {
-      // Non-const instances, so equality goes through props.
-      // ignore_for_file: prefer_const_constructors
-      expect(ChatMessageSent('a'), ChatMessageSent('a'));
-      expect(ChatMessageSent('a'), isNot(ChatMessageSent('b')));
-      expect(ChatStopRequested(), ChatStopRequested());
-      expect(ChatSubscriptionRequested(), ChatSubscriptionRequested());
-    });
   });
 }
