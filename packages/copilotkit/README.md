@@ -40,6 +40,26 @@ AG-UI client. `AgentStatePatched` takes RFC 6902 operations; when one does not
 apply the state stays as it was and the error goes to
 `BlocObserver.onError`.
 
+## Context
+
+`ContextAdded` shares app data with the agent on every run. A `String` value
+is sent as it is, as in the React SDK; any other value is JSON-encoded, so
+pass a `String` to control the exact text the agent receives. By default every
+agent gets the entry; give `AgentContextEntry.agentIds` to restrict it to the
+runs of some agents.
+
+```dart
+client.add(ContextAdded(AgentContextEntry(
+  description: 'Current user',
+  value: {'name': 'Ada'}, // sent as {"name":"Ada"}
+)));
+client.add(ContextAdded(AgentContextEntry(
+  description: 'Session id',
+  value: 'abc', // sent as abc, not as "abc"
+  agentIds: {'ops'}, // only the ops agent sees it
+)));
+```
+
 ---
 
 ## Continuous Integration 🤖

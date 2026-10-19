@@ -265,7 +265,14 @@ class CopilotKitBloc({
     ],
     context: [
       for (final entry in state.context)
-        Context(description: entry.description, value: jsonEncode(entry.value)),
+        if (entry.agentIds?.contains(agent.state.agentId) ?? true)
+          Context(
+            description: entry.description,
+            value: switch (entry.value) {
+              final String text => text,
+              final value => jsonEncode(value),
+            },
+          ),
     ],
     forwardedProps: _properties,
   );

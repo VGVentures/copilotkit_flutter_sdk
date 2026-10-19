@@ -1,12 +1,14 @@
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/copilot_kit.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Shares [value] with the agent while this widget is mounted.
 ///
 /// Adds a context entry (`ContextAdded`) on the nearest `CopilotKit` client
 /// on mount, updates it (`ContextUpdated`) when [value] changes and removes
-/// it (`ContextRemoved`) on dispose. [value] must be JSON-encodable.
+/// it (`ContextRemoved`) on dispose. A `String` [value] is sent as it is; any
+/// other [value] must be JSON-encodable and is sent JSON-encoded.
 class const CopilotContext({
   /// Tells the agent what [value] is.
   required final String description,
@@ -16,6 +18,10 @@ class const CopilotContext({
 
   /// The subtree below this widget.
   required final Widget child,
+
+  /// Ids of the agents that receive the entry, or `null` to send it to every
+  /// agent.
+  final Set<String>? agentIds,
   super.key,
 }) extends StatefulWidget {
   /// Creates a widget that shares [value] while mounted.
@@ -45,7 +51,8 @@ class _CopilotContextState extends State<CopilotContext> {
   @override
   void didUpdateWidget(CopilotContext oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.description != oldWidget.description) {
+    if (widget.description != oldWidget.description ||
+        !setEquals(widget.agentIds, oldWidget.agentIds)) {
       _add();
     } else if (widget.value != oldWidget.value) {
       _client!.add(ContextUpdated(_entry!.$2.id, widget.value));
@@ -57,6 +64,7 @@ class _CopilotContextState extends State<CopilotContext> {
     final entry = AgentContextEntry(
       description: widget.description,
       value: widget.value,
+      agentIds: widget.agentIds,
     );
     final client = _client!..add(ContextAdded(entry));
     _entry = (client, entry);

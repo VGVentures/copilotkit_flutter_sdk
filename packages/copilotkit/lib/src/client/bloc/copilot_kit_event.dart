@@ -41,10 +41,12 @@ final class const ToolUnregistered(final FrontendTool tool)
   List<Object?> get props => [tool];
 }
 
-/// Shares [entry] with the agent on every run.
+/// Shares [entry] with its agents on every run.
 ///
-/// Its value is JSON-encoded on every run; a run with a value that can't be
-/// encoded fails through the client's `onError`.
+/// A `String` value is sent as it is and any other value is JSON-encoded on
+/// every run; a run with a value that can't be encoded fails through the
+/// client's `onError`. Entries with `AgentContextEntry.agentIds` only go to
+/// the runs of those agents.
 final class const ContextAdded(final AgentContextEntry entry)
     extends CopilotKitEvent {
   /// Creates the event for adding [entry].
@@ -54,7 +56,8 @@ final class const ContextAdded(final AgentContextEntry entry)
   List<Object?> get props => [entry];
 }
 
-/// Replaces the value of the entry [id]; the next run sends [value].
+/// Replaces the value of the entry [id]; the next run sends [value], encoded
+/// as described in [ContextAdded].
 final class const ContextUpdated(final String id, final Object? value)
     extends CopilotKitEvent {
   /// Creates the event for updating the entry [id].

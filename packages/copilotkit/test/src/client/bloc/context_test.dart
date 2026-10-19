@@ -29,17 +29,21 @@ void main() {
       );
     });
 
-    Future<List<Context>> runAndCaptureContext() async {
+    Future<List<Context>> runAndCaptureContext({
+      String agentId = 'default',
+    }) async {
       clearInteractions(transport);
-      await client.runAgent(await client.openAgent('default'));
+      await client.runAgent(await client.openAgent(agentId));
       final input = transport.sentInputs().single;
       return input.context;
     }
 
     late List<Context> context;
+    late List<Context> chatContext;
+    late List<Context> defaultContext;
 
     blocTest<CopilotKitBloc, CopilotKitState>(
-      'sends entries in order with JSON-encoded values',
+      'sends entries in order, encoding every value but strings as JSON',
       build: () => client,
       act: (client) async {
         client
@@ -70,7 +74,85 @@ void main() {
           'Locale',
           'Unread',
         ]);
-        expect(context.map((c) => c.value), ['{"name":"Ada"}', '"es"', '3']);
+        expect(context.map((c) => c.value), ['{"name":"Ada"}', 'es', '3']);
+      },
+    );
+
+    blocTest<CopilotKitBloc, CopilotKitState>(
+      'sends a string as it is, even when it holds JSON',
+      build: () => client,
+      act: (client) async {
+        client
+          ..add(
+            ContextAdded(
+              AgentContextEntry(
+                description: 'Pre-encoded',
+                value: '{"name":"Ada"}',
+              ),
+            ),
+          )
+          ..add(
+            ContextAdded(AgentContextEntry(description: 'Empty', value: '')),
+          )
+          ..add(ContextAdded(AgentContextEntry(description: 'Missing')));
+        context = await runAndCaptureContext();
+      },
+      verify: (_) =>
+          expect(context.map((c) => c.value), ['{"name":"Ada"}', '', 'null']),
+    );
+
+    blocTest<CopilotKitBloc, CopilotKitState>(
+      'sends an entry with agent ids only to those agents',
+      build: () => client,
+      act: (client) async {
+        client
+          ..add(
+            ContextAdded(
+              AgentContextEntry(description: 'Everyone', value: 'a'),
+            ),
+          )
+          ..add(
+            ContextAdded(
+              AgentContextEntry(
+                description: 'Ops only',
+                value: 'b',
+                agentIds: const {'ops'},
+              ),
+            ),
+          )
+          ..add(
+            ContextAdded(
+              AgentContextEntry(
+                description: 'Chat and ops',
+                value: 'c',
+                agentIds: const {'chat', 'ops'},
+              ),
+            ),
+          )
+          ..add(
+            ContextAdded(
+              AgentContextEntry(
+                description: 'Nobody',
+                value: 'd',
+                agentIds: const {},
+              ),
+            ),
+          );
+        context = await runAndCaptureContext(agentId: 'ops');
+        chatContext = await runAndCaptureContext(agentId: 'chat');
+        defaultContext = await runAndCaptureContext();
+      },
+      verify: (_) {
+        expect(context.map((c) => c.description), [
+          'Everyone',
+          'Ops only',
+          'Chat and ops',
+        ]);
+        expect(chatContext.map((c) => c.description), [
+          'Everyone',
+          'Chat and ops',
+        ]);
+        expect(defaultContext.map((c) => c.description), ['Everyone']);
       },
     );
 

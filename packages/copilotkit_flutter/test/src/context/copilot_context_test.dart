@@ -20,6 +20,7 @@ void main() {
     Widget build(
       Object? value, {
       String description = 'Current user',
+      Set<String>? agentIds,
       CopilotKitBloc? withClient,
     }) {
       return CopilotKit.value(
@@ -27,6 +28,7 @@ void main() {
         child: CopilotContext(
           description: description,
           value: value,
+          agentIds: agentIds,
           child: const SizedBox(),
         ),
       );
@@ -38,6 +40,27 @@ void main() {
       final added = eventsOf(client).single as ContextAdded;
       expect(added.entry.description, 'Current user');
       expect(added.entry.value, {'name': 'Ada'});
+    });
+
+    testWidgets('adds the agent ids to the entry', (tester) async {
+      await tester.pumpWidget(build(1, agentIds: {'ops'}));
+
+      final added = eventsOf(client).single as ContextAdded;
+      expect(added.entry.agentIds, {'ops'});
+    });
+
+    testWidgets('replaces the entry when the agent ids change', (tester) async {
+      await tester.pumpWidget(build(1, agentIds: {'ops'}));
+
+      // The same ids in another set: nothing to replace.
+      await tester.pumpWidget(build(1, agentIds: {'ops'}));
+      await tester.pumpWidget(build(1, agentIds: {'ops', 'chat'}));
+
+      final events = eventsOf(client);
+      final added = events.first as ContextAdded;
+      expect(events[1], ContextRemoved(added.entry.id));
+      expect((events[2] as ContextAdded).entry.agentIds, {'ops', 'chat'});
+      expect(events, hasLength(3));
     });
 
     testWidgets('updates the entry when the value changes', (tester) async {
