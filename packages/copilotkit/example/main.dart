@@ -55,8 +55,7 @@ Future<void> main() async {
   await agent.addMessage(
     UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
   );
-  agent.run();
-  await agent.stream.firstWhere((state) => !state.isRunning);
+  await agent.run();
 
   await subscription.cancel();
   client

@@ -179,7 +179,7 @@ void main() {
         ).thenAnswer((_) async {});
         final agent = await client.openAgent('default');
 
-        agent.run();
+        unawaited(agent.run());
         await agent.stream.firstWhere((state) => state.isRunning);
         agent.stop();
         await agent.stream.firstWhere((state) => !state.isRunning);

@@ -90,8 +90,7 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
     );
   });
   await agent.addMessage(UserMessage(id: 'user-1', content: message));
-  agent.run();
-  await agent.stream.firstWhere((state) => !state.isRunning);
+  await agent.run();
   await subscription.cancel();
   print(
     'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',

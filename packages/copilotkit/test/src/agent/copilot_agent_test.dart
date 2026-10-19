@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/agent/copilot_agent_event.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent_reducer.dart';
 import '../../helpers/fixtures.dart';
 
+class _MockCopilotKitClient extends Mock implements CopilotKitClient;
+
 void main() {
+  setUpAll(() => registerFallbackValue(const AgentRunRequested('fallback')));
+
   group(CopilotAgent, () {
     final user = UserMessage(id: 'u1', content: 'Hi');
 
@@ -66,6 +73,49 @@ void main() {
           agent.add(const AgentEventReceived(StepStartedEvent(stepName: 's'))),
       expect: () => const <AgentState>[],
     );
+
+    group('run and addMessage', () {
+      test(
+        'run completes once the client has handled the whole turn',
+        () async {
+          final client = _MockCopilotKitClient();
+          final turn = Completer<void>();
+          when(() => client.handled(any())).thenAnswer((_) => turn.future);
+          final agent = CopilotAgent(agentId: 'default', client: client);
+          var done = false;
+
+          final run = agent.run().then((_) => done = true);
+          await pumpEventQueue();
+
+          verify(() => client.handled(const AgentRunRequested('default')))
+              .called(1);
+          expect(done, isFalse);
+          turn.complete();
+          await run;
+          expect(done, isTrue);
+          await agent.close();
+        },
+      );
+
+      test('addMessage throws while the agent is running', () async {
+        final agent = testAgent()..add(const AgentTurnStarted());
+        await agent.settled;
+
+        await expectLater(agent.addMessage(user), throwsStateError);
+
+        expect(agent.state.messages, isEmpty);
+        await agent.close();
+      });
+
+      test('addMessage works between turns', () async {
+        final agent = testAgent();
+
+        await agent.addMessage(user);
+
+        expect(agent.state.messages, [user]);
+        await agent.close();
+      });
+    });
 
     test('settled completes once every added event is applied', () async {
       final agent = testAgent();

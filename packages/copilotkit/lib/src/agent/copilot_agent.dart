@@ -59,17 +59,29 @@ class CopilotAgent({
   }
 
   /// Appends [message] to the conversation without starting a run.
+  ///
+  /// Throws a [StateError] while the agent is running (`state.isRunning`): a
+  /// message between a tool call and its result makes the conversation invalid
+  /// for the model. Add it after the turn ends.
   Future<void> addMessage(Message message) async {
+    if (state.isRunning) {
+      throw StateError(
+        'Cannot add a message while the agent is running. Wait for the turn '
+        'to end.',
+      );
+    }
     add(AgentMessageAdded(message));
     await settled;
   }
 
-  /// Runs the agent on the current messages.
+  /// Runs the agent on the current messages and completes when the whole turn
+  /// has ended, including frontend tool handlers and the runs that follow
+  /// them. Errors go to `CopilotKitClient.onError`.
   ///
   /// Same as adding `AgentRunRequested(agentId)` to the client. [state]
-  /// reports `isRunning` until the whole turn ends; errors go to
-  /// `CopilotKitClient.onError`.
-  void run() => _client.add(AgentRunRequested(agentId));
+  /// reports `isRunning` from shortly after the call until the turn ends. A
+  /// call while the agent is already running completes right away.
+  Future<void> run() => _client.handled(AgentRunRequested(agentId));
 
   /// Stops the current run, if any.
   ///
