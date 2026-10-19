@@ -11,5 +11,4 @@ export 'src/client/copilot_kit.dart';
 export 'src/context/copilot_context.dart';
 export 'src/tools/copilot_tool.dart';
 export 'src/tools/tool_call_widget.dart';
-export 'src/tools/tool_call_widget_builder.dart';
 export 'src/tools/tool_renderer.dart';

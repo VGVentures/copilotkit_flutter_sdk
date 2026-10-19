@@ -1,6 +1,12 @@
-import 'package:copilotkit_flutter/src/tools/tool_call_widget_builder.dart';
+import 'package:copilotkit/copilotkit.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+
+/// Builds the widget for a tool call.
+typedef ToolCallWidgetBuilder = Widget Function(
+  BuildContext context,
+  ToolCallView call,
+);
 
 /// Registers how calls to the tool [name] render in its subtree.
 ///
