@@ -111,6 +111,66 @@ void main() {
 
       expect(snapshot.messages, fresh);
     });
+
+    group('MessagesSnapshot rebuilds the tool calls', () {
+      const call = ToolCall(
+        id: 'c1',
+        function: FunctionCall(name: 'search', arguments: '{"q": "dart"}'),
+      );
+      const assistant = AssistantMessage(id: 'a1', toolCalls: [call]);
+      const result = ToolMessage(id: 't1', toolCallId: 'c1', content: 'found');
+
+      test('creates views for calls that only the snapshot has', () async {
+        final snapshot = await reduce(
+          const AgentState(),
+          MessagesSnapshotEvent(messages: [assistant]),
+        );
+
+        expect(snapshot.toolCalls, const [
+          ToolCallView(
+            id: 'c1',
+            name: 'search',
+            status: ToolCallStatus.executing,
+            args: {'q': 'dart'},
+          ),
+        ]);
+      });
+
+      test('completes a call whose result arrives in the snapshot', () async {
+        const executing = ToolCallView(
+          id: 'c1',
+          name: 'search',
+          status: ToolCallStatus.executing,
+          args: {'q': 'dart'},
+        );
+
+        final snapshot = await reduce(
+          const AgentState(toolCalls: [executing]),
+          MessagesSnapshotEvent(messages: [assistant, result]),
+        );
+
+        expect(snapshot.toolCalls.single.status, ToolCallStatus.complete);
+        expect(snapshot.toolCalls.single.result, 'found');
+        expect(snapshot.toolCalls.single.args, {'q': 'dart'});
+      });
+
+      test('drops views of calls the snapshot no longer has', () async {
+        const stale = ToolCallView(
+          id: 'gone',
+          name: 'old',
+          status: ToolCallStatus.executing,
+        );
+
+        final snapshot = await reduce(
+          const AgentState(toolCalls: [stale]),
+          MessagesSnapshotEvent(
+            messages: [UserMessage(id: 'u1', content: 'Hi')],
+          ),
+        );
+
+        expect(snapshot.toolCalls, isEmpty);
+      });
+    });
   });
 
   group('CopilotAgent state', () {

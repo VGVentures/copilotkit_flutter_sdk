@@ -96,6 +96,38 @@ void main() {
       expect(agent.state.isRunning, isFalse);
     });
 
+    test(
+      'a backend call answered in a snapshot gets no extra result',
+      () async {
+        const call = ToolCall(
+          id: 'b1',
+          function: FunctionCall(name: 'backend', arguments: '{}'),
+        );
+        harness.runs.add(
+          Stream.fromIterable([
+            RunStartedEvent(threadId: agent.threadId, runId: 'r1'),
+            const ToolCallStartEvent(
+              toolCallId: 'b1',
+              toolCallName: 'backend',
+              parentMessageId: 'a1',
+            ),
+            const ToolCallEndEvent(toolCallId: 'b1'),
+            MessagesSnapshotEvent(
+              messages: [
+                const AssistantMessage(id: 'a1', toolCalls: [call]),
+                const ToolMessage(id: 't1', toolCallId: 'b1', content: 'real'),
+              ],
+            ),
+            RunFinishedEvent(threadId: agent.threadId, runId: 'r1'),
+          ]),
+        );
+
+        await client.runAgent(agent);
+
+        expect(toolResults(), ['b1=real']);
+      },
+    );
+
     test('a second stop while stopping does nothing', () async {
       final events = StreamController<BaseEvent>();
       harness.runs.add(events.stream);

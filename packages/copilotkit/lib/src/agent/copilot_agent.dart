@@ -175,9 +175,50 @@ class CopilotAgent({
       StateDeltaEvent(:final delta) => _applyStateDelta(snapshot, delta),
       MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
         messages: messages,
+        toolCalls: _toolCallsOf(snapshot.toolCalls, messages),
       ),
       _ => snapshot,
     };
+  }
+
+  /// The tool call views for [messages], keeping the views in [current] whose
+  /// call is still there: a snapshot replaces the conversation, so the views
+  /// must follow it.
+  ///
+  /// A call with a tool message is complete; one without is executing, since
+  /// a snapshot holds whole calls.
+  static List<ToolCallView> _toolCallsOf(
+    List<ToolCallView> current,
+    List<Message> messages,
+  ) {
+    final results = {
+      for (final message in messages)
+        if (message is ToolMessage) message.toolCallId: message.content,
+    };
+    final views = {for (final view in current) view.id: view};
+    return [
+      for (final message in messages)
+        if (message is AssistantMessage)
+          for (final call in message.toolCalls ?? const <ToolCall>[])
+            _viewOf(call, views[call.id], results[call.id]),
+    ];
+  }
+
+  static ToolCallView _viewOf(
+    ToolCall call,
+    ToolCallView? view,
+    String? result,
+  ) {
+    final base =
+        view ??
+        ToolCallView(
+          id: call.id,
+          name: call.function.name,
+          status: ToolCallStatus.executing,
+          args: PartialJsonParser.parse(call.function.arguments),
+        );
+    if (result == null) return base;
+    return base.copyWith(status: ToolCallStatus.complete, result: () => result);
   }
 
   /// A delta that doesn't apply (e.g. it was computed against a state this
