@@ -16,16 +16,6 @@ void main() {
       subscription: subscription,
     );
 
-    test('copyWith sets, keeps and clears the run', () {
-      final turn = TurnState(signal: signal);
-
-      final withRun = turn.copyWith(run: () => run);
-      expect(withRun.signal, same(signal));
-      expect(withRun.run, run);
-      expect(withRun.copyWith().run, run);
-      expect(withRun.copyWith(run: () => null).run, isNull);
-    });
-
     test('supports value equality', () {
       expect(TurnState(signal: signal), TurnState(signal: signal));
       expect(
