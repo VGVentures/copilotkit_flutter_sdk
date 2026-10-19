@@ -9,8 +9,7 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_x.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import '../../helpers/mock_agent_transport.dart';
 
 class _ErrorObserver extends BlocObserver {
   final List<(BlocBase<Object?>, Object)> errors = [];
@@ -25,25 +24,15 @@ class _ErrorObserver extends BlocObserver {
 final Uri _runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: <Context>[],
-      ),
-    );
-  });
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group(CopilotKitClient, () {
-    late _MockAgentTransport transport;
+    late MockAgentTransport transport;
     late List<(Object, StackTrace)> errors;
     late CopilotKitClient client;
 
     setUp(() async {
-      transport = _MockAgentTransport();
+      transport = MockAgentTransport();
       when(() => transport.close()).thenAnswer((_) async {});
       errors = [];
       client = CopilotKitClient(
@@ -56,13 +45,7 @@ void main() {
     });
 
     void stubRun(Stream<BaseEvent> events) {
-      when(
-        () => transport.run(
-          agentId: any(named: 'agentId'),
-          input: any(named: 'input'),
-          headers: any(named: 'headers'),
-        ),
-      ).thenAnswer((_) => events);
+      transport.stubRun(() => events);
     }
 
     test('exposes its configuration', () async {
@@ -200,13 +183,7 @@ void main() {
         await client.runAgent(agent);
         await client.runAgent(agent);
 
-        final runIds = verify(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: captureAny(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        ).captured.cast<RunAgentInput>().map((input) => input.runId);
+        final runIds = transport.sentInputs().map((input) => input.runId);
         expect(runIds.toSet(), hasLength(2));
       });
 
@@ -253,14 +230,7 @@ void main() {
       test('run and stop add the client events', () async {
         final events = StreamController<BaseEvent>();
         stubRun(events.stream);
-        when(
-          () => transport.stop(
-            agentId: any(named: 'agentId'),
-            threadId: any(named: 'threadId'),
-            runId: any(named: 'runId'),
-            headers: any(named: 'headers'),
-          ),
-        ).thenAnswer((_) async {});
+        transport.stubStop();
         final agent = await client.openAgent('default');
 
         agent.run();
@@ -322,13 +292,7 @@ void main() {
 
       test('reports a transport that throws synchronously', () async {
         final failure = StateError('bad transport');
-        when(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: any(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        ).thenThrow(failure);
+        transport.stubRunThrows(failure);
         final agent = await client.openAgent('default');
 
         await expectLater(client.runAgent(agent), completes);
@@ -364,13 +328,7 @@ void main() {
 
         expect(errors.single.$1, same(failure));
         expect(agent.state.isRunning, isFalse);
-        verifyNever(
-          () => transport.run(
-            agentId: any(named: 'agentId'),
-            input: any(named: 'input'),
-            headers: any(named: 'headers'),
-          ),
-        );
+        transport.verifyNoRun();
       });
 
       test('does not throw without an onError handler', () async {
@@ -444,7 +402,7 @@ void main() {
     setUp(() async {
       client = CopilotKitClient(
         runtimeUrl: _runtimeUrl,
-        transport: _MockAgentTransport(),
+        transport: MockAgentTransport(),
       );
     });
 

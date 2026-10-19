@@ -1,10 +1,8 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 
 import 'client_x.dart';
-
-class _MockAgentTransport extends Mock implements AgentTransport;
+import 'mock_agent_transport.dart';
 
 /// A client on a mocked transport for frontend tool tests.
 ///
@@ -12,38 +10,13 @@ class _MockAgentTransport extends Mock implements AgentTransport;
 class ToolLoopHarness {
   /// Creates a harness with no queued runs.
   new() {
-    when(
-      () => transport.run(
-        agentId: any(named: 'agentId'),
-        input: any(named: 'input'),
-        headers: any(named: 'headers'),
-      ),
-    ).thenAnswer((_) => runs.removeAt(0));
-    when(
-      () => transport.stop(
-        agentId: any(named: 'agentId'),
-        threadId: any(named: 'threadId'),
-        runId: any(named: 'runId'),
-        headers: any(named: 'headers'),
-      ),
-    ).thenAnswer((_) async {});
-  }
-
-  /// Registers the fallback `RunAgentInput` used by `any` matchers.
-  static void registerFallbacks() {
-    registerFallbackValue(
-      const RunAgentInput(
-        threadId: 't',
-        runId: 'r',
-        messages: [],
-        tools: [],
-        context: [],
-      ),
-    );
+    transport
+      ..stubRun(() => runs.removeAt(0))
+      ..stubStop();
   }
 
   /// The mocked transport behind [client].
-  final AgentTransport transport = _MockAgentTransport();
+  final MockAgentTransport transport = MockAgentTransport();
 
   /// Errors reported through the client's `onError`.
   final List<Object> errors = [];
@@ -64,17 +37,6 @@ class ToolLoopHarness {
   /// Opens the default agent.
   Future<void> open() async {
     agent = await client.openAgent('default');
-  }
-
-  /// The inputs of every run sent so far, in order.
-  List<RunAgentInput> sentInputs() {
-    return verify(
-      () => transport.run(
-        agentId: any(named: 'agentId'),
-        input: captureAny(named: 'input'),
-        headers: any(named: 'headers'),
-      ),
-    ).captured.cast<RunAgentInput>();
   }
 }
 

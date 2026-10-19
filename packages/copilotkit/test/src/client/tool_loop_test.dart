@@ -7,10 +7,11 @@ import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_x.dart';
 import '../../helpers/fixtures.dart';
+import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_loop_harness.dart';
 
 void main() {
-  setUpAll(ToolLoopHarness.registerFallbacks);
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('frontend tools', () {
     late ToolLoopHarness harness;
@@ -28,7 +29,7 @@ void main() {
       errors = harness.errors;
     });
 
-    List<RunAgentInput> sentInputs() => harness.sentInputs();
+    List<RunAgentInput> sentInputs() => harness.transport.sentInputs();
 
     test('runs the handler, sends the result and runs again', () async {
       Map<String, Object?>? receivedArgs;

@@ -245,28 +245,37 @@ class CopilotAgent({
     final updatedCall = call.copyWith(
       function: call.function.copyWith(arguments: arguments),
     );
-    final messages = [
-      for (final message in snapshot.messages)
-        if (message is AssistantMessage &&
-            (message.toolCalls?.contains(call) ?? false))
-          message.copyWith(
-            toolCalls: [
-              for (final c in message.toolCalls!)
-                // The same ToolCall instance, not an equal one: ag_ui models
-                // compare by identity.
-                if (identical(c, call)) updatedCall else c,
-            ],
-          )
-        else
-          message,
-    ];
     final args = PartialJsonParser.parse(arguments);
     return _updateToolCall(
-      snapshot.copyWith(messages: messages),
+      snapshot.copyWith(
+        messages: _replaceToolCall(snapshot.messages, call, updatedCall),
+      ),
       toolCallId,
       (view) => view.copyWith(args: args),
     );
   }
+
+  /// [messages] with [call] replaced by [replacement] in the assistant
+  /// message that holds it.
+  static List<Message> _replaceToolCall(
+    List<Message> messages,
+    ToolCall call,
+    ToolCall replacement,
+  ) => [
+    for (final message in messages)
+      if (message is AssistantMessage &&
+          (message.toolCalls?.contains(call) ?? false))
+        message.copyWith(
+          toolCalls: [
+            for (final c in message.toolCalls!)
+              // The same ToolCall instance, not an equal one: ag_ui models
+              // compare by identity.
+              if (identical(c, call)) replacement else c,
+          ],
+        )
+      else
+        message,
+  ];
 
   static AgentState _applyToolChunk(
     AgentState snapshot,

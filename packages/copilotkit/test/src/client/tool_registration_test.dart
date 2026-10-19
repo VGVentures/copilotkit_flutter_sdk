@@ -2,10 +2,11 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/client_x.dart';
+import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_loop_harness.dart';
 
 void main() {
-  setUpAll(ToolLoopHarness.registerFallbacks);
+  setUpAll(MockAgentTransport.registerFallbacks);
 
   group('frontend tools', () {
     late ToolLoopHarness harness;
@@ -21,7 +22,7 @@ void main() {
       runs = harness.runs;
     });
 
-    List<RunAgentInput> sentInputs() => harness.sentInputs();
+    List<RunAgentInput> sentInputs() => harness.transport.sentInputs();
 
     group('registerTool', () {
       test('sends registered tools with their JSON Schema', () async {
