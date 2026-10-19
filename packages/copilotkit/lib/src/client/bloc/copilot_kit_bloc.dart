@@ -7,8 +7,6 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
-import 'package:copilotkit/src/client/copilot_error_handler.dart';
-import 'package:copilotkit/src/client/headers_builder.dart';
 import 'package:copilotkit/src/client/models/run_state.dart';
 import 'package:copilotkit/src/client/models/turn_state.dart';
 import 'package:copilotkit/src/context/agent_context_entry.dart';
@@ -24,6 +22,15 @@ import 'package:uuid/uuid.dart';
 
 part 'copilot_kit_event.dart';
 part 'copilot_kit_state.dart';
+
+/// Returns the headers sent with a run; called once per run.
+typedef HeadersBuilder = Future<Map<String, String>> Function();
+
+/// Receives errors from runs, transports and tool handlers.
+typedef CopilotErrorHandler = void Function(
+  Object error,
+  StackTrace stackTrace,
+);
 
 /// Results sent to the agent for tool calls that never ran to completion.
 enum _FallbackToolResult {
