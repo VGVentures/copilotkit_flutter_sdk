@@ -5,15 +5,17 @@ This guide covers the conventions and the commands used in this repository.
 ## Layout
 
 Both packages use a hybrid layout: one folder per feature, with a `models/`
-subfolder for the feature's data classes. Shared files that don't belong to a
-feature sit directly in `lib/src/`. There is no `support/`, `utils/` or
-`helpers/` folder.
+subfolder for the feature's data classes and a `bloc/` subfolder for its bloc.
+Shared files that don't belong to a feature sit directly in `lib/src/`. There
+is no `support/`, `utils/` or `helpers/` folder.
 
 ```
 lib/src/
   agent/
-    copilot_agent.dart
-    models/agent_state.dart
+    bloc/
+      copilot_agent_bloc.dart
+      copilot_agent_event.dart
+      copilot_agent_state.dart
   tools/
     frontend_tool.dart
     models/tool_call_view.dart
@@ -22,6 +24,35 @@ lib/src/
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
+
+## Blocs
+
+A bloc for the feature `[feature]` lives in `[feature_dir]/bloc/` as three
+files at the same level: `[feature]_bloc.dart`, `[feature]_event.dart` and
+`[feature]_state.dart`. The event and state files are `part`s of the bloc
+file. The classes are named after the files: `[Feature]Bloc`,
+`[Feature]Event` and `[Feature]State`.
+
+A bloc exposes its `state` and nothing else: no public getters, fields or
+methods besides the `Bloc` API. Every change goes through an event added with
+`add()`. Configuration passed to the constructor is kept in private fields.
+
+```dart
+// Bad
+class CopilotAgentBloc extends Bloc<CopilotAgentEvent, CopilotAgentState> {
+  final String threadId;
+  void run() => ...;
+}
+
+// Good: the thread id is part of the state, runs are events
+agent.state.threadId;
+client.add(AgentRunRequested(agentId));
+```
+
+Blocs are tested with `blocTest` from `package:bloc_test`, never with a plain
+`test`. Assert emitted states with `expect`, and side effects (calls on mocks,
+states of other blocs) with `verify`. Event and state classes are value
+models and keep plain `test`s for equality and `copyWith`.
 
 ## One public type per file
 
@@ -133,12 +164,12 @@ set or clear the value without a sentinel.
 
 ```dart
 // Bad
-AgentState copyWith({Object? error = _unset}) =>
-    AgentState(error: identical(error, _unset) ? this.error : error);
+CopilotAgentState copyWith({Object? error = _unset}) =>
+    CopilotAgentState(error: identical(error, _unset) ? this.error : error);
 
 // Good
-AgentState copyWith({Object? Function()? error}) =>
-    AgentState(error: error == null ? this.error : error());
+CopilotAgentState copyWith({Object? Function()? error}) =>
+    CopilotAgentState(error: error == null ? this.error : error());
 
 state.copyWith();                         // keep
 state.copyWith(error: () => exception);   // set
@@ -221,4 +252,4 @@ every package, and spelling all block merges.
   fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit
   ```
 
-  Add `--via-client true` to run the same request through `CopilotKitClient`.
+  Add `--via-client true` to run the same request through `CopilotKitBloc`.
