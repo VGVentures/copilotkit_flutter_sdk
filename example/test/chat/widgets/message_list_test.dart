@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
-import 'package:example/chat/message_list.dart';
+import 'package:example/chat/widgets/message_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';

@@ -77,7 +77,7 @@ the model, see [`example/README.md`](example/README.md).
 
 The example app ships with placeholder demo content so you can check the full
 flow before the real demo scenario exists. It lives in
-`example/lib/demo/weather_demo.dart` and will be replaced.
+`example/lib/demo/widgets/weather_demo.dart` and will be replaced.
 
 <!-- prettier-ignore -->
 > [!NOTE]

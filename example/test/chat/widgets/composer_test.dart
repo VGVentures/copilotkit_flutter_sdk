@@ -1,6 +1,6 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
-import 'package:example/chat/composer.dart';
+import 'package:example/chat/widgets/composer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -72,14 +72,17 @@ void main() {
       verify(() => bloc.add(const ChatMessageSent('Hi'))).called(1);
     });
 
-    testWidgets('the keyboard action ignores blank input', (tester) async {
+    testWidgets('the keyboard action leaves blank input to the bloc', (
+      tester,
+    ) async {
       await pump(tester);
       await tester.enterText(find.byType(TextField), '  ');
 
       await tester.testTextInput.receiveAction(TextInputAction.send);
       await tester.pump();
 
-      verifyNever(() => bloc.add(any()));
+      // The bloc ignores blank messages.
+      verify(() => bloc.add(const ChatMessageSent('  '))).called(1);
     });
 
     group('while running', () {

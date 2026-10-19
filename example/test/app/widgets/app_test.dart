@@ -1,6 +1,6 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/app/app.dart';
-import 'package:example/chat/chat_screen.dart';
+import 'package:example/chat/widgets/chat_page.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -13,7 +13,6 @@ void main() {
       expect(find.byType(ChatPage), findsOneWidget);
       final client = CopilotKit.of(tester.element(find.byType(ChatPage)));
       expect(client.agents.keys, [ChatPage.agentId]);
-      App.logError(Exception('logged, not thrown'), StackTrace.current);
     });
 
     testWidgets('explains how to set the runtime URL when missing', (
