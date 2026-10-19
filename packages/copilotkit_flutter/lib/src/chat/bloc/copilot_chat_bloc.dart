@@ -8,14 +8,14 @@ import 'package:uuid/uuid.dart';
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
 
-/// Drives a chat UI from a [CopilotAgentBloc].
+/// Drives a chat UI from a [CopilotAgent].
 ///
 /// Mirrors the agent's state into [CopilotChatState] once
 /// [ChatSubscriptionRequested] is added, and turns [ChatMessageSent] and
 /// [ChatStopRequested] into [CopilotKitBloc] events.
 class CopilotChatBloc({
   required final CopilotKitBloc _client,
-  required final CopilotAgentBloc _agent,
+  required final CopilotAgent _agent,
 }) extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// Creates a bloc that drives a chat UI from [_agent], an agent opened on
   /// [_client].
@@ -36,7 +36,10 @@ class CopilotChatBloc({
     // the first state even when it equals the initial one; skip that.
     final current = CopilotChatState.fromAgentState(_agent.state);
     if (current != state) emit(current);
-    await emit.forEach(_agent.stream, onData: CopilotChatState.fromAgentState);
+    await emit.forEach(
+      _agent.stateStream,
+      onData: CopilotChatState.fromAgentState,
+    );
   }
 
   void _onMessageSent(ChatMessageSent event, Emitter<CopilotChatState> emit) {

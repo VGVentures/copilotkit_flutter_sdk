@@ -4,8 +4,8 @@ import 'package:equatable/equatable.dart';
 
 /// Immutable view of an agent at one point in time.
 ///
-/// `CopilotAgentBloc` emits a new state every time an event changes the
-/// agent.
+/// A `CopilotAgent` replaces its state with a new one every time it
+/// changes.
 class const CopilotAgentState({
   /// Id of the agent on the runtime, e.g. `default`.
   required final String agentId,

@@ -53,13 +53,12 @@ methods besides the `Bloc` API. Every change goes through an event added with
 
 ```dart
 // Bad
-class CopilotAgentBloc extends Bloc<CopilotAgentEvent, CopilotAgentState> {
-  final String threadId;
-  void run() => ...;
+class CopilotKitBloc extends Bloc<CopilotKitEvent, CopilotKitState> {
+  final Uri runtimeUrl;
+  void run(String agentId) => ...;
 }
 
-// Good: the thread id is part of the state, runs are events
-agent.state.threadId;
+// Good: the configuration is private, runs are events
 client.add(AgentRunRequested(agentId));
 ```
 

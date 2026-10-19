@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 
 class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
-class _MockCopilotAgentBloc extends Mock implements CopilotAgentBloc;
+class _MockCopilotAgent extends Mock implements CopilotAgent;
 
 const _agentState = CopilotAgentState(agentId: 'default', threadId: 't');
 final _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
@@ -34,15 +34,15 @@ void main() {
 
   group(CopilotChatBloc, () {
     late _MockCopilotKitBloc client;
-    late _MockCopilotAgentBloc agent;
+    late _MockCopilotAgent agent;
     late StreamController<CopilotAgentState> changes;
 
     setUp(() {
       client = _MockCopilotKitBloc();
-      agent = _MockCopilotAgentBloc();
+      agent = _MockCopilotAgent();
       changes = StreamController<CopilotAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);
-      when(() => agent.stream).thenAnswer((_) => changes.stream);
+      when(() => agent.stateStream).thenAnswer((_) => changes.stream);
     });
 
     tearDown(() => changes.close());

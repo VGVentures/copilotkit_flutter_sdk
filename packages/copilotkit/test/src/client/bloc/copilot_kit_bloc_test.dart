@@ -162,7 +162,7 @@ void main() {
     });
 
     group('$AgentRunRequested', () {
-      late CopilotAgentBloc agent;
+      late CopilotAgent agent;
       final message = UserMessage(id: 'u1', content: 'Hi');
 
       setUp(() async => agent = await client.openAgent('default'));
@@ -172,7 +172,7 @@ void main() {
         setUp: () => stubRun(const Stream.empty()),
         build: () => client,
         act: (_) async {
-          agent.add(AgentMessageAdded(message));
+          agent.addMessage(message);
           await client.runAgent(agent);
         },
         verify: (_) {
@@ -285,7 +285,9 @@ void main() {
             ]),
           );
           texts = [];
-          agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
+          agent.stateStream.listen(
+            (s) => texts.add(s.messages.lastOrNull?.content),
+          );
         },
         build: () => client,
         act: (_) => client.runAgent(agent),
@@ -316,7 +318,7 @@ void main() {
             ]),
           );
           sharedStates = [];
-          agent.stream
+          agent.stateStream
               .map((state) => state.sharedState)
               .where((shared) => shared != null)
               .distinct()
@@ -503,7 +505,7 @@ void main() {
     });
 
     group('close', () {
-      late CopilotAgentBloc agent;
+      late CopilotAgent agent;
       late Future<void> changesDone;
 
       blocTest<CopilotKitBloc, CopilotKitState>(
@@ -511,7 +513,7 @@ void main() {
         build: () => client,
         act: (_) async {
           agent = await client.openAgent('default');
-          changesDone = agent.stream.drain<void>();
+          changesDone = agent.stateStream.drain<void>();
         },
         verify: (_) async {
           verify(() => transport.close()).called(1);

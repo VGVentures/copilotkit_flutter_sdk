@@ -17,7 +17,7 @@ void main() {
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late TestCopilotKitBloc client;
-    late CopilotAgentBloc agent;
+    late CopilotAgent agent;
     late List<Stream<BaseEvent>> runs;
     late List<Object> errors;
 
@@ -42,7 +42,7 @@ void main() {
     /// Records whether the agent was running on every state it emits.
     List<bool> recordRunning() {
       final running = <bool>[];
-      agent.stream.listen((state) => running.add(state.isRunning));
+      agent.stateStream.listen((state) => running.add(state.isRunning));
       return running;
     }
 
@@ -62,7 +62,7 @@ void main() {
         );
         queueToolCallAndReply();
         statuses = [];
-        agent.stream.listen((s) {
+        agent.stateStream.listen((s) {
           final status = s.toolCalls.firstOrNull?.status;
           if (status != null && statuses.lastOrNull != status) {
             statuses.add(status);

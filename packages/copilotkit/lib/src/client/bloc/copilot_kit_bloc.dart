@@ -103,7 +103,7 @@ class CopilotKitBloc({
       state.copyWith(
         agents: {
           ...state.agents,
-          event.agentId: CopilotAgentBloc(agentId: event.agentId),
+          event.agentId: CopilotAgent(agentId: event.agentId),
         },
       ),
     );
@@ -168,16 +168,12 @@ class CopilotKitBloc({
     final signal = CancellationSignal();
     emit(_withTurn(event.agentId, TurnState(signal: signal)));
     // Started first, so the agent's first new state is already running.
-    agent.add(const AgentTurnStarted());
-    if (event.message case final message?) {
-      agent.add(AgentMessageAdded(message));
-    }
+    agent.startTurn();
+    if (event.message case final message?) agent.addMessage(message);
     try {
-      // Messages the app added before this run go into its input.
-      await _settle(agent);
       while (await _runOnce(agent, signal, emit)) {
         final pending = _pendingToolCalls(agent);
-        await _closeOpenToolCalls(
+        _closeOpenToolCalls(
           agent,
           _FallbackToolResult.unavailable,
           where: (call) => !state.tools.containsKey(call.name),
@@ -186,7 +182,7 @@ class CopilotKitBloc({
         for (final (call, tool) in pending) {
           final result = await _runHandler(tool, call, signal);
           if (signal.isCancelled) return;
-          await _addToolResult(agent, call, result);
+          _addToolResult(agent, call, result);
         }
       }
     } finally {
@@ -195,8 +191,7 @@ class CopilotKitBloc({
       if (!agent.isClosed &&
           identical(state.turns[event.agentId]?.signal, signal)) {
         emit(_withTurn(event.agentId, null));
-        agent.add(const AgentTurnEnded());
-        await _settle(agent);
+        agent.endTurn();
       }
     }
   }
@@ -213,13 +208,11 @@ class CopilotKitBloc({
     final run = turn.run;
     if (run != null) await run.subscription.cancel();
 
-    await _settle(agent);
-    await _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
+    _closeOpenToolCalls(agent, _FallbackToolResult.cancelled);
     // close() ended the turn while this stop was waiting; like close(), it
     // sends no stop request.
     if (agent.isClosed) return;
-    agent.add(const AgentTurnEnded());
-    await _settle(agent);
+    agent.endTurn();
     if (run == null) return;
     try {
       await _transport.stop(
@@ -245,7 +238,7 @@ class CopilotKitBloc({
 
   /// The input for a new run of [agent], with the registered tools and
   /// context.
-  RunAgentInput _buildInput(CopilotAgentBloc agent) => RunAgentInput(
+  RunAgentInput _buildInput(CopilotAgent agent) => RunAgentInput(
     threadId: agent.state.threadId,
     runId: const Uuid().v4(),
     state: agent.state.sharedState,
@@ -268,7 +261,7 @@ class CopilotKitBloc({
   /// Streams one run of [agent] within the turn [signal] belongs to.
   /// Returns whether it finished successfully and wasn't stopped.
   Future<bool> _runOnce(
-    CopilotAgentBloc agent,
+    CopilotAgent agent,
     CancellationSignal signal,
     Emitter<CopilotKitState> emit,
   ) async {
@@ -303,7 +296,7 @@ class CopilotKitBloc({
     final subscription = events.listen(
       (event) {
         if (event is RunFinishedEvent || event is RunErrorEvent) ended = true;
-        agent.add(AgentEventReceived(event));
+        agent.apply(event);
         if (event is RunErrorEvent) addError(event, StackTrace.current);
       },
       onError: (Object error, StackTrace stackTrace) {
@@ -336,19 +329,16 @@ class CopilotKitBloc({
       ),
     );
     await Future.any([streamDone.future, signal.whenCancelled]);
-    await _settle(agent);
     if (signal.isCancelled) return false;
     emit(_withTurn(agent.state.agentId, TurnState(signal: signal)));
     if (agent.state.error == null) return true;
-    await _closeOpenToolCalls(agent, _FallbackToolResult.failed);
+    _closeOpenToolCalls(agent, _FallbackToolResult.failed);
     return false;
   }
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
-  List<(ToolCallView, FrontendTool)> _pendingToolCalls(
-    CopilotAgentBloc agent,
-  ) => [
+  List<(ToolCallView, FrontendTool)> _pendingToolCalls(CopilotAgent agent) => [
     for (final call in agent.state.toolCalls)
       if ((call.status, state.tools[call.name]) case (
         ToolCallStatus.executing,
@@ -408,47 +398,32 @@ class CopilotKitBloc({
 
   /// Gives every tool call without a result (and matching [where], if set)
   /// the message of [result], so the conversation stays valid for the next run.
-  Future<void> _closeOpenToolCalls(
-    CopilotAgentBloc agent,
+  void _closeOpenToolCalls(
+    CopilotAgent agent,
     _FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
-  }) async {
+  }) {
     for (final call in agent.state.toolCalls) {
       if (call.status != ToolCallStatus.complete &&
           (where?.call(call) ?? true)) {
-        await _addToolResult(agent, call, result.message);
+        _addToolResult(agent, call, result.message);
       }
     }
   }
 
-  Future<void> _addToolResult(
-    CopilotAgentBloc agent,
-    ToolCallView call,
-    String content,
-  ) async {
-    if (agent.isClosed) return;
-    agent.add(
-      AgentEventReceived(
-        ToolCallResultEvent(
-          messageId: const Uuid().v4(),
-          toolCallId: call.id,
-          content: content,
-        ),
+  /// A closed agent ignores the result.
+  void _addToolResult(CopilotAgent agent, ToolCallView call, String content) {
+    agent.apply(
+      ToolCallResultEvent(
+        messageId: const Uuid().v4(),
+        toolCallId: call.id,
+        content: content,
       ),
     );
-    await _settle(agent);
   }
 
-  /// Completes once every event added to [agent] so far has been applied.
-  static Future<void> _settle(CopilotAgentBloc agent) {
-    if (agent.isClosed) return Future.value();
-    final completer = Completer<void>();
-    agent.add(AgentSettleRequested(completer));
-    return completer.future;
-  }
-
-  void _fail(CopilotAgentBloc agent, Object error, StackTrace stackTrace) {
-    agent.add(AgentRunFailed(error));
+  void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
+    agent.fail(error);
     addError(error, stackTrace);
   }
 }

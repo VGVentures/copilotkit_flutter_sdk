@@ -31,7 +31,7 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     final client = _client!;
-    return BlocSelector<CopilotKitBloc, CopilotKitState, CopilotAgentBloc?>(
+    return BlocSelector<CopilotKitBloc, CopilotKitState, CopilotAgent?>(
       bloc: client,
       selector: (state) => state.agents[ChatPage.agentId],
       builder: (context, agent) {

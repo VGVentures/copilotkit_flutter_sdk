@@ -36,7 +36,7 @@ Future<void> main() async {
   final agent = await client.stream
       .map((state) => state.agents['default'])
       .firstWhere((agent) => agent != null);
-  final subscription = agent!.stream.listen((state) {
+  final subscription = agent!.stateStream.listen((state) {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
@@ -60,7 +60,7 @@ Future<void> main() async {
       ),
     ),
   );
-  await agent.stream.firstWhere((state) => !state.isRunning);
+  await agent.stateStream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();
   client
