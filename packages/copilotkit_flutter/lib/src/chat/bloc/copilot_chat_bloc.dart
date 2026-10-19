@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/chat/models/chat_row.dart';
 import 'package:equatable/equatable.dart';
@@ -20,7 +21,9 @@ class CopilotChatBloc({required final CopilotAgent _agent})
     on<_AgentStateChanged>(
       (event, emit) => emit(CopilotChatState.fromAgentState(event.state)),
     );
-    on<ChatMessageSent>(_onMessageSent);
+    // One send at a time: a send that arrives while another is adding its
+    // message would pass the isRunning check before the first run starts.
+    on<ChatMessageSent>(_onMessageSent, transformer: droppable());
     on<ChatStopRequested>((_, _) => _agent.stop());
     _subscription = _agent.stream.listen(
       (state) => add(_AgentStateChanged(state)),

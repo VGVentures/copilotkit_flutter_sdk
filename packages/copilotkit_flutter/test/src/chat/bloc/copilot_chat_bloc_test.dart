@@ -165,15 +165,38 @@ void main() {
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatMessageSent gives each message its own id',
       build: () => CopilotChatBloc(agent: agent),
-      act: (bloc) => bloc
-        ..add(const ChatMessageSent('one'))
-        ..add(const ChatMessageSent('two')),
+      act: (bloc) async {
+        bloc.add(const ChatMessageSent('one'));
+        await pumpEventQueue();
+        bloc.add(const ChatMessageSent('two'));
+      },
       verify: (_) {
         final ids = verify(() => agent.addMessage(captureAny())).captured
             .cast<UserMessage>()
             .map((m) => m.id);
         expect(ids.toSet(), hasLength(2));
         expect(ids.every((id) => Uuid.isValidUUID(fromString: id!)), isTrue);
+      },
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'ChatMessageSent drops a send while another is in flight',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (bloc) async {
+        final added = Completer<void>();
+        when(() => agent.addMessage(any())).thenAnswer((_) => added.future);
+        bloc
+          ..add(const ChatMessageSent('one'))
+          ..add(const ChatMessageSent('two'));
+        await pumpEventQueue();
+        added.complete();
+      },
+      verify: (_) {
+        final message =
+            verify(() => agent.addMessage(captureAny())).captured.single
+                as UserMessage;
+        expect(message.content, 'one');
+        verify(() => agent.run()).called(1);
       },
     );
 
