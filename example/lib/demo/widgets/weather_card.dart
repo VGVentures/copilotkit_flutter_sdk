@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
@@ -44,7 +46,7 @@ class const WeatherCard({
   }
 
   Widget _forecast(String? result, TextTheme textTheme) {
-    final forecast = Forecast.tryParse(result);
+    final forecast = _forecastFrom(result);
     if (forecast == null) return Text(result ?? '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -53,5 +55,17 @@ class const WeatherCard({
         Text('${forecast.temperatureC}°C · ${forecast.condition}'),
       ],
     );
+  }
+
+  /// Decodes the JSON-encoded forecast in [result], or returns `null` when
+  /// it isn't one, e.g. a cancellation or error message.
+  Forecast? _forecastFrom(String? result) {
+    if (result == null) return null;
+    try {
+      return JsonObject.fromJson(jsonDecode(result))
+          .tryDecode(Forecast.fromJson);
+    } on FormatException {
+      return null;
+    }
   }
 }

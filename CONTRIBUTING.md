@@ -174,8 +174,8 @@ class TurnState extends Equatable {
 ### Value models use `Equatable`
 
 Every value model extends `Equatable` so that equal values compare equal and
-blocs skip emitting unchanged states. Use `identical` only when you mean "the
-same instance", and say why in a comment.
+blocs skip emitting unchanged states. Compare with `==`, never `identical`: a
+type that needs instance equality keeps the default `==`.
 
 ### Nullable fields in `copyWith`
 

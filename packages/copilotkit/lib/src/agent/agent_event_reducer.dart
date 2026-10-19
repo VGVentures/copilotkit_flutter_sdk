@@ -180,9 +180,9 @@ class const AgentEventReducer({
         message.copyWith(
           toolCalls: [
             for (final c in message.toolCalls!)
-              // The same ToolCall instance, not an equal one: ag_ui models
-              // compare by identity.
-              if (identical(c, call)) replacement else c,
+              // ag_ui models don't override `==`, so this matches the
+              // ToolCall itself, not another one with the same fields.
+              if (c == call) replacement else c,
           ],
         )
       else

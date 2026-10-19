@@ -26,7 +26,7 @@ class _ToolCallWidgetState extends State<ToolCallWidget>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final builders = ToolRenderer.buildersOf(context);
+    final builders = ToolRenderer.maybeOf(context);
     final builder =
         builders?[widget.call.name] ?? builders?[ToolRenderer.nameFallback];
     return builder?.call(context, widget.call) ?? const SizedBox.shrink();

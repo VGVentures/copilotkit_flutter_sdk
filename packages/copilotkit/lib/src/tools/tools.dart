@@ -6,4 +6,3 @@ export 'models/tool_call_status.dart';
 export 'models/tool_call_view.dart';
 export 'tool_call_executor.dart';
 export 'tool_registry.dart';
-export 'tool_schema.dart';

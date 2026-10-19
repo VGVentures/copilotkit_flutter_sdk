@@ -11,6 +11,9 @@ import 'package:uuid/uuid.dart';
 class const RunInputBuilder({
   /// Generates the id of each run.
   final Uuid _uuid = const Uuid(),
+
+  /// Encodes the parameters of each tool as JSON Schema.
+  final JsonSchemaEncoder _schemaEncoder = const JsonSchemaEncoder(),
 }) {
   /// Creates a builder.
   this;
@@ -33,7 +36,7 @@ class const RunInputBuilder({
         Tool(
           name: tool.name,
           description: tool.description,
-          parameters: ToolSchema(tool.parameters).toJson(),
+          parameters: _schemaEncoder.encode(tool.parameters),
         ),
     ],
     context: [

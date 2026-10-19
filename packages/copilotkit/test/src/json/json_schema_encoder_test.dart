@@ -1,11 +1,13 @@
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/tools/tool_schema.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('ToolSchema toJson', () {
+  group(JsonSchemaEncoder, () {
+    const encoder = JsonSchemaEncoder();
+
     test('keeps a schema that already has properties', () {
-      expect(ToolSchema(Ack.object({'city': Ack.string()})).toJson(), {
+      expect(encoder.encode(Ack.object({'city': Ack.string()})), {
         'type': 'object',
         'properties': {
           'city': {'type': 'string'},
@@ -16,7 +18,7 @@ void main() {
     });
 
     test('adds properties to an empty object', () {
-      expect(ToolSchema(Ack.object({})).toJson(), {
+      expect(encoder.encode(Ack.object({})), {
         'type': 'object',
         'additionalProperties': false,
         'properties': <String, Object?>{},
@@ -24,14 +26,14 @@ void main() {
     });
 
     test('adds properties to nested empty objects', () {
-      final json = ToolSchema(
+      final json = encoder.encode(
         Ack.object({
           'plain': Ack.object({}),
           'nullable': Ack.object({}).nullable(),
           'list': Ack.list(Ack.object({})),
           'deep': Ack.object({'inner': Ack.object({})}),
         }),
-      ).toJson();
+      );
 
       const empty = {
         'type': 'object',

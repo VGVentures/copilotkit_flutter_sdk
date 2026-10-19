@@ -52,7 +52,7 @@ void main() {
       expect(input.tools.single.description, 'Show the weather');
       expect(
         input.tools.single.parameters,
-        ToolSchema(tool.parameters).toJson(),
+        const JsonSchemaEncoder().encode(tool.parameters),
       );
       expect(input.context.single.description, 'Current user');
       expect(input.context.single.value, '{"name":"Ada"}');

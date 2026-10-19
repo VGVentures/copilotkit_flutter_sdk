@@ -35,7 +35,7 @@ class const ToolRenderer({
   /// The builders registered by the renderers above [context], by tool name,
   /// or `null` when there are none. Used by `ToolCallWidget`.
   @internal
-  static Map<String, ToolCallWidgetBuilder>? buildersOf(BuildContext context) =>
+  static Map<String, ToolCallWidgetBuilder>? maybeOf(BuildContext context) =>
       _ToolBuilders.maybeOf(context);
 
   @override
@@ -55,7 +55,5 @@ class const _ToolBuilders({
   @override
   bool updateShouldNotify(_ToolBuilders oldWidget) =>
       builders.length != oldWidget.builders.length ||
-      builders.entries.any(
-        (e) => !identical(oldWidget.builders[e.key], e.value),
-      );
+      builders.entries.any((e) => oldWidget.builders[e.key] != e.value);
 }
