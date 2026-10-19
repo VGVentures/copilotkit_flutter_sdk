@@ -5,6 +5,8 @@ library;
 
 export 'package:copilotkit/copilotkit.dart';
 
+export 'src/agent/agent_state_builder.dart';
+export 'src/agent/copilot_agent_scope.dart';
 export 'src/chat/bloc/copilot_chat_bloc.dart';
 export 'src/chat/models/chat_row.dart';
 export 'src/client/copilot_kit.dart';

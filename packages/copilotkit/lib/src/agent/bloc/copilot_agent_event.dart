@@ -44,9 +44,12 @@ final class const AgentMessageAdded(final Message message)
 /// The app replaced every message of the conversation with [messages].
 ///
 /// Use it to reset a conversation (`AgentMessagesSet([])`) or to restore a
-/// saved one. Tool calls that no message refers to anymore are dropped from
-/// `CopilotAgentState.toolCalls`. Allowed while the agent is running; the
-/// events that stream in afterwards apply on top of [messages].
+/// saved one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
+/// `CopilotAgentState.toolCalls` from [messages]: a call a message holds
+/// keeps the view the agent already has, or becomes executing, or complete
+/// when a tool message answers it; calls no message holds anymore are
+/// dropped. Allowed while the agent is running; the events that stream in
+/// afterwards apply on top of [messages].
 final class const AgentMessagesSet(final List<Message> messages)
     extends CopilotAgentEvent {
   /// Creates the event for replacing the conversation with [messages].
