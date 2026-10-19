@@ -36,7 +36,9 @@ class _ChatPageState extends State<ChatPage> {
       builder: (context, agent) {
         if (agent == null) return const SizedBox.shrink();
         return BlocProvider(
-          create: (_) => CopilotChatBloc(agent: agent),
+          create: (_) =>
+              CopilotChatBloc(agent: agent)
+                ..add(const ChatSubscriptionRequested()),
           child: const ChatView(),
         );
       },

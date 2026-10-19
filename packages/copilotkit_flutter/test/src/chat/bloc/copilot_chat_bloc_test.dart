@@ -67,7 +67,9 @@ void main() {
     blocTest<CopilotChatBloc, CopilotChatState>(
       'maps every agent state to a chat state',
       build: () => CopilotChatBloc(agent: agent),
-      act: (_) {
+      act: (bloc) async {
+        bloc.add(const ChatSubscriptionRequested());
+        await pumpEventQueue();
         changes
           ..add(AgentState(messages: [_user], isRunning: true))
           ..add(
@@ -104,6 +106,25 @@ void main() {
           error: 'boom',
         ),
       ],
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'ChatSubscriptionRequested catches up with the agent first',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (bloc) {
+        when(() => agent.state).thenReturn(AgentState(messages: [_user]));
+        bloc.add(const ChatSubscriptionRequested());
+      },
+      expect: () => [
+        CopilotChatState(rows: [ChatMessageRow(_user)]),
+      ],
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'mirrors nothing before ChatSubscriptionRequested',
+      build: () => CopilotChatBloc(agent: agent),
+      act: (_) => changes.add(AgentState(messages: [_user])),
+      expect: () => <CopilotChatState>[],
     );
 
     group('rows', () {
@@ -230,7 +251,9 @@ void main() {
     );
 
     test('close stops listening to the agent', () async {
-      final bloc = CopilotChatBloc(agent: agent);
+      final bloc = CopilotChatBloc(agent: agent)
+        ..add(const ChatSubscriptionRequested());
+      await pumpEventQueue();
       expect(changes.hasListener, isTrue);
 
       await bloc.close();
@@ -244,6 +267,7 @@ void main() {
       expect(ChatMessageSent('a'), ChatMessageSent('a'));
       expect(ChatMessageSent('a'), isNot(ChatMessageSent('b')));
       expect(ChatStopRequested(), ChatStopRequested());
+      expect(ChatSubscriptionRequested(), ChatSubscriptionRequested());
     });
   });
 }
