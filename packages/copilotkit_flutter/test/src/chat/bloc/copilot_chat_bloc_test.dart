@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uuid/uuid.dart';
 
-class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
+class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
 class _MockCopilotAgent extends Mock implements CopilotAgent;
 
@@ -30,16 +30,18 @@ const _assistantWithCall = AssistantMessage(
 );
 
 void main() {
-  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
-
   group(CopilotChatBloc, () {
-    late _MockCopilotKitBloc client;
+    late _MockCopilotKitClient client;
     late _MockCopilotAgent agent;
     late StreamController<CopilotAgentState> changes;
 
     setUp(() {
-      client = _MockCopilotKitBloc();
+      client = _MockCopilotKitClient();
       agent = _MockCopilotAgent();
+      when(() => client.agent('default')).thenReturn(agent);
+      when(() => client.runAgent(any(), message: any(named: 'message')))
+          .thenAnswer((_) async {});
+      when(() => client.stopAgent(any())).thenAnswer((_) async {});
       changes = StreamController<CopilotAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);
       when(() => agent.stream).thenAnswer((_) => changes.stream);
@@ -48,11 +50,12 @@ void main() {
     tearDown(() => changes.close());
 
     CopilotChatBloc buildBloc() =>
-        CopilotChatBloc(client: client, agent: agent);
+        CopilotChatBloc(client: client, agentId: 'default');
 
-    /// The events added to the client so far.
-    List<CopilotKitEvent> clientEvents() =>
-        verify(() => client.add(captureAny())).captured.cast<CopilotKitEvent>();
+    /// The messages the agent was run with so far.
+    List<UserMessage> sentMessages() => verify(
+      () => client.runAgent('default', message: captureAny(named: 'message')),
+    ).captured.cast<UserMessage>();
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'starts from the agent state',
@@ -154,9 +157,7 @@ void main() {
       build: buildBloc,
       act: (bloc) => bloc.add(const ChatMessageSent('  Hi there  ')),
       verify: (_) {
-        final event = clientEvents().single as AgentRunRequested;
-        expect(event.agentId, 'default');
-        final message = event.message! as UserMessage;
+        final message = sentMessages().single;
         expect(message.content, 'Hi there');
         expect(Uuid.isValidUUID(fromString: message.id!), isTrue);
       },
@@ -169,9 +170,7 @@ void main() {
         ..add(const ChatMessageSent('one'))
         ..add(const ChatMessageSent('two')),
       verify: (_) {
-        final ids = clientEvents().cast<AgentRunRequested>().map(
-          (event) => event.message!.id,
-        );
+        final ids = sentMessages().map((message) => message.id);
         expect(ids.toSet(), hasLength(2));
       },
     );
@@ -180,16 +179,16 @@ void main() {
       'ChatMessageSent ignores blank text',
       build: buildBloc,
       act: (bloc) => bloc.add(const ChatMessageSent('   ')),
-      verify: (_) => verifyNever(() => client.add(any())),
+      verify: (_) => verifyNever(
+        () => client.runAgent(any(), message: any(named: 'message')),
+      ),
     );
 
     blocTest<CopilotChatBloc, CopilotChatState>(
       'ChatStopRequested stops the agent',
       build: buildBloc,
       act: (bloc) => bloc.add(const ChatStopRequested()),
-      verify: (_) =>
-          verify(() => client.add(const AgentStopRequested('default')))
-              .called(1),
+      verify: (_) => verify(() => client.stopAgent('default')).called(1),
     );
   });
 }

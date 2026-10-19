@@ -55,7 +55,6 @@ jobs:
       flutter_version_file: .fvmrc
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
-      run_bloc_lint: false
 
   copilotkit_flutter:
     needs: changes

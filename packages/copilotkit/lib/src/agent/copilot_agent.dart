@@ -10,8 +10,7 @@ import 'package:uuid/uuid.dart';
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
 /// [state], and adds the new state to [stream] every time it changes.
-/// Open one by adding `AgentOpened` to a `CopilotKitBloc` and read it from
-/// `CopilotKitState.agents`.
+/// Open one with `CopilotKitClient.agent`.
 ///
 /// It changes over time, so unlike the value types it is mutable: [state] is
 /// replaced, never modified.
@@ -22,7 +21,7 @@ class CopilotAgent({
 }) {
   /// Creates the agent [agentId].
   ///
-  /// Internal: only the client creates agents, on `AgentOpened`, so it
+  /// Internal: only `CopilotKitClient.agent` creates agents, so the client
   /// tracks every agent it runs. A random [threadId] is generated when none
   /// is given. The reducer applies AG-UI events to the state.
   @internal
@@ -47,7 +46,8 @@ class CopilotAgent({
 
   /// Appends [message] to the conversation, without starting a run.
   ///
-  /// Run the agent with `AgentRunRequested`, which can also add a message.
+  /// Run the agent with `CopilotKitClient.runAgent`, which can also add a
+  /// message.
   void addMessage(Message message) {
     _update(_state.copyWith(messages: [..._state.messages, message]));
   }

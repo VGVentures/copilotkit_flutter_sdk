@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../helpers/client_harness.dart';
 import '../../helpers/fixtures.dart';
 import '../../helpers/mock_agent_transport.dart';
-import '../../helpers/tool_loop_harness.dart';
+import '../../helpers/tool_runs.dart';
 
 void main() {
   setUpAll(MockAgentTransport.registerFallbacks);

@@ -3,9 +3,9 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
+class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
-class const _ClientProbe(final void Function(CopilotKitBloc client) onBuild)
+class const _ClientProbe(final void Function(CopilotKitClient client) onBuild)
     extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ void main() {
 
   group(CopilotKit, () {
     testWidgets('creates a client from its configuration', (tester) async {
-      late CopilotKitBloc client;
+      late CopilotKitClient client;
       Future<Map<String, String>> headers() async => {'a': 'b'};
       void onError(Object error, StackTrace stackTrace) {}
 
@@ -33,12 +33,13 @@ void main() {
         ),
       );
 
-      expect(client.state, const CopilotKitState());
-      expect(client.isClosed, isFalse);
+      expect(client.agents, isEmpty);
+      expect(client.tools, isEmpty);
+      expect(client.context, isEmpty);
     });
 
     testWidgets('keeps the same client across rebuilds', (tester) async {
-      final clients = <CopilotKitBloc>[];
+      final clients = <CopilotKitClient>[];
       Widget build() =>
           CopilotKit(runtimeUrl: runtimeUrl, child: _ClientProbe(clients.add));
 
@@ -50,34 +51,31 @@ void main() {
     });
 
     testWidgets('disposes the client it created when removed', (tester) async {
-      late CopilotKitBloc client;
+      late CopilotKitClient client;
       await tester.pumpWidget(
         CopilotKit(
           runtimeUrl: runtimeUrl,
           child: _ClientProbe((c) => client = c),
         ),
       );
-      client.add(const AgentOpened('default'));
-      await tester.pumpAndSettle();
-      final agent = client.state.agents['default']!;
+      final agent = client.agent('default');
 
-      // Bloc's close() only completes with a real event loop.
+      // close() only completes with a real event loop.
       await tester.runAsync(() async {
         await tester.pumpWidget(const SizedBox());
         await Future<void>.delayed(Duration.zero);
       });
 
       expect(agent.isClosed, isTrue);
-      expect(client.isClosed, isTrue);
     });
 
     group('value', () {
-      late _MockCopilotKitBloc client;
+      late _MockCopilotKitClient client;
 
-      setUp(() => client = _MockCopilotKitBloc());
+      setUp(() => client = _MockCopilotKitClient());
 
       testWidgets('provides the injected client', (tester) async {
-        late CopilotKitBloc provided;
+        late CopilotKitClient provided;
 
         await tester.pumpWidget(
           CopilotKit.value(
@@ -102,9 +100,9 @@ void main() {
       testWidgets('rebuilds dependents when the client changes', (
         tester,
       ) async {
-        final other = _MockCopilotKitBloc();
-        final provided = <CopilotKitBloc>[];
-        Widget build(CopilotKitBloc c) =>
+        final other = _MockCopilotKitClient();
+        final provided = <CopilotKitClient>[];
+        Widget build(CopilotKitClient c) =>
             CopilotKit.value(client: c, child: _ClientProbe(provided.add));
 
         await tester.pumpWidget(build(client));
@@ -127,7 +125,7 @@ void main() {
       });
 
       testWidgets('maybeOf returns null without an ancestor', (tester) async {
-        CopilotKitBloc? client = _MockCopilotKitBloc();
+        CopilotKitClient? client = _MockCopilotKitClient();
 
         await tester.pumpWidget(
           Builder(

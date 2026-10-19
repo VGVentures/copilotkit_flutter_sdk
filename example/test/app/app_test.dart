@@ -12,7 +12,7 @@ void main() {
 
       expect(find.byType(ChatPage), findsOneWidget);
       final client = CopilotKit.of(tester.element(find.byType(ChatPage)));
-      expect(client.isClosed, isFalse);
+      expect(client.agents.keys, [ChatPage.agentId]);
       App.logError(Exception('logged, not thrown'), StackTrace.current);
     });
 

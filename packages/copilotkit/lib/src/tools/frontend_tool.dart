@@ -11,7 +11,7 @@ import 'package:equatable/equatable.dart';
 ///
 /// Returns the result string sent back to the agent. If it throws, the agent
 /// gets a generic failure result and the error goes to
-/// the `onError` of `CopilotKitBloc`.
+/// the `onError` of `CopilotKitClient`.
 typedef FrontendToolHandler = Future<String> Function(
   Map<String, Object?> args, {
   required CancellationSignal signal,
@@ -19,7 +19,7 @@ typedef FrontendToolHandler = Future<String> Function(
 
 /// A tool the agent can call that runs in the app.
 ///
-/// Register it with `ToolRegistered`. When the agent calls it,
+/// Register it with `CopilotKitClient.registerTool`. When the agent calls it,
 /// [handler] runs, its result is appended as a tool message, and the agent
 /// continues in the same turn.
 class const FrontendTool({
