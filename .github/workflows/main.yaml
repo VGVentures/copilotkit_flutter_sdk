@@ -49,7 +49,7 @@ jobs:
   copilotkit:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2.0.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: packages/copilotkit
       flutter_version_file: .fvmrc
@@ -60,7 +60,7 @@ jobs:
   copilotkit_flutter:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit_flutter == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2.0.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: packages/copilotkit_flutter
       flutter_version_file: .fvmrc
@@ -69,7 +69,7 @@ jobs:
   example:
     needs: changes
     if: ${{ needs.changes.outputs.example == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2.0.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: example
       flutter_version_file: .fvmrc
