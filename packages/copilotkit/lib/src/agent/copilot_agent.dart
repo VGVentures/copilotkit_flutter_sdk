@@ -6,6 +6,7 @@ import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
+import 'package:json_utils/json_utils.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
@@ -82,13 +83,27 @@ class CopilotAgent({
   /// same format as a `STATE_DELTA`.
   ///
   /// A missing state is patched as an empty object. When an operation
-  /// doesn't apply (a missing path, a failed test), none of them does: the
-  /// state stays as it was and a [FormatException] is thrown.
+  /// doesn't apply (a missing path, a failed test, a state or result that
+  /// isn't a JSON object), none of them does: the state stays as it was and
+  /// a [FormatException] is thrown.
   void patchSharedState(List<JsonPatchOperation> operations) {
-    final document = _state.sharedState?.toJson() ?? const <String, Object?>{};
-    final patched = _patcher.apply(document, operations);
+    final patched = _patcher.apply(_document, [
+      for (final operation in operations) operation.toJson(),
+    ]);
     _update(_state.copyWith(sharedState: () => SharedState(patched)));
   }
+
+  /// The JSON object the shared state holds, or an empty one when there is
+  /// none.
+  ///
+  /// Throws a [FormatException] when the shared state isn't a JSON object.
+  Map<String, Object?> get _document => switch (_state.sharedState?.toJson()) {
+    null => const {},
+    final Map<String, Object?> document => document,
+    final value => throw FormatException(
+      'Shared state is not a JSON object: $value',
+    ),
+  };
 
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool
   /// result).

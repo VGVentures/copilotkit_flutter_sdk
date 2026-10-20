@@ -99,6 +99,37 @@ void main() {
       expect(result.states, const <CopilotAgentState>[]);
     });
 
+    test('a StateDelta on a state that is not an object is dropped', () {
+      final result = reduce(
+        const [
+          StateDeltaEvent(
+            delta: [
+              {'op': 'add', 'path': '/-', 'value': 'b'},
+            ],
+          ),
+        ],
+        from: agentState.copyWith(sharedState: () => const SharedState(['a'])),
+      );
+      expect(result.states, const <CopilotAgentState>[]);
+    });
+
+    test('a StateDelta that replaces the state with a non-object is '
+        'dropped', () {
+      final result = reduce(
+        const [
+          StateDeltaEvent(
+            delta: [
+              {'op': 'replace', 'path': '', 'value': 'text'},
+            ],
+          ),
+        ],
+        from: agentState.copyWith(
+          sharedState: () => const SharedState({'count': 1}),
+        ),
+      );
+      expect(result.states, const <CopilotAgentState>[]);
+    });
+
     final fresh = [
       UserMessage(id: 'u1', content: 'Hi'),
       const AssistantMessage(id: 'a1', content: 'Hello'),

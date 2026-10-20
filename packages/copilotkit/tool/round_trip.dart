@@ -21,8 +21,8 @@ import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:http/http.dart' as http;
+import 'package:json_utils/json_utils.dart';
 
 Future<void> main(List<String> arguments) async {
   final options = _parse(arguments);
@@ -104,8 +104,9 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: const JsonSchemaEncoder().encode(
-    Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
+  parameters: const JsonSchemaNormalizer().normalize(
+    Ack.object({'city': Ack.string().describe('City name, e.g. Lima')})
+        .toJsonSchema(),
   ),
 );
 
