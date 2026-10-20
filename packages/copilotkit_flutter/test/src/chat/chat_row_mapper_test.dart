@@ -9,7 +9,7 @@ void main() {
     id: 'c1',
     name: 'showWeather',
     status: ToolCallStatus.executing,
-    args: JsonObject({'city': 'Lima'}),
+    args: {'city': 'Lima'},
   );
 
   group(ChatRowMapper, () {

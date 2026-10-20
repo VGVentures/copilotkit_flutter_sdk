@@ -1,5 +1,4 @@
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:equatable/equatable.dart';
 
@@ -49,9 +48,20 @@ sealed class ClientTool<T> extends Equatable {
   /// result listing the problems instead.
   final ObjectSchema parameters;
 
-  /// Decodes the validated arguments, e.g. a model's `fromJson`. Use
-  /// `JsonObject.new` to get them as a [JsonObject].
-  final JsonDecoder<T> decode;
+  /// Decodes the validated arguments, e.g. a model's `fromJson`.
+  final T Function(Map<String, Object?> json) decode;
+
+  /// Decodes [args] with [decode], or returns `null` when [decode] throws,
+  /// e.g. for arguments that are still streaming in.
+  T? tryDecode(Map<String, Object?> args) {
+    try {
+      return decode(args);
+      // Decoders throw anything, e.g. a TypeError from a hand-written one.
+      // ignore: avoid_catches_without_on_clauses
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
 /// A tool the agent can call that runs in the app, with arguments of type
@@ -76,8 +86,10 @@ class const FrontendTool<T>({
   /// Decodes [args] and runs [handler] with them.
   ///
   /// Throws what `decode` or [handler] throw.
-  Future<String> run(JsonObject args, {required CancellationSignal signal}) =>
-      handler(args.decode(decode), signal: signal);
+  Future<String> run(
+    Map<String, Object?> args, {
+    required CancellationSignal signal,
+  }) => handler(decode(args), signal: signal);
 
   @override
   List<Object?> get props => [name, description, parameters, decode, handler];

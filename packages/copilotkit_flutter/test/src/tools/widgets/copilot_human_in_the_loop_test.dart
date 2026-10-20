@@ -23,12 +23,12 @@ class _CounterState extends State<_Counter> {
   }
 }
 
-HumanInTheLoopTool<JsonObject> _tool({String? description}) {
+HumanInTheLoopTool<Map<String, Object?>> _tool({String? description}) {
   return HumanInTheLoopTool(
     name: 'confirmAction',
     description: description ?? 'Ask the user to confirm an action',
     parameters: Ack.object({'action': Ack.string()}),
-    decode: JsonObject.new,
+    decode: Map<String, Object?>.of,
   );
 }
 
@@ -39,7 +39,7 @@ ToolCallView _call({
   id: 'c1',
   name: 'confirmAction',
   status: status,
-  args: const JsonObject({'action': 'delete'}),
+  args: const {'action': 'delete'},
   awaitingResponse: awaitingResponse,
 );
 
@@ -55,8 +55,8 @@ void main() {
     setUp(() => client = RecordingClient());
 
     Widget build({
-      required HumanInTheLoopTool<JsonObject> tool,
-      required HumanInTheLoopWidgetBuilder<JsonObject> builder,
+      required HumanInTheLoopTool<Map<String, Object?>> tool,
+      required HumanInTheLoopWidgetBuilder<Map<String, Object?>> builder,
       ToolCallView? call,
       CopilotKitClient? withClient,
     }) {
@@ -74,7 +74,7 @@ void main() {
       );
     }
 
-    HumanInTheLoopWidgetBuilder<JsonObject> text() {
+    HumanInTheLoopWidgetBuilder<Map<String, Object?>> text() {
       return (context, call, args, respond) =>
           Text('${call.status.name} ${respond == null ? 'locked' : 'open'}');
     }
@@ -133,7 +133,7 @@ void main() {
     });
 
     testWidgets('passes the decoded args to the builder', (tester) async {
-      JsonObject? received;
+      Map<String, Object?>? received;
       await tester.pumpWidget(
         build(
           tool: _tool(),
@@ -145,7 +145,7 @@ void main() {
         ),
       );
 
-      expect(received, const JsonObject({'action': 'delete'}));
+      expect(received, const {'action': 'delete'});
     });
 
     group('respond', () {
@@ -199,7 +199,7 @@ void main() {
         Widget card(
           BuildContext context,
           ToolCallView call,
-          JsonObject? args,
+          Map<String, Object?>? args,
           ToolCallResponder? respond,
         ) => _Counter(respond: respond);
         Future<void> pump(ToolCallView call) =>

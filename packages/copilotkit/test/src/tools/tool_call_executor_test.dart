@@ -1,5 +1,4 @@
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 
@@ -8,8 +7,8 @@ void main() {
     const executor = ToolCallExecutor();
     final signal = CancellationSignal();
 
-    FrontendTool<JsonObject> weatherTool(
-      FrontendToolHandler<JsonObject> handler,
+    FrontendTool<Map<String, Object?>> weatherTool(
+      FrontendToolHandler<Map<String, Object?>> handler,
     ) => FrontendTool(
       name: 'showWeather',
       description: 'Show the weather for a city',
@@ -19,7 +18,7 @@ void main() {
         'unit': Ack.object({'step': Ack.integer()}).optional(),
         'tags': Ack.list(Ack.string()).optional(),
       }),
-      decode: JsonObject.new,
+      decode: Map<String, Object?>.of,
       handler: handler,
     );
 
@@ -27,11 +26,11 @@ void main() {
       id: 'c1',
       name: 'showWeather',
       status: ToolCallStatus.executing,
-      args: JsonObject(args),
+      args: args,
     );
 
     test('runs the handler with the parsed args and the signal', () async {
-      JsonObject? received;
+      Map<String, Object?>? received;
       CancellationSignal? receivedSignal;
       final tool = weatherTool((args, {required signal}) async {
         received = args;
@@ -47,8 +46,28 @@ void main() {
       );
 
       expect(outcome, const ToolCallOutcome(result: 'sunny'));
-      expect(received, const JsonObject({'city': 'Lima', 'days': 3}));
+      expect(received, const {'city': 'Lima', 'days': 3});
       expect(receivedSignal, same(signal));
+    });
+
+    test('decodes unmodifiable args', () async {
+      Map<String, Object?>? decoded;
+      final tool = FrontendTool<Map<String, Object?>>(
+        name: 'showWeather',
+        description: 'Show the weather for a city',
+        parameters: Ack.object({'city': Ack.string()}),
+        decode: (json) => decoded = json,
+        handler: (_, {required signal}) async => 'sunny',
+      );
+
+      await executor.execute(
+        tool,
+        callWith({'city': 'Lima'}),
+        signal,
+        responses: ToolResponses(),
+      );
+
+      expect(() => decoded!['city'] = 'Quito', throwsUnsupportedError);
     });
 
     test('turns a handler error into a generic result and the error', () async {
@@ -92,13 +111,13 @@ void main() {
         name: 'confirmAction',
         description: 'Ask the user to confirm an action',
         parameters: Ack.object({'action': Ack.string()}),
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
       );
       const call = ToolCallView(
         id: 'c1',
         name: 'confirmAction',
         status: ToolCallStatus.executing,
-        args: JsonObject({'action': 'delete'}),
+        args: {'action': 'delete'},
       );
 
       test('waits for the answer', () async {
@@ -141,7 +160,7 @@ void main() {
 
     group('with invalid args', () {
       var called = false;
-      late FrontendTool<JsonObject> tool;
+      late FrontendTool<Map<String, Object?>> tool;
 
       setUp(() {
         called = false;

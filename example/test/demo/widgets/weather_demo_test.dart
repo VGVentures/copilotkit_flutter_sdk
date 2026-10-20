@@ -14,7 +14,7 @@ void main() {
         name: 'fallback',
         description: '',
         parameters: Ack.object({}),
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
         handler: (_, {required signal}) async => '',
       ),
     );
@@ -60,7 +60,7 @@ class const ToolCallWidgetProbe({super.key}) extends StatelessWidget {
         id: 'c1',
         name: 'showWeather',
         status: ToolCallStatus.executing,
-        args: JsonObject({'city': 'Lima'}),
+        args: {'city': 'Lima'},
       ),
     );
   }

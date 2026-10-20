@@ -43,7 +43,7 @@ class const CopilotTool<T>({
           : ToolRenderer(
               name: tool.name,
               builder: (context, call) =>
-                  builder(context, call, call.args.tryDecode(tool.decode)),
+                  builder(context, call, tool.tryDecode(call.args)),
               child: child,
             ),
     );

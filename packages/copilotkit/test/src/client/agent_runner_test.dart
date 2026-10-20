@@ -365,7 +365,7 @@ void main() {
       void registerTool(ClientTool<Object?> tool) =>
           harness.tools.register(tool);
 
-      JsonObject? receivedArgs;
+      Map<String, Object?>? receivedArgs;
       CancellationSignal? receivedSignal;
       late List<ToolCallStatus> statuses;
 
@@ -388,7 +388,7 @@ void main() {
 
         await runner.run(agent);
 
-        expect(receivedArgs, const JsonObject({'city': 'Lima'}));
+        expect(receivedArgs, const {'city': 'Lima'});
         expect(receivedSignal!.isCancelled, isFalse);
         final inputs = sentInputs();
         expect(inputs, hasLength(2));
@@ -603,7 +603,7 @@ void main() {
       });
 
       group('recorded fixtures', () {
-        late List<JsonObject> calls;
+        late List<Map<String, Object?>> calls;
 
         test('runs the handler and sends its result in the next run', () async {
           calls = [];
@@ -619,7 +619,7 @@ void main() {
           await runner.run(agent);
 
           expect(calls, [
-            const JsonObject({'city': 'Lima'}),
+            const {'city': 'Lima'},
           ]);
           final result = sentInputs().last.messages.whereType<ToolMessage>();
           expect(result.single.content, 'Sunny, 24°C');
@@ -646,7 +646,7 @@ void main() {
     });
 
     group('human-in-the-loop tools', () {
-      late HumanInTheLoopTool<JsonObject> tool;
+      late HumanInTheLoopTool<Map<String, Object?>> tool;
       late Future<void> run;
       late CopilotAgentState waiting;
       // The inputs of every run, read once: the mock counts a verified call

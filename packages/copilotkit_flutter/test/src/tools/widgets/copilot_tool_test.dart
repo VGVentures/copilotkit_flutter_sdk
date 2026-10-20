@@ -4,11 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../helpers/recording_client.dart';
 
-FrontendTool<JsonObject> _tool(String name) => FrontendTool(
+FrontendTool<Map<String, Object?>> _tool(String name) => FrontendTool(
   name: name,
   description: 'A tool',
   parameters: Ack.object({}),
-  decode: JsonObject.new,
+  decode: Map<String, Object?>.of,
   handler: (args, {required signal}) async => 'ok',
 );
 
@@ -76,18 +76,18 @@ void main() {
       tester,
     ) async {
       Future<String> handler(
-        JsonObject args, {
+        Map<String, Object?> args, {
         required CancellationSignal signal,
       }) async => 'ok';
-      FrontendTool<JsonObject> tool() => FrontendTool(
+      FrontendTool<Map<String, Object?>> tool() => FrontendTool(
         name: 'showWeather',
         description: 'A tool',
         parameters: Ack.object({}),
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
         handler: handler,
       );
       final first = tool();
-      Widget build(FrontendTool<JsonObject> tool) => CopilotKit.value(
+      Widget build(FrontendTool<Map<String, Object?>> tool) => CopilotKit.value(
         client: client,
         child: CopilotTool(tool: tool, child: const SizedBox()),
       );
@@ -150,7 +150,7 @@ void main() {
         decode: (json) => json['city']! as String,
         handler: (city, {required signal}) async => 'ok',
       );
-      Widget build(JsonObject args) => CopilotKit.value(
+      Widget build(Map<String, Object?> args) => CopilotKit.value(
         client: client,
         child: MaterialApp(
           home: CopilotTool(
@@ -168,10 +168,10 @@ void main() {
         ),
       );
 
-      await tester.pumpWidget(build(const JsonObject()));
+      await tester.pumpWidget(build(const <String, Object?>{}));
       expect(find.text('city: null'), findsOneWidget);
 
-      await tester.pumpWidget(build(const JsonObject({'city': 'Lima'})));
+      await tester.pumpWidget(build(const {'city': 'Lima'}));
       expect(find.text('city: Lima'), findsOneWidget);
     });
 

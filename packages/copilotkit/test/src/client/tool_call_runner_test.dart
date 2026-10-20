@@ -41,7 +41,7 @@ void main() {
 
     group('runPending', () {
       test('runs the handler and adds its result', () async {
-        JsonObject? receivedArgs;
+        Map<String, Object?>? receivedArgs;
         CancellationSignal? receivedSignal;
         tools.register(
           weatherTool((args, {required signal}) async {
@@ -53,7 +53,7 @@ void main() {
         receive(toolCallRun(threadId()));
 
         expect(await toolCalls.runPending(turn), isTrue);
-        expect(receivedArgs, const JsonObject({'city': 'Lima'}));
+        expect(receivedArgs, const {'city': 'Lima'});
         expect(receivedSignal, same(turn.signal));
         final message = agent.state.messages.last as ToolMessage;
         expect(Uuid.isValidUUID(fromString: message.id!), isTrue);
@@ -64,16 +64,16 @@ void main() {
       });
 
       test('passes the handler the args parsed by the schema', () async {
-        JsonObject? receivedArgs;
+        Map<String, Object?>? receivedArgs;
         tools.register(
-          FrontendTool<JsonObject>(
+          FrontendTool<Map<String, Object?>>(
             name: 'showWeather',
             description: 'Show the weather for a city',
             parameters: Ack.object({
               'city': Ack.string(),
               'days': Ack.integer().withDefault(3),
             }),
-            decode: JsonObject.new,
+            decode: Map<String, Object?>.of,
             handler: (args, {required signal}) async {
               receivedArgs = args;
               return 'ok';
@@ -84,7 +84,7 @@ void main() {
 
         await toolCalls.runPending(turn);
 
-        expect(receivedArgs, const JsonObject({'city': 'Lima', 'days': 3}));
+        expect(receivedArgs, const {'city': 'Lima', 'days': 3});
       });
 
       final failure = Exception('no network');
@@ -232,7 +232,7 @@ void main() {
     });
 
     group('human-in-the-loop tools', () {
-      late HumanInTheLoopTool<JsonObject> tool;
+      late HumanInTheLoopTool<Map<String, Object?>> tool;
 
       setUp(() {
         tool = approvalTool();

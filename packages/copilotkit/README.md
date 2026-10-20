@@ -49,7 +49,7 @@ client.registerTool(HumanInTheLoopTool(
   name: 'confirmAction',
   description: 'Ask the user to confirm an action before doing it.',
   parameters: Ack.object({'action': Ack.string()}),
-  decode: JsonObject.new,
+  decode: ConfirmAction.fromJson,
 ));
 ```
 
