@@ -30,7 +30,8 @@ class AgUiTransport({
   /// `stop`.
   ///
   /// [onSkippedEvent] is called with each event the transport skipped because
-  /// it couldn't be decoded, so apps can report it.
+  /// it couldn't be decoded, so apps can report it. Errors it throws are
+  /// logged and don't end the run.
   this;
 
   final String _baseUrl = runtimeUrl.toString().replaceFirst(
@@ -43,11 +44,8 @@ class AgUiTransport({
   final void Function(Object error, StackTrace stackTrace)? _onSkippedEvent =
       onSkippedEvent;
 
-  /// Clients of the runs in flight.
-  final Set<http.Client> _activeClients = {};
-
   /// Ends each run in flight, see [close].
-  final Set<void Function()> _runShutdowns = {};
+  final Set<void Function()> _runEnds = {};
   bool _closed = false;
 
   @override
@@ -58,28 +56,29 @@ class AgUiTransport({
   }) {
     _ensureOpen();
     final httpClient = _httpClientFactory();
-    _activeClients.add(httpClient);
     final client = AgUiClient(
       config: AgUiClientConfig(baseUrl: _baseUrl, defaultHeaders: headers),
       httpClient: httpClient,
     );
 
-    void release() {
-      if (_activeClients.remove(httpClient)) httpClient.close();
-    }
-
     StreamSubscription<BaseEvent>? subscription;
     late final StreamController<BaseEvent> controller;
-    late final void Function() shutdown;
-    shutdown = () {
-      _runShutdowns.remove(shutdown);
-      release();
+    // Ends the run once, however it ends: done, cancelled or closed. Closing
+    // the client aborts the socket, which ends the inner stream. Don't wait
+    // for ag_ui's cancel: it only completes once the body stream ends, and
+    // stop must not block on the network.
+    late final void Function() end;
+    end = () {
+      if (!_runEnds.remove(end)) return;
+      httpClient.close();
       unawaited(_cancel(subscription));
       unawaited(controller.close());
     };
-    _runShutdowns.add(shutdown);
+    _runEnds.add(end);
     controller = StreamController<BaseEvent>(
       onListen: () {
+        // Closed before anyone listened: send nothing.
+        if (_closed) return;
         subscription = client
             .runAgent(
               'agent/${Uri.encodeComponent(agentId)}/run',
@@ -92,32 +91,16 @@ class AgUiTransport({
                 // missing fields, bad JSON) and keeps streaming. Skip them so
                 // newer runtimes never break a run.
                 if (_isDecodeError(error)) {
-                  developer.log(
-                    'Skipped undecodable AG-UI event: $error',
-                    name: 'copilotkit',
-                  );
-                  _onSkippedEvent?.call(error, stackTrace);
-                  return;
+                  return _reportSkipped(error, stackTrace);
                 }
                 controller.addError(error, stackTrace);
               },
-              onDone: () {
-                _runShutdowns.remove(shutdown);
-                release();
-                unawaited(controller.close());
-              },
+              onDone: end,
             );
       },
       onPause: () => subscription?.pause(),
       onResume: () => subscription?.resume(),
-      onCancel: () {
-        // Closing the client aborts the socket, which ends the inner stream.
-        // Don't wait for ag_ui's cancel: it only completes once the body
-        // stream ends, and stop must not block on the network.
-        _runShutdowns.remove(shutdown);
-        release();
-        unawaited(_cancel(subscription));
-      },
+      onCancel: end,
     );
     return controller.stream;
   }
@@ -152,7 +135,7 @@ class AgUiTransport({
       }
     } on TimeoutException {
       throw http.ClientException(
-        'Stop timed out after ${_stopTimeout.inSeconds}s.',
+        'Stop timed out after ${_stopTimeout.inMilliseconds}ms.',
         url,
       );
     } finally {
@@ -165,8 +148,8 @@ class AgUiTransport({
   @override
   Future<void> close() async {
     _closed = true;
-    for (final shutdown in [..._runShutdowns]) {
-      shutdown();
+    for (final end in [..._runEnds]) {
+      end();
     }
   }
 
@@ -190,17 +173,39 @@ class AgUiTransport({
   /// Whether [error] is `ag_ui` reporting an event it could not decode.
   bool _isDecodeError(Object error) =>
       error is DecodingError || error is AGUIValidationError;
-}
 
-Future<http.Response> _send(http.Client client, http.Request request) async {
-  final streamed = await client.send(request);
-  return await http.Response.fromStream(streamed);
-}
+  /// Logs an event skipped because it couldn't be decoded and reports it to
+  /// `onSkippedEvent`, which must not break the run if it throws.
+  void _reportSkipped(Object error, StackTrace stackTrace) {
+    developer.log(
+      'Skipped undecodable AG-UI event: $error',
+      name: 'copilotkit',
+    );
+    try {
+      _onSkippedEvent?.call(error, stackTrace);
+    } on Object catch (callbackError, callbackStackTrace) {
+      developer.log(
+        'onSkippedEvent threw',
+        name: 'copilotkit',
+        level: 1000, // SEVERE
+        error: callbackError,
+        stackTrace: callbackStackTrace,
+      );
+    }
+  }
 
-Future<void> _cancel(StreamSubscription<BaseEvent>? subscription) async {
-  try {
-    await subscription?.cancel();
-  } on Object {
-    // The connection is already being torn down; nothing to report.
+  Future<http.Response> _send(http.Client client, http.Request request) async {
+    final streamed = await client.send(request);
+    return await http.Response.fromStream(streamed);
+  }
+
+  /// Cancels [subscription], ignoring errors from a connection that is
+  /// already being torn down.
+  Future<void> _cancel(StreamSubscription<BaseEvent>? subscription) async {
+    try {
+      await subscription?.cancel();
+    } on Object {
+      // Nothing to report.
+    }
   }
 }

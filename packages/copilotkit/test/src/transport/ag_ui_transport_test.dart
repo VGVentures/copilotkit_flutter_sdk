@@ -174,6 +174,28 @@ void main() {
       expect(skipped, hasLength(2));
     });
 
+    test('keeps streaming when onSkippedEvent throws', () async {
+      transport = AgUiTransport(
+        runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+        httpClientFactory: () => httpClient,
+        onSkippedEvent: (_, _) => throw StateError('reporter failed'),
+      );
+      stubResponse(
+        _sse(
+          Stream.fromIterable([
+            _event({'type': 'SOMETHING_NEW'}),
+            _event({'type': 'RUN_FINISHED', 'threadId': 't', 'runId': 'r'}),
+          ]),
+        ),
+      );
+
+      final events = await transport
+          .run(agentId: 'default', input: _input)
+          .toList();
+
+      expect(events, [isA<RunFinishedEvent>()]);
+    });
+
     test('emits an error when the runtime rejects the request', () async {
       stubResponse(
         http.StreamedResponse(
@@ -269,6 +291,16 @@ void main() {
       },
     );
 
+    test('a run closed before it is listened to sends nothing', () async {
+      final events = transport.run(agentId: 'default', input: _input);
+
+      await transport.close();
+
+      expect(await events.toList(), isEmpty);
+      verifyNever(() => httpClient.send(any()));
+      verify(() => httpClient.close()).called(1);
+    });
+
     test('run after close throws', () async {
       await transport.close();
 
@@ -290,8 +322,11 @@ void main() {
           .listen((_) => started.complete());
       await started.future;
 
+      // An error escaping the cancel would fail the test as uncaught.
       await subscription.cancel();
       await pumpEventQueue();
+
+      verify(() => httpClient.close()).called(1);
     });
 
     group('stop', () {
@@ -369,7 +404,7 @@ void main() {
             isA<http.ClientException>().having(
               (e) => e.message,
               'message',
-              contains('timed out'),
+              contains('timed out after 10ms'),
             ),
           ),
         );
