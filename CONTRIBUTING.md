@@ -8,9 +8,9 @@ this repository.
 The SDK has three packages, layered from the network up:
 
 ```
-packages/json_utils           pure Dart, no dependencies: partial JSON
-                              parsing, JSON Patch and JSON Schema helpers
-                              over Map<String, Object?>
+packages/json_utils           pure Dart, only package:collection: partial
+                              JSON parsing, JSON Patch and JSON Schema
+                              helpers over Map<String, Object?>
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
   client      CopilotKitClient: agents, tools, context and runs
@@ -25,8 +25,8 @@ The core holds all the logic in plain Dart classes. Flutter adds widgets and
 blocs on top of it and never reimplements core behavior. A core class never
 imports `package:flutter` or `package:bloc`.
 
-`json_utils` declares no model types and depends on no package, so it can be
-published on its own. Its classes take and return `Map<String, Object?>`,
+`json_utils` declares no model types and depends only on `collection`, so it
+can be published on its own. Its classes take and return `Map<String, Object?>`,
 never `Object?`. It has a single feature, so its classes sit directly in
 `lib/src/` and its barrel, `lib/json_utils.dart`, is the only library other
 packages import.

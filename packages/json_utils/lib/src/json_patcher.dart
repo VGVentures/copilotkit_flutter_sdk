@@ -1,7 +1,12 @@
+import 'package:collection/collection.dart';
+
 /// Applies RFC 6902 JSON Patches to JSON objects.
 class const JsonPatcher() {
   /// Creates a patcher.
   this;
+
+  /// Compares the value a `test` expects with the one in the document.
+  static const _equality = DeepCollectionEquality();
 
   /// Applies [operations] to [document] and returns the result.
   ///
@@ -50,7 +55,10 @@ class const JsonPatcher() {
         final copied = _deepCopy(_get(document, _pointer(operation, 'from')));
         return _add(document, _pointer(operation, 'path'), copied);
       case _Operation.test:
-        if (!_deepEquals(_get(document, _pointer(operation, 'path')), value)) {
+        if (!_equality.equals(
+          _get(document, _pointer(operation, 'path')),
+          value,
+        )) {
           throw FormatException(
             'JSON Patch test failed at ${operation['path']}',
           );
@@ -154,23 +162,6 @@ class const JsonPatcher() {
     List<Object?>() => [for (final item in value) _deepCopy(item)],
     _ => value,
   };
-
-  bool _deepEquals(Object? a, Object? b) {
-    if (a is Map<String, Object?> && b is Map<String, Object?>) {
-      return a.length == b.length &&
-          a.entries.every(
-            (e) => b.containsKey(e.key) && _deepEquals(e.value, b[e.key]),
-          );
-    }
-    if (a is List<Object?> && b is List<Object?>) {
-      if (a.length != b.length) return false;
-      for (var i = 0; i < a.length; i++) {
-        if (!_deepEquals(a[i], b[i])) return false;
-      }
-      return true;
-    }
-    return a == b;
-  }
 }
 
 /// The operations of an RFC 6902 JSON Patch, named after their `op`.

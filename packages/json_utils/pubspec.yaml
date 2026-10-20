@@ -8,6 +8,9 @@ environment:
 
 resolution: workspace
 
+dependencies:
+  collection: ^1.19.1
+
 dev_dependencies:
   test: ^1.31.0
   very_good_analysis: ^11.0.0
