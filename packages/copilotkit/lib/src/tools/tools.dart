@@ -4,6 +4,7 @@ export 'models/fallback_tool_result.dart';
 export 'models/tool_call_outcome.dart';
 export 'models/tool_call_status.dart';
 export 'models/tool_call_view.dart';
+export 'models/tool_schema.dart';
 export 'tool_call_executor.dart';
 export 'tool_registry.dart';
 export 'tool_responses.dart';
