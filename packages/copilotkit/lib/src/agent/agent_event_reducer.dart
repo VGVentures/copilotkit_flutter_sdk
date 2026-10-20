@@ -71,10 +71,67 @@ class const AgentEventReducer({
         sharedState: () => SharedState(state),
       ),
       StateDeltaEvent() => _applyStateDelta(snapshot, event),
-      MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
-        messages: messages,
+      MessagesSnapshotEvent(:final messages) => _replaceMessages(
+        snapshot,
+        messages,
       ),
       _ => snapshot,
+    };
+  }
+
+  /// [snapshot] with [messages] as its conversation, and its tool calls
+  /// rebuilt from them, so calls that only exist in [messages] (a loaded
+  /// history, a resync) render like live ones.
+  CopilotAgentState _replaceMessages(
+    CopilotAgentState snapshot,
+    List<Message> messages,
+  ) => snapshot.copyWith(
+    messages: messages,
+    toolCalls: _toolCallsOf(messages, snapshot.toolCalls),
+  );
+
+  /// The tool calls held by the assistant messages in [messages], in order.
+  ///
+  /// A call with a tool message is complete, with the message's content as
+  /// its result. A call without one keeps its view in [known] (it is still
+  /// streaming or executing); one that isn't known has its full arguments,
+  /// so it is executing. Views in [known] that no message holds anymore are
+  /// dropped.
+  List<ToolCallView> _toolCallsOf(
+    List<Message> messages,
+    List<ToolCallView> known,
+  ) {
+    final results = {
+      for (final message in messages.whereType<ToolMessage>())
+        message.toolCallId: message.content,
+    };
+    final knownById = {for (final view in known) view.id: view};
+    return [
+      for (final message in messages.whereType<AssistantMessage>())
+        for (final call in message.toolCalls ?? const <ToolCall>[])
+          _viewOf(call, knownById[call.id], results),
+    ];
+  }
+
+  ToolCallView _viewOf(
+    ToolCall call,
+    ToolCallView? known,
+    Map<String, String> results,
+  ) {
+    final view =
+        known ??
+        ToolCallView(
+          id: call.id,
+          name: call.function.name,
+          status: ToolCallStatus.executing,
+          args: _parser.parse(call.function.arguments),
+        );
+    return switch (results[call.id]) {
+      final result? => view.copyWith(
+        status: ToolCallStatus.complete,
+        result: () => result,
+      ),
+      null => view,
     };
   }
 

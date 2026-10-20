@@ -1,6 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/json/json.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -67,6 +68,15 @@ void main() {
 
         expect(agent.state.messages, const [assistant]);
         expect(agent.state.toolCalls.map((view) => view.id), ['c1']);
+      });
+
+      test('rebuilds the tool calls its messages hold', () {
+        final agent = buildAgent()..setMessages(const [assistant]);
+
+        final view = agent.state.toolCalls.single;
+        expect(view.id, 'c1');
+        expect(view.name, 'showWeather');
+        expect(view.status, ToolCallStatus.executing);
       });
     });
 

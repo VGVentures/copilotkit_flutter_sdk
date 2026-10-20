@@ -59,24 +59,14 @@ class CopilotAgent({
   /// Replaces every message of the conversation with [messages].
   ///
   /// Use it to reset a conversation (`setMessages([])`) or to restore a saved
-  /// one. Tool calls that no message refers to anymore are dropped from
-  /// `CopilotAgentState.toolCalls`. Allowed while the agent is running; the
-  /// events that stream in afterwards apply on top of [messages].
-  void setMessages(List<Message> messages) {
-    final callIds = {
-      for (final message in messages.whereType<AssistantMessage>())
-        for (final call in message.toolCalls ?? const <ToolCall>[]) call.id,
-    };
-    _update(
-      _state.copyWith(
-        messages: messages,
-        toolCalls: [
-          for (final view in _state.toolCalls)
-            if (callIds.contains(view.id)) view,
-        ],
-      ),
-    );
-  }
+  /// one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
+  /// `CopilotAgentState.toolCalls` from [messages]: a call a message holds
+  /// keeps the view the agent already has, or becomes executing, or complete
+  /// when a tool message answers it; calls no message holds anymore are
+  /// dropped. Allowed while the agent is running; the events that stream in
+  /// afterwards apply on top of [messages].
+  void setMessages(List<Message> messages) =>
+      apply(MessagesSnapshotEvent(messages: messages));
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///

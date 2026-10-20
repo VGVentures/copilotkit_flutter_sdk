@@ -207,5 +207,94 @@ void main() {
       expect(view.args, const JsonObject({'city': 'Lima'}));
       expect(view.result, isNull);
     });
+
+    group('MessagesSnapshot', () {
+      const weatherMessage = AssistantMessage(
+        id: 'm1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(name: 'showWeather', arguments: '{}'),
+          ),
+        ],
+      );
+
+      test('rebuilds the tool calls held by its messages', () {
+        final result = reduce([
+          MessagesSnapshotEvent(
+            messages: const [
+              AssistantMessage(
+                id: 'a1',
+                toolCalls: [
+                  ToolCall(
+                    id: 'c1',
+                    function: FunctionCall(
+                      name: 'showWeather',
+                      arguments: '{"city": "Lima"}',
+                    ),
+                  ),
+                  ToolCall(
+                    id: 'c2',
+                    function: FunctionCall(
+                      name: 'showMap',
+                      arguments: '{"zoom": 3}',
+                    ),
+                  ),
+                ],
+              ),
+              ToolMessage(
+                id: 't1',
+                toolCallId: 'c1',
+                content: '{"forecast": "sunny"}',
+              ),
+            ],
+          ),
+        ]);
+        final [first, second] = result.state.toolCalls;
+        expect(first.name, 'showWeather');
+        expect(first.args, const JsonObject({'city': 'Lima'}));
+        expect(first.status, ToolCallStatus.complete);
+        expect(first.result, '{"forecast": "sunny"}');
+        expect(second.name, 'showMap');
+        expect(second.args, const JsonObject({'zoom': 3}));
+        expect(second.status, ToolCallStatus.executing);
+        expect(second.result, isNull);
+      });
+
+      test('keeps the view of a call it already knows', () {
+        final result = reduce([
+          _start,
+          const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
+          MessagesSnapshotEvent(messages: const [weatherMessage]),
+        ]);
+        final view = result.state.toolCalls.single;
+        expect(view.status, ToolCallStatus.inProgress);
+        expect(view.args, const JsonObject({'city': 'Li'}));
+      });
+
+      test('completes a known call whose result it holds', () {
+        final result = reduce([
+          _start,
+          const ToolCallEndEvent(toolCallId: 'c1'),
+          MessagesSnapshotEvent(
+            messages: const [
+              weatherMessage,
+              ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
+            ],
+          ),
+        ]);
+        final view = result.state.toolCalls.single;
+        expect(view.status, ToolCallStatus.complete);
+        expect(view.result, 'ok');
+      });
+
+      test('drops the calls its messages no longer hold', () {
+        final result = reduce([
+          _start,
+          MessagesSnapshotEvent(messages: const []),
+        ]);
+        expect(result.state.toolCalls, isEmpty);
+      });
+    });
   });
 }

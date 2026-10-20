@@ -13,7 +13,8 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
   client      CopilotKitClient: agents, tools, context and runs
   agent       CopilotAgent: one conversation, its state and stream
 packages/copilotkit_flutter   Flutter
-  widgets     CopilotKit, CopilotTool, CopilotContext, CopilotChatProvider
+  widgets     CopilotKit, CopilotAgentScope, AgentStateBuilder, CopilotTool,
+              CopilotContext, CopilotChatProvider
   blocs       CopilotChatBloc: a thin adapter from an agent to a chat UI
 ```
 
@@ -55,7 +56,7 @@ Between features, dependencies form a fixed graph with no cycles:
 | | `context` | `json` |
 | | `client` | `json`, `transport`, `agent`, `tools`, `context` |
 | `copilotkit_flutter` | `client` | the core |
-| | `tools`, `context` | `client`, the core |
+| | `agent`, `tools`, `context` | `client`, the core |
 | | `chat` | `client`, `tools`, the core |
 
 A feature imports another feature only through its barrel
