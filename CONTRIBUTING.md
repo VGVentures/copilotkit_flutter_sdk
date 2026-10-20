@@ -13,6 +13,7 @@ packages/json_utils           pure Dart, only package:collection: partial
                               helpers over Map<String, Object?>
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
+  messages    the conversation's messages and their AG-UI mapping
   client      CopilotKitClient: agents, tools, context and runs
   agent       CopilotAgent: one conversation, its state and stream
 packages/copilotkit_flutter   Flutter
@@ -63,8 +64,9 @@ Between features, dependencies form a fixed graph with no cycles:
 | `copilotkit` | `transport` | — |
 | | `tools` | — |
 | | `context` | — |
-| | `agent` | `tools`, `json_utils` |
-| | `client` | `transport`, `agent`, `tools`, `context`, `json_utils` |
+| | `messages` | — |
+| | `agent` | `messages`, `tools`, `json_utils` |
+| | `client` | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
 | `copilotkit_flutter` | `client` | the core |
 | | `agent`, `tools`, `context` | `client`, the core |
 | | `chat` | `client`, `tools`, the core |
@@ -84,6 +86,10 @@ its features convert to and from `Map<String, Object?>` at the call site.
 `ClientTool.parameters` is an `ack` `ObjectSchema`. No package re-exports
 it, so every package or app that builds a schema declares `ack` in its
 `pubspec.yaml` and imports `package:ack/ack.dart` itself.
+
+`ag_ui` is how `copilotkit` talks to the runtime. The message models
+convert to and from it with `@internal` members (`Message.fromAgUi`,
+`Message.toAgUi`) and never name its types in a public signature.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
