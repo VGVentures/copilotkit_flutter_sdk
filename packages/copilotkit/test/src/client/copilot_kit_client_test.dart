@@ -7,6 +7,7 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
+import '../../helpers/json_values.dart';
 import '../../helpers/mock_agent_transport.dart';
 
 void main() {
@@ -25,7 +26,7 @@ void main() {
       client = CopilotKitClient(
         runtimeUrl: runtimeUrl,
         headers: () async => {'Authorization': 'Bearer token'},
-        properties: {'userId': '42'},
+        properties: const JsonObject({'userId': '42'}),
         onError: (error, stackTrace) => errors.add((error, stackTrace)),
         transport: transport,
       );
@@ -55,12 +56,13 @@ void main() {
         name: 'showWeather',
         description: 'Weather',
         parameters: Ack.object({}),
+        decode: JsonObject.new,
         handler: (_, {required signal}) async => '',
       );
       final entry = AgentContextEntry(
         id: 'e1',
         description: 'Unread',
-        value: 3,
+        value: const Count(3),
       );
 
       test('registerTool and unregisterTool add and remove the tool', () {
@@ -75,8 +77,8 @@ void main() {
         client.addContext(entry);
         expect(client.context, [entry]);
 
-        client.updateContext('e1', 4);
-        expect(client.context, [entry.copyWith(value: 4)]);
+        client.updateContext('e1', const Count(4));
+        expect(client.context, [entry.copyWith(value: const Count(4))]);
 
         client.removeContext('e1');
         expect(client.context, isEmpty);
@@ -253,10 +255,10 @@ void main() {
         await client.runAgent('default');
         await pumpEventQueue();
 
-        expect(agent.state.sharedState, {'count': 2});
+        expect(agent.state.sharedState, const SharedState({'count': 2}));
         expect(sharedStates, [
-          {'count': 1},
-          {'count': 2},
+          const SharedState({'count': 1}),
+          const SharedState({'count': 2}),
         ]);
       });
 
@@ -267,9 +269,12 @@ void main() {
 
         await client.runAgent('default');
 
-        expect(agent.state.sharedState, {
-          'todos': ['buy milk', 'walk dog'],
-        });
+        expect(
+          agent.state.sharedState,
+          const SharedState({
+            'todos': ['buy milk', 'walk dog'],
+          }),
+        );
       });
 
       test('is running as soon as the run starts', () async {

@@ -3,6 +3,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -17,18 +18,19 @@ void main() {
       agentId: 'default',
       threadId: 'thread-1',
       messages: [user],
-      sharedState: const {'count': 1},
+      sharedState: const SharedState({'count': 1}),
     );
     final tool = FrontendTool(
       name: 'showWeather',
       description: 'Show the weather',
       parameters: Ack.object({'city': Ack.string()}),
+      decode: JsonObject.new,
       handler: (_, {required signal}) async => 'ok',
     );
     final entry = AgentContextEntry(
       id: 'user',
       description: 'Current user',
-      value: const {'name': 'Ada'},
+      value: const JsonObject({'name': 'Ada'}),
     );
 
     test('builds the input from the agent, tools, context and properties', () {
@@ -39,7 +41,7 @@ void main() {
         agent: agent,
         tools: [tool],
         context: [entry],
-        properties: const {'locale': 'en'},
+        properties: const JsonObject({'locale': 'en'}),
       );
 
       expect(input.threadId, 'thread-1');
@@ -59,12 +61,8 @@ void main() {
 
     test('generates a new run id for every run by default', () {
       const builder = RunInputBuilder();
-      RunAgentInput build() => builder.build(
-        agent: agent,
-        tools: const [],
-        context: const [],
-        properties: const {},
-      );
+      RunAgentInput build() =>
+          builder.build(agent: agent, tools: const [], context: const []);
 
       expect(build().runId, isNot(build().runId));
     });

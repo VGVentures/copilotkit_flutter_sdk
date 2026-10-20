@@ -6,7 +6,7 @@ ToolCallView _call(
   String name, {
   String id = 'c1',
   ToolCallStatus status = ToolCallStatus.inProgress,
-  Map<String, Object?> args = const {},
+  JsonObject args = const JsonObject(),
   String? result,
 }) {
   return ToolCallView(
@@ -27,9 +27,13 @@ void main() {
         _app(
           ToolRenderer(
             name: 'showWeather',
-            builder: (context, call) => Text('weather ${call.args['city']}'),
+            builder: (context, call) =>
+                Text('weather ${call.args.toJson()['city']}'),
             child: ToolCallWidget(
-              call: _call('showWeather', args: const {'city': 'Lima'}),
+              call: _call(
+                'showWeather',
+                args: const JsonObject({'city': 'Lima'}),
+              ),
             ),
           ),
         ),
@@ -100,7 +104,9 @@ void main() {
           name: 'showWeather',
           builder: (context, call) => switch (call.status) {
             ToolCallStatus.inProgress => const Text('loading'),
-            ToolCallStatus.executing => Text('fetching ${call.args['city']}'),
+            ToolCallStatus.executing => Text(
+              'fetching ${call.args.toJson()['city']}',
+            ),
             ToolCallStatus.complete => Text('result ${call.result}'),
           },
           child: ToolCallWidget(call: call),
@@ -115,7 +121,7 @@ void main() {
           _call(
             'showWeather',
             status: ToolCallStatus.executing,
-            args: const {'city': 'Lima'},
+            args: const JsonObject({'city': 'Lima'}),
           ),
         ),
       );
@@ -126,7 +132,7 @@ void main() {
           _call(
             'showWeather',
             status: ToolCallStatus.complete,
-            args: const {'city': 'Lima'},
+            args: const JsonObject({'city': 'Lima'}),
             result: 'sunny',
           ),
         ),

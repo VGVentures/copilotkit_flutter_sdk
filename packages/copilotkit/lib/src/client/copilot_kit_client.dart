@@ -5,6 +5,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/agent_runner.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 
@@ -19,7 +20,7 @@ import 'package:copilotkit/src/transport/transport.dart';
 class CopilotKitClient({
   required Uri runtimeUrl,
   final HeadersBuilder? _headers,
-  final Map<String, Object?> _properties = const {},
+  final JsonEncodable? _properties,
   final CopilotErrorHandler? _onError,
   AgentTransport? transport,
 }) {
@@ -27,7 +28,8 @@ class CopilotKitClient({
   /// `https://host/api/copilotkit`.
   ///
   /// `headers` builds the headers sent with each run, e.g. for auth.
-  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`.
+  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`;
+  /// their `toJson` must return a JSON object.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] defaults to an `ag_ui`-backed transport
   /// for [runtimeUrl].
@@ -55,7 +57,7 @@ class CopilotKitClient({
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
 
   /// The registered frontend tools, by name. A read-only view.
-  Map<String, FrontendTool> get tools => _tools.tools;
+  Map<String, FrontendTool<Object?>> get tools => _tools.tools;
 
   /// The context entries shared with the agent, oldest first.
   List<AgentContextEntry> get context => _context.entries;
@@ -66,17 +68,18 @@ class CopilotKitClient({
 
   /// Registers [tool]; every run sends it to the agent, and calls to it run
   /// its handler on the device. Replaces a tool with the same name.
-  void registerTool(FrontendTool tool) => _tools.register(tool);
+  void registerTool(FrontendTool<Object?> tool) => _tools.register(tool);
 
   /// Unregisters [tool] if it is the tool registered under its name; a
   /// different tool registered later under the same name stays.
-  void unregisterTool(FrontendTool tool) => _tools.unregister(tool);
+  void unregisterTool(FrontendTool<Object?> tool) => _tools.unregister(tool);
 
   /// Adds [entry]; every run sends it to the agent.
   void addContext(AgentContextEntry entry) => _context.add(entry);
 
   /// Replaces the value of the context entry [id].
-  void updateContext(String id, Object? value) => _context.update(id, value);
+  void updateContext(String id, JsonEncodable value) =>
+      _context.update(id, value);
 
   /// Removes the context entry [id].
   void removeContext(String id) => _context.remove(id);

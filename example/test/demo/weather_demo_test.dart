@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
+import 'package:example/demo/models/demo_user.dart';
+import 'package:example/demo/models/weather_args.dart';
 import 'package:example/demo/weather_demo.dart';
+import 'package:example/demo/weather_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:json_annotation/json_annotation.dart';
 import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
@@ -16,24 +18,26 @@ void main() {
         name: 'fallback',
         description: '',
         parameters: Ack.object({}),
+        decode: JsonObject.new,
         handler: (_, {required signal}) async => '',
       ),
     );
-    registerFallbackValue(AgentContextEntry(description: ''));
+    registerFallbackValue(
+      AgentContextEntry(description: '', value: DemoUser.ada),
+    );
   });
 
-  group('lookUpWeather', () {
+  group(WeatherService, () {
+    const service = WeatherService(delay: Duration.zero);
+
     test('returns a deterministic forecast for the city', () async {
-      final first = await lookUpWeather(
-        {'city': 'Lima'},
+      Future<String> lookUp() => service.lookUp(
+        const WeatherArgs(city: 'Lima'),
         signal: CancellationSignal(),
-        delay: Duration.zero,
       );
-      final second = await lookUpWeather(
-        {'city': 'Lima'},
-        signal: CancellationSignal(),
-        delay: Duration.zero,
-      );
+
+      final first = await lookUp();
+      final second = await lookUp();
 
       final forecast = jsonDecode(first) as Map<String, Object?>;
       expect(forecast['city'], 'Lima');
@@ -43,33 +47,19 @@ void main() {
     });
 
     test('falls back to an unknown city', () async {
-      final forecast = jsonDecode(
-        await lookUpWeather(
-          {},
-          signal: CancellationSignal(),
-          delay: Duration.zero,
-        ),
-      ) as Map<String, Object?>;
+      final result = await service.lookUp(
+        const WeatherArgs(),
+        signal: CancellationSignal(),
+      );
 
+      final forecast = jsonDecode(result) as Map<String, Object?>;
       expect(forecast['city'], 'Unknown');
     });
 
-    test('rejects a city that is not a string', () async {
-      await expectLater(
-        lookUpWeather(
-          {'city': 42},
-          signal: CancellationSignal(),
-          delay: Duration.zero,
-        ),
-        throwsA(isA<CheckedFromJsonException>()),
-      );
-    });
-
     test('reports a cancelled lookup', () async {
-      final result = await lookUpWeather(
-        {'city': 'Lima'},
+      final result = await service.lookUp(
+        const WeatherArgs(city: 'Lima'),
         signal: CancellationSignal()..cancel(),
-        delay: Duration.zero,
       );
 
       expect(result, 'Cancelled');
@@ -80,7 +70,12 @@ void main() {
     Future<void> pump(WidgetTester tester, ToolCallView call) {
       return tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(body: WeatherCard(call: call)),
+          home: Scaffold(
+            body: WeatherCard(
+              call: call,
+              args: call.args.tryDecode(WeatherArgs.fromJson),
+            ),
+          ),
         ),
       );
     }
@@ -106,7 +101,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.executing,
-          args: {'city': 'Lima'},
+          args: JsonObject({'city': 'Lima'}),
         ),
       );
 
@@ -135,7 +130,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.executing,
-          args: {'city': 42},
+          args: JsonObject({'city': 42}),
         ),
       );
 
@@ -149,7 +144,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.complete,
-          args: {'city': 'Lima'},
+          args: JsonObject({'city': 'Lima'}),
           result: '{"city":"Lima","temperatureC":21,"condition":"Sunny"}',
         ),
       );
@@ -223,14 +218,14 @@ void main() {
 
       final tool =
           verify(() => client.registerTool(captureAny())).captured.single
-              as FrontendTool;
+              as FrontendTool<Object?>;
       expect(tool.name, 'showWeather');
       expect(tool.parameters.toJsonSchema()['required'], ['city']);
       final entry =
           verify(() => client.addContext(captureAny())).captured.single
               as AgentContextEntry;
       expect(entry.description, 'Current user');
-      expect(entry.value, demoUser);
+      expect(entry.value, DemoUser.ada);
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
   });
@@ -245,7 +240,7 @@ class const ToolCallWidgetProbe({super.key}) extends StatelessWidget {
         id: 'c1',
         name: 'showWeather',
         status: ToolCallStatus.executing,
-        args: {'city': 'Lima'},
+        args: JsonObject({'city': 'Lima'}),
       ),
     );
   }

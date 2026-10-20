@@ -1,4 +1,5 @@
 import 'package:copilotkit/src/context/models/agent_context_entry.dart';
+import 'package:copilotkit/src/json/json.dart';
 
 /// The app data shared with the agent, in the order it was added.
 ///
@@ -17,7 +18,7 @@ class AgentContextStore() {
   void add(AgentContextEntry entry) => _entries.add(entry);
 
   /// Replaces the value of the entry [id]. Does nothing if there is none.
-  void update(String id, Object? value) {
+  void update(String id, JsonEncodable value) {
     final index = _entries.indexWhere((entry) => entry.id == id);
     if (index == -1) return;
     _entries[index] = _entries[index].copyWith(value: value);

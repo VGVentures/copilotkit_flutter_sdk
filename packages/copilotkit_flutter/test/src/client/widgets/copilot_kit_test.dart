@@ -27,7 +27,7 @@ void main() {
         CopilotKit(
           runtimeUrl: runtimeUrl,
           headers: headers,
-          properties: const {'userId': '42'},
+          properties: const JsonObject({'userId': '42'}),
           onError: onError,
           child: _ClientProbe((c) => client = c),
         ),

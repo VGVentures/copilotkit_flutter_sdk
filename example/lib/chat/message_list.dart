@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gpt_markdown/gpt_markdown.dart';
 
-/// Distance from the end within which the list keeps following new content.
-const _followThreshold = 48.0;
-
 /// Chat rows from [CopilotChatBloc]: text bubbles and inline tool calls.
 ///
 /// Follows the bottom while text streams in, unless the user has scrolled
@@ -16,6 +13,10 @@ class const MessageList({super.key}) extends StatefulWidget {
 }
 
 class _MessageListState extends State<MessageList> {
+  /// Distance from the end within which the list keeps following new
+  /// content.
+  static const _followThreshold = 48.0;
+
   final _controller = ScrollController();
   var _followBottom = true;
 

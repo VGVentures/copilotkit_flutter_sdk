@@ -44,7 +44,7 @@ void main() {
       return running;
     }
 
-    Map<String, Object?>? receivedArgs;
+    JsonObject? receivedArgs;
     CancellationSignal? receivedSignal;
     late List<ToolCallStatus> statuses;
 
@@ -66,7 +66,7 @@ void main() {
       });
 
       await client.runAgent(agent.state.agentId);
-      expect(receivedArgs, {'city': 'Lima'});
+      expect(receivedArgs, const JsonObject({'city': 'Lima'}));
       expect(receivedSignal!.isCancelled, isFalse);
       final inputs = sentInputs();
       expect(inputs, hasLength(2));
@@ -165,13 +165,14 @@ void main() {
     test('passes the handler the args parsed by the schema', () async {
       receivedArgs = null;
       client.registerTool(
-        FrontendTool(
+        FrontendTool<JsonObject>(
           name: 'showWeather',
           description: 'Show the weather for a city',
           parameters: Ack.object({
             'city': Ack.string(),
             'days': Ack.integer().withDefault(3),
           }),
+          decode: JsonObject.new,
           handler: (args, {required signal}) async {
             receivedArgs = args;
             return 'ok';
@@ -181,7 +182,7 @@ void main() {
       queueToolCallAndReply();
 
       await client.runAgent(agent.state.agentId);
-      expect(receivedArgs, {'city': 'Lima', 'days': 3});
+      expect(receivedArgs, const JsonObject({'city': 'Lima', 'days': 3}));
     });
 
     late bool called;
@@ -307,7 +308,7 @@ void main() {
     });
 
     group('recorded fixtures', () {
-      late List<Map<String, Object?>> calls;
+      late List<JsonObject> calls;
 
       test('runs the handler and sends its result in the next run', () async {
         calls = [];
@@ -323,7 +324,7 @@ void main() {
 
         await client.runAgent(agent.state.agentId);
         expect(calls, [
-          {'city': 'Lima'},
+          const JsonObject({'city': 'Lima'}),
         ]);
         final result = sentInputs().last.messages.whereType<ToolMessage>();
         expect(result.single.content, 'Sunny, 24°C');

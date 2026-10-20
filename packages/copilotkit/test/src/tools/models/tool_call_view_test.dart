@@ -13,7 +13,7 @@ void main() {
       expect(view.id, 'call-1');
       expect(view.name, 'showWeather');
       expect(view.status, ToolCallStatus.inProgress);
-      expect(view.args, isEmpty);
+      expect(view.args, const JsonObject());
       expect(view.result, isNull);
     });
 
@@ -22,11 +22,11 @@ void main() {
         id: 'call-1',
         name: 'showWeather',
         status: ToolCallStatus.complete,
-        args: {'city': 'Lima'},
+        args: JsonObject({'city': 'Lima'}),
         result: 'sunny',
       );
 
-      expect(view.args, {'city': 'Lima'});
+      expect(view.args, const JsonObject({'city': 'Lima'}));
       expect(view.result, 'sunny');
     });
 
@@ -35,7 +35,7 @@ void main() {
         id: 'call-1',
         name: 'showWeather',
         status: ToolCallStatus.complete,
-        args: {'city': 'Lima'},
+        args: JsonObject({'city': 'Lima'}),
         result: 'sunny',
       );
 
@@ -45,12 +45,15 @@ void main() {
           id: 'call-1',
           name: 'showWeather',
           status: ToolCallStatus.complete,
-          args: {'city': 'Lima'},
+          args: JsonObject({'city': 'Lima'}),
           result: 'sunny',
         ),
       );
       expect(view, isNot(view.copyWith(status: ToolCallStatus.executing)));
-      expect(view, isNot(view.copyWith(args: {'city': 'Quito'})));
+      expect(
+        view,
+        isNot(view.copyWith(args: const JsonObject({'city': 'Quito'}))),
+      );
     });
 
     group('copyWith', () {
@@ -58,7 +61,7 @@ void main() {
         id: 'call-1',
         name: 'showWeather',
         status: ToolCallStatus.inProgress,
-        args: {'city': 'Lima'},
+        args: JsonObject({'city': 'Lima'}),
         result: 'partial',
       );
 
@@ -69,14 +72,14 @@ void main() {
       test('replaces the given fields', () {
         final copy = view.copyWith(
           status: ToolCallStatus.complete,
-          args: {'city': 'Quito'},
+          args: const JsonObject({'city': 'Quito'}),
           result: () => 'sunny',
         );
 
         expect(copy.id, 'call-1');
         expect(copy.name, 'showWeather');
         expect(copy.status, ToolCallStatus.complete);
-        expect(copy.args, {'city': 'Quito'});
+        expect(copy.args, const JsonObject({'city': 'Quito'}));
         expect(copy.result, 'sunny');
       });
 

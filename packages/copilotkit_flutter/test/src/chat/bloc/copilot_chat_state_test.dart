@@ -9,7 +9,7 @@ void main() {
     id: 'c1',
     name: 'showWeather',
     status: ToolCallStatus.executing,
-    args: {'city': 'Lima'},
+    args: JsonObject({'city': 'Lima'}),
   );
 
   group(CopilotChatState, () {

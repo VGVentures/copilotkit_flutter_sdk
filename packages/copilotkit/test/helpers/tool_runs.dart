@@ -1,8 +1,9 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 
-/// A `showWeather` tool with a required `city` and optional `days`.
-FrontendTool weatherTool(FrontendToolHandler handler) {
+/// A `showWeather` tool with a required `city` and optional `days`, whose
+/// handler gets the arguments as a [JsonObject].
+FrontendTool<JsonObject> weatherTool(FrontendToolHandler<JsonObject> handler) {
   return FrontendTool(
     name: 'showWeather',
     description: 'Show the weather for a city',
@@ -10,6 +11,7 @@ FrontendTool weatherTool(FrontendToolHandler handler) {
       'city': Ack.string().describe('City name'),
       'days': Ack.integer().optional(),
     }),
+    decode: JsonObject.new,
     handler: handler,
   );
 }

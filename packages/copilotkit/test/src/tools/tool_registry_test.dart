@@ -1,13 +1,15 @@
 import 'package:ack/ack.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 
 void main() {
   group(ToolRegistry, () {
-    FrontendTool tool(String name) => FrontendTool(
+    FrontendTool<JsonObject> tool(String name) => FrontendTool(
       name: name,
       description: 'A tool',
       parameters: Ack.object({}),
+      decode: JsonObject.new,
       handler: (_, {required signal}) async => 'ok',
     );
 

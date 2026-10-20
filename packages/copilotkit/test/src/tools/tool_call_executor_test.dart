@@ -1,4 +1,5 @@
 import 'package:ack/ack.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 
@@ -7,7 +8,9 @@ void main() {
     const executor = ToolCallExecutor();
     final signal = CancellationSignal();
 
-    FrontendTool weatherTool(FrontendToolHandler handler) => FrontendTool(
+    FrontendTool<JsonObject> weatherTool(
+      FrontendToolHandler<JsonObject> handler,
+    ) => FrontendTool(
       name: 'showWeather',
       description: 'Show the weather for a city',
       parameters: Ack.object({
@@ -16,6 +19,7 @@ void main() {
         'unit': Ack.object({'step': Ack.integer()}).optional(),
         'tags': Ack.list(Ack.string()).optional(),
       }),
+      decode: JsonObject.new,
       handler: handler,
     );
 
@@ -23,11 +27,11 @@ void main() {
       id: 'c1',
       name: 'showWeather',
       status: ToolCallStatus.executing,
-      args: args,
+      args: JsonObject(args),
     );
 
     test('runs the handler with the parsed args and the signal', () async {
-      Map<String, Object?>? received;
+      JsonObject? received;
       CancellationSignal? receivedSignal;
       final tool = weatherTool((args, {required signal}) async {
         received = args;
@@ -42,7 +46,7 @@ void main() {
       );
 
       expect(outcome, const ToolCallOutcome(result: 'sunny'));
-      expect(received, {'city': 'Lima', 'days': 3});
+      expect(received, const JsonObject({'city': 'Lima', 'days': 3}));
       expect(receivedSignal, same(signal));
     });
 
@@ -61,9 +65,28 @@ void main() {
       expect(outcome.stackTrace, isNotNull);
     });
 
+    test('turns a decoder error into a generic result and the error', () async {
+      final tool = FrontendTool<String>(
+        name: 'showWeather',
+        description: 'Show the weather for a city',
+        parameters: Ack.object({'city': Ack.string()}),
+        decode: (json) => throw const FormatException('bad args'),
+        handler: (_, {required signal}) async => 'never',
+      );
+
+      final outcome = await executor.execute(
+        tool,
+        callWith({'city': 'Lima'}),
+        signal,
+      );
+
+      expect(outcome.result, FallbackToolResult.handlerError.message);
+      expect(outcome.error, isA<FormatException>());
+    });
+
     group('with invalid args', () {
       var called = false;
-      late FrontendTool tool;
+      late FrontendTool<JsonObject> tool;
 
       setUp(() {
         called = false;

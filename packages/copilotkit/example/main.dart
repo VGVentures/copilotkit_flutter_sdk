@@ -9,7 +9,7 @@ Future<void> main() async {
   final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
-    properties: {'userId': '42'},
+    properties: const JsonObject({'userId': '42'}),
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 
@@ -19,14 +19,15 @@ Future<void> main() async {
     name: 'showWeather',
     description: 'Show the weather for a city',
     parameters: Ack.object({'city': Ack.string()}),
+    decode: _WeatherArgs.fromJson,
     handler: (args, {required signal}) async =>
-        jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
+        jsonEncode({'city': args.city, 'forecast': 'sunny'}),
   );
 
   // App data the agent can answer from. In Flutter, `CopilotContext`.
   final user = AgentContextEntry(
     description: 'Current user',
-    value: const {'name': 'Ada'},
+    value: const _User('Ada'),
   );
 
   client
@@ -37,7 +38,8 @@ Future<void> main() async {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
-        ToolCallStatus.executing => 'weather for ${call.args['city']}',
+        ToolCallStatus.executing =>
+          'weather for ${call.args.tryDecode(_WeatherArgs.fromJson)?.city}',
         ToolCallStatus.complete => call.result!,
       };
       print('${call.name}: $view');
@@ -59,4 +61,16 @@ Future<void> main() async {
     ..removeContext(user.id)
     ..unregisterTool(showWeather);
   await client.close();
+}
+
+/// The arguments of the `showWeather` tool.
+class const _WeatherArgs(final String city) {
+  factory fromJson(Map<String, Object?> json) =>
+      _WeatherArgs(json['city']! as String);
+}
+
+/// The current user, shared with the agent as context.
+class const _User(final String name) implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'name': name};
 }

@@ -1,6 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
@@ -14,10 +15,10 @@ const _start = ToolCallStartEvent(
 );
 
 /// Matches a state whose only tool call has [args].
-Matcher _hasArgs(Object? args) => isA<CopilotAgentState>().having(
+Matcher _hasArgs(Map<String, Object?> args) => isA<CopilotAgentState>().having(
   (state) => state.toolCalls.single.args,
   'args',
-  args,
+  JsonObject(args),
 );
 
 void main() {
@@ -28,7 +29,7 @@ void main() {
       expect(view.id, 'c1');
       expect(view.name, 'showWeather');
       expect(view.status, ToolCallStatus.inProgress);
-      expect(view.args, isEmpty);
+      expect(view.args, const JsonObject());
       expect(view.result, isNull);
     });
 
@@ -69,7 +70,7 @@ void main() {
 
     test('a repeated Start is ignored', () {
       final result = reduce(const [_start, _start]);
-      expect(result.states, [_hasArgs(isEmpty)]);
+      expect(result.states, [_hasArgs(const {})]);
     });
 
     test('Args grow the raw arguments and the parsed partial args', () {
@@ -79,7 +80,7 @@ void main() {
         ToolCallArgsEvent(toolCallId: 'c1', delta: 'ma"}'),
       ]);
       expect(result.states, [
-        _hasArgs(isEmpty),
+        _hasArgs(const {}),
         _hasArgs({'city': 'Li'}),
         _hasArgs({'city': 'Lima'}),
       ]);
@@ -165,7 +166,7 @@ void main() {
         ]);
         final view = result.state.toolCalls.single;
         expect(view.name, 'showWeather');
-        expect(view.args, {'city': 'Lima'});
+        expect(view.args, const JsonObject({'city': 'Lima'}));
         expect(result.state.messages.single.id, 'm1');
       });
 
@@ -181,7 +182,7 @@ void main() {
         final result = reduce(const [
           ToolCallChunkEvent(toolCallId: 'c1', toolCallName: 'tool'),
         ]);
-        expect(result.states, [_hasArgs(isEmpty)]);
+        expect(result.states, [_hasArgs(const {})]);
       });
     });
 
@@ -203,7 +204,7 @@ void main() {
       final view = result.state.toolCalls.single;
       expect(view.name, 'showWeather');
       expect(view.status, ToolCallStatus.executing);
-      expect(view.args, {'city': 'Lima'});
+      expect(view.args, const JsonObject({'city': 'Lima'}));
       expect(view.result, isNull);
     });
   });

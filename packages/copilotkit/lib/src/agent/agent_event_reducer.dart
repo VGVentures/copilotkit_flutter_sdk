@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 
@@ -67,7 +68,7 @@ class const AgentEventReducer({
       ) =>
         _completeToolCall(snapshot, messageId, toolCallId, content),
       StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-        sharedState: () => state,
+        sharedState: () => SharedState(state),
       ),
       StateDeltaEvent() => _applyStateDelta(snapshot, event),
       MessagesSnapshotEvent(:final messages) => snapshot.copyWith(
@@ -86,7 +87,9 @@ class const AgentEventReducer({
     try {
       final operations = event.delta.map(JsonPatchOperation.fromJson).toList();
       return snapshot.copyWith(
-        sharedState: () => _patcher.apply(snapshot.sharedState, operations),
+        sharedState: () => SharedState(
+          _patcher.apply(snapshot.sharedState?.toJson(), operations),
+        ),
       );
     } on FormatException {
       return snapshot;

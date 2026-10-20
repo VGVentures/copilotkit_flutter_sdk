@@ -1,6 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent.dart';
@@ -13,8 +14,10 @@ void main() {
         StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
       expect(result.states, [
-        agentState.copyWith(sharedState: () => {'count': 1}),
-        agentState.copyWith(sharedState: () => {'items': <Object?>[]}),
+        agentState.copyWith(sharedState: () => const SharedState({'count': 1})),
+        agentState.copyWith(
+          sharedState: () => const SharedState({'items': <Object?>[]}),
+        ),
       ]);
     });
 
@@ -29,26 +32,26 @@ void main() {
           ),
         ],
         from: agentState.copyWith(
-          sharedState: () => {
+          sharedState: () => const SharedState({
             'count': 1,
             'items': ['a'],
-          },
+          }),
         ),
       );
       expect(result.states, [
         agentState.copyWith(
-          sharedState: () => {
+          sharedState: () => const SharedState({
             'count': 2,
             'items': ['a', 'b'],
-          },
+          }),
         ),
       ]);
     });
 
     final before = agentState.copyWith(
-      sharedState: () => {
+      sharedState: () => const SharedState({
         'items': ['a'],
-      },
+      }),
     );
 
     test('StateDelta does not mutate the previous state', () {
@@ -59,19 +62,27 @@ void main() {
           ],
         ),
       ], from: before);
-      expect(before.sharedState, {
-        'items': ['a'],
-      });
+      expect(
+        before.sharedState,
+        const SharedState({
+          'items': ['a'],
+        }),
+      );
     });
 
     test('a StateDelta that does not apply leaves the state unchanged', () {
-      final result = reduce(const [
-        StateDeltaEvent(
-          delta: [
-            {'op': 'remove', 'path': '/missing'},
-          ],
+      final result = reduce(
+        const [
+          StateDeltaEvent(
+            delta: [
+              {'op': 'remove', 'path': '/missing'},
+            ],
+          ),
+        ],
+        from: agentState.copyWith(
+          sharedState: () => const SharedState({'count': 1}),
         ),
-      ], from: agentState.copyWith(sharedState: () => {'count': 1}));
+      );
       expect(result.states, const <CopilotAgentState>[]);
     });
 
