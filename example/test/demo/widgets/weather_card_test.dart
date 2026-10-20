@@ -6,14 +6,19 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group(WeatherCard, () {
+    final tool = FrontendTool(
+      name: 'showWeather',
+      description: 'Show the weather',
+      parameters: Ack.object({'city': Ack.string()}),
+      decode: WeatherArgs.fromJson,
+      handler: (_, {required signal}) async => '',
+    );
+
     Future<void> pump(WidgetTester tester, ToolCallView call) {
       return tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: WeatherCard(
-              call: call,
-              args: call.args.tryDecode(WeatherArgs.fromJson),
-            ),
+            body: WeatherCard(call: call, args: tool.tryDecode(call.args)),
           ),
         ),
       );
@@ -40,7 +45,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.executing,
-          args: JsonObject({'city': 'Lima'}),
+          args: {'city': 'Lima'},
         ),
       );
 
@@ -69,7 +74,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.executing,
-          args: JsonObject({'city': 42}),
+          args: {'city': 42},
         ),
       );
 
@@ -83,7 +88,7 @@ void main() {
           id: 'c1',
           name: 'showWeather',
           status: ToolCallStatus.complete,
-          args: JsonObject({'city': 'Lima'}),
+          args: {'city': 'Lima'},
           result: '{"city":"Lima","temperatureC":21,"condition":"Sunny"}',
         ),
       );

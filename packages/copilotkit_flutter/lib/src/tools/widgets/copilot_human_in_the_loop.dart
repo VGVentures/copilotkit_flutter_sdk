@@ -62,7 +62,7 @@ class const CopilotHumanInTheLoop<T>({
           return builder(
             context,
             call,
-            call.args.tryDecode(tool.decode),
+            tool.tryDecode(call.args),
             call.awaitingResponse
                 ? (result) => client.respondToToolCall(call.id, result)
                 : null,

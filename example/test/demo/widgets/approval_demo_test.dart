@@ -25,7 +25,7 @@ void main() {
                   id: 'c1',
                   name: 'confirmAction',
                   status: ToolCallStatus.executing,
-                  args: JsonObject({'action': 'Delete 3 files'}),
+                  args: {'action': 'Delete 3 files'},
                   awaitingResponse: true,
                 ),
               ),

@@ -56,7 +56,7 @@ void main() {
         name: 'showWeather',
         description: 'Weather',
         parameters: Ack.object({}),
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
         handler: (_, {required signal}) async => '',
       );
       final entry = AgentContextEntry(
@@ -130,7 +130,7 @@ void main() {
               name: 'showWeather',
               description: 'Weather',
               parameters: Ack.object({}),
-              decode: JsonObject.new,
+              decode: Map<String, Object?>.of,
               handler: (_, {required signal}) async => '',
             ),
           )
@@ -266,7 +266,7 @@ void main() {
       late ClientHarness harness;
       late CopilotKitClient client;
       late CopilotAgent agent;
-      late HumanInTheLoopTool<JsonObject> tool;
+      late HumanInTheLoopTool<Map<String, Object?>> tool;
       late Future<void> run;
 
       setUp(() async {
@@ -317,7 +317,7 @@ void main() {
               name: tool.name,
               description: 'An updated description',
               parameters: tool.parameters,
-              decode: JsonObject.new,
+              decode: Map<String, Object?>.of,
             ),
           )
           ..unregisterTool(tool);

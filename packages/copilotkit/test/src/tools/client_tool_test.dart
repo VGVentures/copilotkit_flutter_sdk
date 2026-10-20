@@ -21,7 +21,7 @@ void main() {
             name: 'a',
             description: 'A',
             parameters: Ack.object({}),
-            decode: JsonObject.new,
+            decode: Map<String, Object?>.of,
             handler: (_, {required signal}) async => '',
           ),
         ),
@@ -33,11 +33,29 @@ void main() {
             name: 'b',
             description: 'B',
             parameters: Ack.object({}),
-            decode: JsonObject.new,
+            decode: Map<String, Object?>.of,
           ),
         ),
         'human',
       );
+    });
+
+    group('tryDecode', () {
+      HumanInTheLoopTool<_WeatherArgs> tool() => HumanInTheLoopTool(
+        name: 'showWeather',
+        description: 'Show the weather for a city',
+        parameters: Ack.object({'city': Ack.string()}),
+        decode: _WeatherArgs.fromJson,
+      );
+
+      test('decodes the args', () {
+        expect(tool().tryDecode(const {'city': 'Lima'})?.city, 'Lima');
+      });
+
+      test('returns null when decode throws', () {
+        expect(tool().tryDecode(const {}), isNull);
+        expect(tool().tryDecode(const {'city': 42}), isNull);
+      });
     });
   });
 
@@ -69,10 +87,9 @@ void main() {
     });
 
     test('run decodes the args and runs the handler', () async {
-      final result = await tool().run(
-        const JsonObject({'city': 'Lima'}),
-        signal: CancellationSignal(),
-      );
+      final result = await tool().run(const {
+        'city': 'Lima',
+      }, signal: CancellationSignal());
 
       expect(result, 'sunny in Lima');
     });
@@ -81,17 +98,17 @@ void main() {
       // The registry holds tools as ClientTool<Object?>.
       final ClientTool<Object?> anyTool = tool();
 
-      final result = await (anyTool as FrontendTool<Object?>).run(
-        const JsonObject({'city': 'Lima'}),
-        signal: CancellationSignal(),
-      );
+      final result = await (anyTool as FrontendTool<Object?>).run(const {
+        'city': 'Lima',
+      }, signal: CancellationSignal());
 
       expect(result, 'sunny in Lima');
     });
 
     test('run throws what the decoder throws', () {
       expect(
-        () => tool().run(const JsonObject(), signal: CancellationSignal()),
+        () =>
+            tool().run(const <String, Object?>{}, signal: CancellationSignal()),
         throwsA(isA<TypeError>()),
       );
     });
@@ -105,14 +122,14 @@ void main() {
   group(HumanInTheLoopTool, () {
     final parameters = Ack.object({'action': Ack.string()});
 
-    HumanInTheLoopTool<JsonObject> tool({
+    HumanInTheLoopTool<Map<String, Object?>> tool({
       String name = 'confirmAction',
       bool followUp = true,
     }) => HumanInTheLoopTool(
       name: name,
       description: 'Ask the user to confirm an action',
       parameters: parameters,
-      decode: JsonObject.new,
+      decode: Map<String, Object?>.of,
       followUp: followUp,
     );
 
@@ -121,13 +138,13 @@ void main() {
         name: 'confirmAction',
         description: 'Ask the user to confirm an action',
         parameters: parameters,
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
       );
 
       expect(confirm.name, 'confirmAction');
       expect(confirm.description, 'Ask the user to confirm an action');
       expect(confirm.parameters, same(parameters));
-      expect(confirm.decode, JsonObject.new);
+      expect(confirm.decode, Map<String, Object?>.of);
       expect(confirm.followUp, isTrue);
       expect(tool(followUp: false).followUp, isFalse);
     });

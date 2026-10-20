@@ -1,4 +1,3 @@
-import 'package:copilotkit/src/json/models/json_object.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:equatable/equatable.dart';
 
@@ -13,10 +12,10 @@ class const ToolCallView({
   /// Where the call is in its lifecycle.
   required final ToolCallStatus status,
 
-  /// Arguments sent by the agent; partial while [status] is
-  /// [ToolCallStatus.inProgress], so decode them with
-  /// [JsonObject.tryDecode].
-  final JsonObject args = const JsonObject(),
+  /// Arguments sent by the agent, as a JSON object; partial while [status]
+  /// is [ToolCallStatus.inProgress], so decode them with
+  /// `ClientTool.tryDecode`. Unmodifiable when set by the SDK.
+  final Map<String, Object?> args = const {},
 
   /// Result string; set once [status] is [ToolCallStatus.complete].
   final String? result,
@@ -36,7 +35,7 @@ class const ToolCallView({
   /// clear it (`result: () => null`) or leave it alone by not passing it.
   ToolCallView copyWith({
     ToolCallStatus? status,
-    JsonObject? args,
+    Map<String, Object?>? args,
     String? Function()? result,
     bool? awaitingResponse,
   }) {

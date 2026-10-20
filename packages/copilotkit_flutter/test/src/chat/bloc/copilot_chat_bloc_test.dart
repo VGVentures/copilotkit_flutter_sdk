@@ -16,7 +16,7 @@ const _call = ToolCallView(
   id: 'c1',
   name: 'showWeather',
   status: ToolCallStatus.executing,
-  args: JsonObject({'city': 'Lima'}),
+  args: {'city': 'Lima'},
 );
 const _assistantWithCall = AssistantMessage(
   id: 'a1',

@@ -1,15 +1,14 @@
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 
 void main() {
   group(ToolRegistry, () {
-    FrontendTool<JsonObject> tool(String name) => FrontendTool(
+    FrontendTool<Map<String, Object?>> tool(String name) => FrontendTool(
       name: name,
       description: 'A tool',
       parameters: Ack.object({}),
-      decode: JsonObject.new,
+      decode: Map<String, Object?>.of,
       handler: (_, {required signal}) async => 'ok',
     );
 
@@ -40,11 +39,11 @@ void main() {
 
     test('unregisters only the tool that is registered', () {
       final first = tool('showWeather');
-      final second = FrontendTool<JsonObject>(
+      final second = FrontendTool<Map<String, Object?>>(
         name: 'showWeather',
         description: 'Another tool',
         parameters: Ack.object({}),
-        decode: JsonObject.new,
+        decode: Map<String, Object?>.of,
         handler: (_, {required signal}) async => 'ok',
       );
       final registry = ToolRegistry()

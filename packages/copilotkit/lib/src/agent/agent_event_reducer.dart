@@ -1,7 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 
@@ -125,7 +124,7 @@ class const AgentEventReducer({
           id: call.id,
           name: call.function.name,
           status: ToolCallStatus.executing,
-          args: JsonObject(_parser.parse(call.function.arguments)),
+          args: Map.unmodifiable(_parser.parse(call.function.arguments)),
         );
     return switch (results[call.id]) {
       final result? => view.copyWith(
@@ -231,7 +230,7 @@ class const AgentEventReducer({
     final updatedCall = call.copyWith(
       function: call.function.copyWith(arguments: arguments),
     );
-    final args = JsonObject(_parser.parse(arguments));
+    final args = Map<String, Object?>.unmodifiable(_parser.parse(arguments));
     return _updateToolCall(
       snapshot.copyWith(
         messages: _replaceToolCall(snapshot.messages, call, updatedCall),

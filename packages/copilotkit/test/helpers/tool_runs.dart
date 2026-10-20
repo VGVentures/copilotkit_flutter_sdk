@@ -2,8 +2,10 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 
 /// A `showWeather` tool with a required `city` and optional `days`, whose
-/// handler gets the arguments as a [JsonObject].
-FrontendTool<JsonObject> weatherTool(FrontendToolHandler<JsonObject> handler) {
+/// handler gets the arguments as a map.
+FrontendTool<Map<String, Object?>> weatherTool(
+  FrontendToolHandler<Map<String, Object?>> handler,
+) {
   return FrontendTool(
     name: 'showWeather',
     description: 'Show the weather for a city',
@@ -11,7 +13,7 @@ FrontendTool<JsonObject> weatherTool(FrontendToolHandler<JsonObject> handler) {
       'city': Ack.string().describe('City name'),
       'days': Ack.integer().optional(),
     }),
-    decode: JsonObject.new,
+    decode: Map<String, Object?>.of,
     handler: handler,
   );
 }
@@ -42,12 +44,12 @@ List<BaseEvent> replyRun(String threadId) {
 }
 
 /// A `confirmAction` human-in-the-loop tool with a required `action`.
-HumanInTheLoopTool<JsonObject> approvalTool({bool followUp = true}) {
+HumanInTheLoopTool<Map<String, Object?>> approvalTool({bool followUp = true}) {
   return HumanInTheLoopTool(
     name: 'confirmAction',
     description: 'Ask the user to confirm an action',
     parameters: Ack.object({'action': Ack.string()}),
-    decode: JsonObject.new,
+    decode: Map<String, Object?>.of,
     followUp: followUp,
   );
 }

@@ -1,7 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
@@ -18,7 +17,7 @@ const _start = ToolCallStartEvent(
 Matcher _hasArgs(Map<String, Object?> args) => isA<CopilotAgentState>().having(
   (state) => state.toolCalls.single.args,
   'args',
-  JsonObject(args),
+  args,
 );
 
 void main() {
@@ -29,8 +28,18 @@ void main() {
       expect(view.id, 'c1');
       expect(view.name, 'showWeather');
       expect(view.status, ToolCallStatus.inProgress);
-      expect(view.args, const JsonObject());
+      expect(view.args, const <String, Object?>{});
       expect(view.result, isNull);
+    });
+
+    test('Args exposes unmodifiable args', () {
+      final result = reduce(const [
+        _start,
+        ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Lima"}'),
+      ]);
+      final args = result.state.toolCalls.single.args;
+
+      expect(() => args['city'] = 'Quito', throwsUnsupportedError);
     });
 
     test('Start records the call on a new assistant message', () {
@@ -166,7 +175,7 @@ void main() {
         ]);
         final view = result.state.toolCalls.single;
         expect(view.name, 'showWeather');
-        expect(view.args, const JsonObject({'city': 'Lima'}));
+        expect(view.args, const {'city': 'Lima'});
         expect(result.state.messages.single.id, 'm1');
       });
 
@@ -204,7 +213,7 @@ void main() {
       final view = result.state.toolCalls.single;
       expect(view.name, 'showWeather');
       expect(view.status, ToolCallStatus.executing);
-      expect(view.args, const JsonObject({'city': 'Lima'}));
+      expect(view.args, const {'city': 'Lima'});
       expect(view.result, isNull);
     });
 
@@ -252,11 +261,11 @@ void main() {
         ]);
         final [first, second] = result.state.toolCalls;
         expect(first.name, 'showWeather');
-        expect(first.args, const JsonObject({'city': 'Lima'}));
+        expect(first.args, const {'city': 'Lima'});
         expect(first.status, ToolCallStatus.complete);
         expect(first.result, '{"forecast": "sunny"}');
         expect(second.name, 'showMap');
-        expect(second.args, const JsonObject({'zoom': 3}));
+        expect(second.args, const {'zoom': 3});
         expect(second.status, ToolCallStatus.executing);
         expect(second.result, isNull);
       });
@@ -269,7 +278,7 @@ void main() {
         ]);
         final view = result.state.toolCalls.single;
         expect(view.status, ToolCallStatus.inProgress);
-        expect(view.args, const JsonObject({'city': 'Li'}));
+        expect(view.args, const {'city': 'Li'});
       });
 
       test('completes a known call whose result it holds', () {

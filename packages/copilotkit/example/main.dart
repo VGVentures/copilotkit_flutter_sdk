@@ -39,7 +39,7 @@ Future<void> main() async {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
         ToolCallStatus.executing =>
-          'weather for ${call.args.tryDecode(_WeatherArgs.fromJson)?.city}',
+          'weather for ${showWeather.tryDecode(call.args)?.city}',
         ToolCallStatus.complete => call.result!,
       };
       print('${call.name}: $view');

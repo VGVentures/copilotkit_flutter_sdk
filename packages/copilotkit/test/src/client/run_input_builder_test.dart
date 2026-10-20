@@ -3,7 +3,6 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -24,7 +23,7 @@ void main() {
       name: 'showWeather',
       description: 'Show the weather',
       parameters: Ack.object({'city': Ack.string()}),
-      decode: JsonObject.new,
+      decode: Map<String, Object?>.of,
       handler: (_, {required signal}) async => 'ok',
     );
     final entry = AgentContextEntry(
@@ -71,7 +70,7 @@ void main() {
             name: 'refresh',
             description: 'Refresh the screen',
             parameters: Ack.object({'options': Ack.object({})}),
-            decode: JsonObject.new,
+            decode: Map<String, Object?>.of,
             handler: (_, {required signal}) async => 'ok',
           ),
         ],

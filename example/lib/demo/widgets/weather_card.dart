@@ -4,6 +4,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
 import 'package:flutter/material.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 /// Placeholder generative UI for `showWeather` calls.
 class const WeatherCard({
@@ -62,9 +63,13 @@ class const WeatherCard({
   Forecast? _forecastFrom(String? result) {
     if (result == null) return null;
     try {
-      return JsonObject.fromJson(jsonDecode(result))
-          .tryDecode(Forecast.fromJson);
+      return switch (jsonDecode(result)) {
+        final Map<String, Object?> json => Forecast.fromJson(json),
+        _ => null,
+      };
     } on FormatException {
+      return null;
+    } on CheckedFromJsonException {
       return null;
     }
   }

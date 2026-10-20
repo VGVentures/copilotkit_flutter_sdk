@@ -1,7 +1,6 @@
 import 'dart:developer' as developer;
 
 import 'package:ack/ack.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/client_tool.dart';
 import 'package:copilotkit/src/tools/models/fallback_tool_result.dart';
@@ -26,7 +25,7 @@ class const ToolCallExecutor() {
 
   /// Whether the arguments of [call] match the parameters of [tool].
   bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
-      tool.parameters.safeParse(call.args.toJson()) is Ok;
+      tool.parameters.safeParse(call.args) is Ok;
 
   /// Produces the result of [call] for [tool] within the turn [signal]
   /// belongs to: runs the handler of a [FrontendTool], or waits in
@@ -43,10 +42,10 @@ class const ToolCallExecutor() {
     CancellationSignal signal, {
     required ToolResponses responses,
   }) async {
-    final JsonObject args;
-    switch (tool.parameters.safeParse(call.args.toJson())) {
+    final Map<String, Object?> args;
+    switch (tool.parameters.safeParse(call.args)) {
       case Ok(:final value):
-        args = JsonObject(value ?? const {});
+        args = Map.unmodifiable(value ?? const <String, Object?>{});
       case Fail(:final error):
         final result = _invalidArgumentsResult(error);
         developer.log(
@@ -67,7 +66,7 @@ class const ToolCallExecutor() {
 
   Future<ToolCallOutcome> _run(
     FrontendTool<Object?> tool,
-    JsonObject args,
+    Map<String, Object?> args,
     CancellationSignal signal,
   ) async {
     try {

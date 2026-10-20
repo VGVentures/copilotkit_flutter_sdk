@@ -6,7 +6,7 @@ ToolCallView _call(
   String name, {
   String id = 'c1',
   ToolCallStatus status = ToolCallStatus.inProgress,
-  JsonObject args = const JsonObject(),
+  Map<String, Object?> args = const <String, Object?>{},
   String? result,
 }) {
   return ToolCallView(
