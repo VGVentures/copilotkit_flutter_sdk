@@ -1,10 +1,16 @@
-import 'package:copilotkit/src/json/json_patch.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group(JsonPatch, () {
+  group(JsonPatcher, () {
+    Object? apply(Object? document, List<Map<String, Object?>> operations) =>
+        const JsonPatcher().apply(document, [
+          for (final operation in operations)
+            JsonPatchOperation.fromJson(operation),
+        ]);
+
     test('add sets object members and inserts into arrays', () {
-      final result = JsonPatch.apply(
+      final result = apply(
         {
           'foo': ['bar', 'baz'],
         },
@@ -23,7 +29,7 @@ void main() {
 
     test('add at the root replaces the document', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {'a': 1},
           [
             {'op': 'add', 'path': '', 'value': 'new'},
@@ -35,7 +41,7 @@ void main() {
 
     test('add on a null document creates it from the root', () {
       expect(
-        JsonPatch.apply(null, [
+        apply(null, [
           {
             'op': 'add',
             'path': '',
@@ -49,7 +55,7 @@ void main() {
 
     test('remove deletes object members and array elements', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {
             'a': 1,
             'b': [1, 2, 3],
@@ -67,7 +73,7 @@ void main() {
 
     test('replace swaps existing values', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {
             'a': 1,
             'b': [1, 2],
@@ -81,7 +87,7 @@ void main() {
         'all',
       );
       expect(
-        JsonPatch.apply(
+        apply(
           {
             'b': [1, 2],
           },
@@ -97,7 +103,7 @@ void main() {
 
     test('move and copy relocate values', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {
             'a': {'x': 1},
             'b': <String, Object?>{},
@@ -116,7 +122,7 @@ void main() {
     });
 
     test('copy makes an independent value', () {
-      final result = JsonPatch.apply(
+      final result = apply(
         {
           'a': {'x': 1},
         },
@@ -134,7 +140,7 @@ void main() {
 
     test('test passes on deep-equal values', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {
             'a': [
               {'b': 1},
@@ -166,7 +172,7 @@ void main() {
 
     test('decodes ~0 and ~1 in pointers', () {
       expect(
-        JsonPatch.apply(
+        apply(
           {'a/b': 1, 'm~n': 2},
           [
             {'op': 'replace', 'path': '/a~1b', 'value': 3},
@@ -184,7 +190,7 @@ void main() {
         },
       };
 
-      JsonPatch.apply(document, [
+      apply(document, [
         {'op': 'add', 'path': '/a/b/-', 'value': 2},
         {'op': 'add', 'path': '/c', 'value': 3},
       ]);
@@ -275,10 +281,7 @@ void main() {
       for (final MapEntry(key: name, value: (document, operation))
           in cases.entries) {
         test(name, () {
-          expect(
-            () => JsonPatch.apply(document, [operation]),
-            throwsFormatException,
-          );
+          expect(() => apply(document, [operation]), throwsFormatException);
         });
       }
     });

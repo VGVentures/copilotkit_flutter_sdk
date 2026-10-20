@@ -6,7 +6,31 @@ import 'dart:convert';
 /// dropped; a number keeps its valid digits; a literal cut mid-way (`tr`,
 /// `nu`) is completed. Complete JSON gives the same result as [jsonDecode].
 /// Never throws: input that isn't a JSON object prefix gives an empty map.
-class PartialJsonParser._(final String _input) {
+class const PartialJsonParser() {
+  /// Creates a parser.
+  this;
+
+  /// Parses [input] into the map it describes so far.
+  Map<String, Object?> parse(String input) {
+    try {
+      final decoded = jsonDecode(input);
+      return decoded is Map<String, Object?> ? decoded : {};
+    } on FormatException {
+      // Incomplete or invalid; fall through to the tolerant parser.
+    }
+    try {
+      final cursor = _Cursor(input).._skipWhitespace();
+      if (cursor._atEnd || cursor._peek != '{') return {};
+      return cursor._object();
+    } on _Garbage {
+      return {};
+    }
+  }
+}
+
+/// Reads one input from left to right; one cursor per [PartialJsonParser.parse]
+/// call.
+class _Cursor(final String _input) {
   static final _numberPattern = RegExp(
     r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?',
   );
@@ -15,23 +39,6 @@ class PartialJsonParser._(final String _input) {
   static final _danglingNumberTail = RegExp(r'(?:\.|[eE][+-]?)$');
 
   int _index = 0;
-
-  /// Parses [input] into the map it describes so far.
-  static Map<String, Object?> parse(String input) {
-    try {
-      final decoded = jsonDecode(input);
-      return decoded is Map<String, Object?> ? decoded : {};
-    } on FormatException {
-      // Incomplete or invalid; fall through to the tolerant parser.
-    }
-    try {
-      final parser = PartialJsonParser._(input).._skipWhitespace();
-      if (parser._atEnd || parser._peek != '{') return {};
-      return parser._object();
-    } on _Garbage {
-      return {};
-    }
-  }
 
   bool get _atEnd => _index >= _input.length;
 

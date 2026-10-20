@@ -1,2 +1,3 @@
-export 'json_patch.dart';
+export 'json_patcher.dart';
+export 'models/json_patch_operation.dart';
 export 'partial_json_parser.dart';

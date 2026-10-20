@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/bloc/copilot_agent_bloc.dart';
+import 'package:copilotkit/src/agent/agent.dart';
 import 'package:test/test.dart';
 
 void main() {
