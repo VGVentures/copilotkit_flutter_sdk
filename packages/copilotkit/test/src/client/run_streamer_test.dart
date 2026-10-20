@@ -82,7 +82,7 @@ void main() {
 
       agent
         ..setSharedState(const SharedState({'count': 3}))
-        ..patchSharedState(const [JsonPatchReplace(path: '/count', value: 4)])
+        ..patchSharedState(const [StatePatchReplace(path: '/count', value: 4)])
         ..addMessage(UserMessage(id: 'old', content: 'Old'))
         ..setMessages([UserMessage(id: 'new', content: 'New')]);
       await stream();

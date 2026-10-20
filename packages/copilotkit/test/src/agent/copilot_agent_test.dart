@@ -1,6 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
@@ -124,8 +123,8 @@ void main() {
             }),
           )
           ..patchSharedState(const [
-            JsonPatchReplace(path: '/count', value: 2),
-            JsonPatchAdd(path: '/items/-', value: 'b'),
+            StatePatchReplace(path: '/count', value: 2),
+            StatePatchAdd(path: '/items/-', value: 'b'),
           ]);
 
         expect(
@@ -139,7 +138,7 @@ void main() {
 
       test('patches a missing state as an empty object', () {
         final agent = buildAgent()
-          ..patchSharedState(const [JsonPatchAdd(path: '/count', value: 1)]);
+          ..patchSharedState(const [StatePatchAdd(path: '/count', value: 1)]);
 
         expect(agent.state.sharedState, const SharedState({'count': 1}));
       });
@@ -150,8 +149,8 @@ void main() {
 
         expect(
           () => agent.patchSharedState(const [
-            JsonPatchReplace(path: '/count', value: 2),
-            JsonPatchRemove(path: '/missing'),
+            StatePatchReplace(path: '/count', value: 2),
+            StatePatchRemove(path: '/missing'),
           ]),
           throwsFormatException,
         );
@@ -163,7 +162,7 @@ void main() {
 
         expect(
           () => agent.patchSharedState(const [
-            JsonPatchAdd(path: '/-', value: 'b'),
+            StatePatchAdd(path: '/-', value: 'b'),
           ]),
           throwsFormatException,
         );

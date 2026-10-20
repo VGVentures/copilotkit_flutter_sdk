@@ -25,7 +25,7 @@ An agent's `CopilotAgentState.sharedState` is sent with every run as
 ```dart
 client.agent('default')
   ..setSharedState(const SharedState({'theme': 'dark'}))
-  ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')])
+  ..patchSharedState(const [StatePatchAdd(path: '/units', value: 'metric')])
   ..setMessages([]); // e.g. to reset the conversation
 
 await client.runAgent('default'); // sends the edits above
