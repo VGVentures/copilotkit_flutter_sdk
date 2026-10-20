@@ -4,23 +4,37 @@ This guide covers the conventions and the commands used in this repository.
 
 ## Layout
 
-Both packages use a hybrid layout: one folder per feature, with a `models/`
-subfolder for the feature's data classes and a `bloc/` subfolder for its bloc.
-Shared files that don't belong to a feature sit directly in `lib/src/`. There
-is no `support/`, `utils/` or `helpers/` folder.
+Every package has one folder per feature in `lib/src/`, and every feature
+folder has the same shape:
+
+```
+lib/src/<feature>/
+  <feature>.dart   barrel: exports what other features and the package use
+  models/          the feature's data classes
+  <name>.dart      the feature's other classes
+  bloc/            the feature's bloc
+  widgets/         the feature's widgets (copilotkit_flutter only)
+```
+
+A feature only has the folders it needs. Code shared by several features is a
+feature of its own, e.g. `json/`. No files sit directly in `lib/src/`, and
+there is no `support/`, `utils/` or `helpers/` folder.
 
 ```
 lib/src/
-  agent/
-    bloc/
-      copilot_agent_bloc.dart
-      copilot_agent_event.dart
-      copilot_agent_state.dart
+  json/
+    json.dart
+    partial_json_parser.dart
   tools/
+    tools.dart
     frontend_tool.dart
     models/tool_call_view.dart
-  partial_json_parser.dart      # shared, no feature of its own
 ```
+
+A feature imports another feature only through its barrel
+(`package:copilotkit/src/json/json.dart`), never one of its files. The package
+barrel (`lib/copilotkit.dart`) exports only feature barrels, and uses `show` /
+`hide` to keep internal types private.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.

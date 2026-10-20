@@ -1,5 +1,5 @@
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit_flutter/src/tools/tool_renderer.dart';
+import 'package:copilotkit_flutter/src/tools/widgets/tool_renderer.dart';
 import 'package:flutter/widgets.dart';
 
 /// Renders [call] with the nearest builder registered for its tool name,
