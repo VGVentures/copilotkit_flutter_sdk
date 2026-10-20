@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   bloc: ^9.2.1
   bloc_concurrency: ^0.3.0
+  collection: ^1.19.1
   copilotkit: ^0.1.0
   equatable: ^3.0.0
   flutter:

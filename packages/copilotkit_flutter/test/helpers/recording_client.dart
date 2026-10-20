@@ -40,7 +40,7 @@ class RecordingClient extends Fake implements CopilotKitClient {
       calls.add(ClientCall('addContext', [entry]));
 
   @override
-  void updateContext(String id, Object? value) =>
+  void updateContext(String id, Map<String, Object?> value) =>
       calls.add(ClientCall('updateContext', [id, value]));
 
   @override

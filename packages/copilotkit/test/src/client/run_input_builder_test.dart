@@ -9,8 +9,6 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../helpers/json_values.dart';
-
 class _MockUuid extends Mock implements Uuid;
 
 void main() {
@@ -32,7 +30,7 @@ void main() {
     final entry = AgentContextEntry(
       id: 'user',
       description: 'Current user',
-      value: const JsonObject({'name': 'Ada'}),
+      value: const {'name': 'Ada'},
     );
 
     test('builds the input from the agent, tools, context and properties', () {
@@ -99,8 +97,11 @@ void main() {
         tools: const [],
         context: [
           entry,
-          AgentContextEntry(description: 'Locale', value: const Label('es')),
-          AgentContextEntry(description: 'Unread', value: const Count(3)),
+          AgentContextEntry(
+            description: 'Locale',
+            value: const {'label': 'es'},
+          ),
+          AgentContextEntry(description: 'Unread', value: const {'count': 3}),
         ],
       );
 
@@ -111,8 +112,8 @@ void main() {
       ]);
       expect(input.context.map((c) => c.value), [
         '{"name":"Ada"}',
-        '"es"',
-        '3',
+        '{"label":"es"}',
+        '{"count":3}',
       ]);
     });
 

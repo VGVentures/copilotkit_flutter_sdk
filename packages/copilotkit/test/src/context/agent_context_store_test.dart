@@ -1,19 +1,17 @@
 import 'package:copilotkit/src/context/context.dart';
 import 'package:test/test.dart';
 
-import '../../helpers/json_values.dart';
-
 void main() {
   group(AgentContextStore, () {
     final user = AgentContextEntry(
       id: 'user',
       description: 'Current user',
-      value: const Label('Ada'),
+      value: const {'label': 'Ada'},
     );
     final city = AgentContextEntry(
       id: 'city',
       description: 'Current city',
-      value: const Label('Lima'),
+      value: const {'label': 'Lima'},
     );
 
     test('starts empty', () {
@@ -32,15 +30,18 @@ void main() {
       final store = AgentContextStore()
         ..add(user)
         ..add(city)
-        ..update('user', const Label('Grace'));
+        ..update('user', const {'label': 'Grace'});
 
-      expect(store.entries, [user.copyWith(value: const Label('Grace')), city]);
+      expect(store.entries, [
+        user.copyWith(value: const {'label': 'Grace'}),
+        city,
+      ]);
     });
 
     test('ignores updates and removals of unknown entries', () {
       final store = AgentContextStore()
         ..add(user)
-        ..update('missing', const Label('x'))
+        ..update('missing', const {'label': 'x'})
         ..remove('missing');
 
       expect(store.entries, [user]);
