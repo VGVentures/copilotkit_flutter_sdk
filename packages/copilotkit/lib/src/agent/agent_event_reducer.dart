@@ -56,9 +56,7 @@ class const AgentEventReducer({
       ToolCallEndEvent(:final toolCallId) => _updateToolCall(
         snapshot,
         toolCallId,
-        (view) => view.status == ToolCallStatus.inProgress
-            ? view.copyWith(status: ToolCallStatus.executing)
-            : view,
+        _finishArgs,
       ),
       ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
       ToolCallResultEvent(
@@ -127,11 +125,7 @@ class const AgentEventReducer({
           args: _parser.parse(call.function.arguments),
         );
     return switch (results[call.id]) {
-      final result? => view.copyWith(
-        status: ToolCallStatus.complete,
-        result: () => result,
-        awaitingResponse: false,
-      ),
+      final result? => _complete(view, result),
       null => view,
     };
   }
@@ -187,11 +181,11 @@ class const AgentEventReducer({
       ];
     } else {
       final parent = messages[parentIndex] as AssistantMessage;
-      nextMessages = [
-        ...messages.sublist(0, parentIndex),
+      nextMessages = _replaceAt(
+        messages,
+        parentIndex,
         parent.copyWith(toolCalls: [...?parent.toolCalls, call]),
-        ...messages.sublist(parentIndex + 1),
-      ];
+      );
     }
     return snapshot.copyWith(
       messages: nextMessages,
@@ -286,11 +280,7 @@ class const AgentEventReducer({
         ],
       ),
       toolCallId,
-      (view) => view.copyWith(
-        status: ToolCallStatus.complete,
-        result: () => content,
-        awaitingResponse: false,
-      ),
+      (view) => _complete(view, content),
     );
   }
 
@@ -301,15 +291,22 @@ class const AgentEventReducer({
       return snapshot;
     }
     return snapshot.copyWith(
-      toolCalls: [
-        for (final view in snapshot.toolCalls)
-          if (view.status == ToolCallStatus.inProgress)
-            view.copyWith(status: ToolCallStatus.executing)
-          else
-            view,
-      ],
+      toolCalls: snapshot.toolCalls.map(_finishArgs).toList(),
     );
   }
+
+  /// [view] marked executing if its arguments were still streaming in.
+  ToolCallView _finishArgs(ToolCallView view) =>
+      view.status == ToolCallStatus.inProgress
+      ? view.copyWith(status: ToolCallStatus.executing)
+      : view;
+
+  /// [view] marked complete with [result].
+  ToolCallView _complete(ToolCallView view, String result) => view.copyWith(
+    status: ToolCallStatus.complete,
+    result: () => result,
+    awaitingResponse: false,
+  );
 
   CopilotAgentState _updateToolCall(
     CopilotAgentState snapshot,
@@ -324,13 +321,16 @@ class const AgentEventReducer({
     final updated = update(view);
     if (updated == view) return snapshot;
     return snapshot.copyWith(
-      toolCalls: [
-        ...snapshot.toolCalls.sublist(0, index),
-        updated,
-        ...snapshot.toolCalls.sublist(index + 1),
-      ],
+      toolCalls: _replaceAt(snapshot.toolCalls, index, updated),
     );
   }
+
+  /// A copy of [list] with the element at [index] replaced by [element].
+  List<T> _replaceAt<T>(List<T> list, int index, T element) => [
+    ...list.sublist(0, index),
+    element,
+    ...list.sublist(index + 1),
+  ];
 
   /// A chunk without [messageId] continues the last message, but only when it
   /// has the chunk's role, so assistant text never lands in a user message.
@@ -374,11 +374,11 @@ class const AgentEventReducer({
     }
     final message = messages[index];
     return snapshot.copyWith(
-      messages: [
-        ...messages.sublist(0, index),
+      messages: _replaceAt(
+        messages,
+        index,
         _withText(message, '${message.content ?? ''}$delta'),
-        ...messages.sublist(index + 1),
-      ],
+      ),
     );
   }
 
