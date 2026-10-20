@@ -4,7 +4,7 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
-import 'package:copilotkit/src/json/json.dart';
+import 'package:copilotkit/src/agent/models/state_patch_operation.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 import 'package:meta/meta.dart';
@@ -79,14 +79,14 @@ class CopilotAgent({
     _update(_state.copyWith(sharedState: () => state));
   }
 
-  /// Edits the shared state with the RFC 6902 JSON Patch [operations], the
-  /// same format as a `STATE_DELTA`.
+  /// Edits the shared state with [operations], the operations of an RFC 6902
+  /// JSON Patch, the same format as a `STATE_DELTA`.
   ///
   /// A missing state is patched as an empty object. When an operation
   /// doesn't apply (a missing path, a failed test, a state or result that
   /// isn't a JSON object), none of them does: the state stays as it was and
   /// a [FormatException] is thrown.
-  void patchSharedState(List<JsonPatchOperation> operations) {
+  void patchSharedState(List<StatePatchOperation> operations) {
     final patched = _patcher.apply(_document, [
       for (final operation in operations) operation.toJson(),
     ]);

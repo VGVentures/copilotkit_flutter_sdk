@@ -53,7 +53,7 @@ Future<void> main() async {
   // Shared state is sent with every run.
   agent
     ..setSharedState(const SharedState({'theme': 'dark'}))
-    ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')]);
+    ..patchSharedState(const [StatePatchAdd(path: '/units', value: 'metric')]);
 
   // Completes once the whole turn ends, tool calls included.
   await client.runAgent(
