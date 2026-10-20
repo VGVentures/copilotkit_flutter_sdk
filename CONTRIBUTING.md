@@ -80,6 +80,11 @@ features, is a design change: add it to this table in the same pull request.
 through `package:json_utils/json_utils.dart`. `copilotkit` never exports it:
 its features convert to and from `Map<String, Object?>` at the call site.
 
+`ack` is the one dependency whose types are part of the public API:
+`ClientTool.parameters` is an `ack` `ObjectSchema`. No package re-exports
+it, so every package or app that builds a schema declares `ack` in its
+`pubspec.yaml` and imports `package:ack/ack.dart` itself.
+
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
 

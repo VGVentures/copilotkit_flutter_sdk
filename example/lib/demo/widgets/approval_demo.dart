@@ -1,6 +1,7 @@
 // Placeholder demo content: a stand-in human-in-the-loop tool so the
 // approval flow (the agent asks, the user decides, the agent continues) can
 // be checked on a device.
+import 'package:ack/ack.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/approval_args.dart';
 import 'package:example/demo/widgets/approval_card.dart';
