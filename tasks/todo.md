@@ -23,16 +23,16 @@ README and `CONTRIBUTING.md` to say that apps depend on `ack` themselves and
 that no package re-exports it.
 
 **Acceptance criteria:**
-- [ ] `copilotkit.dart` exports nothing from `ack`, and
+- [x] `copilotkit.dart` exports nothing from `ack`, and
       `ClientTool.parameters` is unchanged.
-- [ ] Every package and app that uses an `ack` type declares `ack` in its
+- [x] Every package and app that uses an `ack` type declares `ack` in its
       `pubspec.yaml` and imports it directly.
-- [ ] The pull request body has a `BREAKING CHANGE:` footer that tells apps
+- [x] The pull request body has a `BREAKING CHANGE:` footer that tells apps
       to add `ack` and import it.
 
 **Verification:**
-- [ ] Shared verification passes
-- [ ] Manual: `rg -l 'Ack\.|ObjectSchema' --type dart packages example`
+- [x] Shared verification passes
+- [x] Manual: `rg -l 'Ack\.|ObjectSchema' --type dart packages example`
       lists only files that import `package:ack/ack.dart`
 - [ ] Manual: `fvm dart run tool/round_trip.dart` against a runtime still
       calls the tool

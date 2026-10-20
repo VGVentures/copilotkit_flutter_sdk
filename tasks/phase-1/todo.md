@@ -23,20 +23,20 @@ npx cspell --config .github/cspell.json '**/*.{md,dart,yml,yaml}'
 itself. Nothing uses the package yet.
 
 **Acceptance criteria:**
-- [ ] The package depends on neither `ack` nor `equatable` and declares no
+- [x] The package depends on neither `ack` nor `equatable` and declares no
       model types; every public method takes and returns
       `Map<String, Object?>` (or `String` / `List<Map<String, Object?>>`
       inputs), never `Object?`.
-- [ ] Patcher throws `FormatException` for unknown ops, missing pointers,
+- [x] Patcher throws `FormatException` for unknown ops, missing pointers,
       failed tests and a root replaced with a non-object; never mutates its
       input.
-- [ ] Workspace, CI job, path filters and `CONTRIBUTING.md` architecture list
+- [x] Workspace, CI job, path filters and `CONTRIBUTING.md` architecture list
       the package.
 
 **Verification:**
-- [ ] `cd packages/json_utils && very_good test --coverage --min-coverage 100`
-- [ ] Shared verification passes
-- [ ] Manual: `fvm dart pub deps` shows no `ack`/`equatable` under the package
+- [x] `cd packages/json_utils && very_good test --coverage --min-coverage 100`
+- [x] Shared verification passes
+- [x] Manual: `fvm dart pub deps` shows no `ack`/`equatable` under the package
 
 **Dependencies:** None
 
@@ -62,16 +62,16 @@ call sites (`JsonObject(parser.parse(...))`, `operation.toJson()`). The
 reducer passes `StateDeltaEvent.delta` to the patcher unchanged.
 
 **Acceptance criteria:**
-- [ ] No exported symbol of `copilotkit` changes (compare `copilotkit.dart`
+- [x] No exported symbol of `copilotkit` changes (compare `copilotkit.dart`
       and the public API before and after).
-- [ ] `copilotkit` never exports the utility; it is imported only under
+- [x] `copilotkit` never exports the utility; it is imported only under
       `lib/src/`.
-- [ ] `CONTRIBUTING.md` feature table reflects the new dependency.
+- [x] `CONTRIBUTING.md` feature table reflects the new dependency.
 
 **Verification:**
-- [ ] Shared verification passes; `copilotkit_flutter` and `example` tests
+- [x] Shared verification passes; `copilotkit_flutter` and `example` tests
       pass unchanged
-- [ ] Manual: `fvm dart run tool/round_trip.dart` against a runtime still
+- [x] Manual: `fvm dart run tool/round_trip.dart` against a runtime still
       streams tools and state deltas
 
 **Dependencies:** Task 1
@@ -89,8 +89,8 @@ reducer passes `StateDeltaEvent.delta` to the patcher unchanged.
 
 ## Checkpoint A
 
-- [ ] All packages green, `copilotkit` public API unchanged
-- [ ] Human reviews the utility API before the breaking tasks
+- [x] All packages green, `copilotkit` public API unchanged
+- [x] Human reviews the utility API before the breaking tasks
 
 ---
 
@@ -102,12 +102,12 @@ reducer passes `StateDeltaEvent.delta` to the patcher unchanged.
 `JsonPatchOperation` and its export.
 
 **Acceptance criteria:**
-- [ ] `copilotkit.dart` exports `StatePatch*` and no `JsonPatch*`.
-- [ ] `StatePatchOperation` has equality and `toJson` tests for every op.
-- [ ] `copilotkit/example/main.dart` uses the new names.
+- [x] `copilotkit.dart` exports `StatePatch*` and no `JsonPatch*`.
+- [x] `StatePatchOperation` has equality and `toJson` tests for every op.
+- [x] `copilotkit/example/main.dart` uses the new names.
 
 **Verification:**
-- [ ] Shared verification passes
+- [x] Shared verification passes
 
 **Dependencies:** Task 2
 
@@ -129,11 +129,11 @@ Flutter `CopilotKit` widget take `Map<String, Object?>? properties`, sent as
 `forwardedProps`.
 
 **Acceptance criteria:**
-- [ ] No `JsonEncodable` in any `properties` signature in either package.
-- [ ] Run input tests assert the map is sent unchanged.
+- [x] No `JsonEncodable` in any `properties` signature in either package.
+- [x] Run input tests assert the map is sent unchanged.
 
 **Verification:**
-- [ ] Shared verification passes
+- [x] Shared verification passes
 
 **Dependencies:** Task 2
 
@@ -154,14 +154,14 @@ Flutter `CopilotKit` widget take `Map<String, Object?>? properties`, sent as
 `Map<String, Object?>`. Apps pass `model.toJson()`.
 
 **Acceptance criteria:**
-- [ ] No `JsonEncodable` in the context feature of either package.
-- [ ] The example's `DemoUser` no longer implements `JsonEncodable`; the app
+- [x] No `JsonEncodable` in the context feature of either package.
+- [x] The example's `DemoUser` no longer implements `JsonEncodable`; the app
       passes `user.toJson()`.
-- [ ] A value that `jsonEncode` rejects is still handled as before (test kept).
+- [x] A value that `jsonEncode` rejects is still handled as before (test kept).
 
 **Verification:**
-- [ ] Shared verification passes
-- [ ] Manual: example app sends the user context (visible in the runtime
+- [x] Shared verification passes
+- [x] Manual: example app sends the user context (visible in the runtime
       request)
 
 **Dependencies:** Task 2
@@ -179,8 +179,8 @@ Flutter `CopilotKit` widget take `Map<String, Object?>? properties`, sent as
 
 ## Checkpoint B
 
-- [ ] All packages green
-- [ ] `JsonEncodable` is only implemented by `JsonObject` and `SharedState`
+- [x] All packages green
+- [x] `JsonEncodable` is only implemented by `JsonObject` and `SharedState`
 
 ---
 
@@ -195,16 +195,16 @@ with no decode logic of their own. The executor validates with `ack` as before. 
 use identity decoders instead of `JsonObject.new`.
 
 **Acceptance criteria:**
-- [ ] No `JsonObject` or `JsonDecoder` in the tools feature, the reducer, or
+- [x] No `JsonObject` or `JsonDecoder` in the tools feature, the reducer, or
       `copilotkit_flutter/lib`.
-- [ ] `ClientTool.tryDecode` returns `null` when `decode` throws (tested in
+- [x] `ClientTool.tryDecode` returns `null` when `decode` throws (tested in
       core); `CopilotTool` and `CopilotHumanInTheLoop` forward its result
       and contain no try/catch.
-- [ ] The example's `WeatherCard` decodes with `Forecast.fromJson` on a map.
+- [x] The example's `WeatherCard` decodes with `Forecast.fromJson` on a map.
 
 **Verification:**
-- [ ] Shared verification passes
-- [ ] Manual: example weather and approval demos render partial and final
+- [x] Shared verification passes
+- [x] Manual: example weather and approval demos render partial and final
       arguments
 
 **Dependencies:** Task 2
@@ -233,16 +233,16 @@ rewrite the "Models and JSON" section of `CONTRIBUTING.md` for the
 `Map<String, Object?>` convention.
 
 **Acceptance criteria:**
-- [ ] `rg 'JsonObject|JsonEncodable|JsonDecoder|JsonPatch|src/json/'` finds
+- [x] `rg 'JsonObject|JsonEncodable|JsonDecoder|JsonPatch|src/json/'` finds
       nothing in `packages/` or `example/`.
-- [ ] `copilotkit` exports no type from the utility package.
-- [ ] `SharedState` equality, `toJson` and `decode` tests updated; a
+- [x] `copilotkit` exports no type from the utility package.
+- [x] `SharedState` equality, `toJson` and `decode` tests updated; a
       non-object snapshot leaves the state unchanged (tested).
-- [ ] `CONTRIBUTING.md` layout table and "Models and JSON" match the code.
+- [x] `CONTRIBUTING.md` layout table and "Models and JSON" match the code.
 
 **Verification:**
-- [ ] Shared verification passes
-- [ ] Manual: example app shows shared state from a run
+- [x] Shared verification passes
+- [x] Manual: example app shows shared state from a run
 
 **Dependencies:** Tasks 3, 4, 5, 6
 
@@ -261,6 +261,6 @@ rewrite the "Models and JSON" section of `CONTRIBUTING.md` for the
 
 ## Checkpoint C: Phase 1 complete
 
-- [ ] Every success criterion in `docs/intent/layering-refactor.md` holds
-- [ ] The utility package has 100% coverage
-- [ ] Human review before phase 2
+- [x] Every success criterion in `docs/intent/layering-refactor.md` holds
+- [x] The utility package has 100% coverage
+- [x] Human review before phase 2

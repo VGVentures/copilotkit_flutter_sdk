@@ -55,15 +55,15 @@ builds a schema depends on and imports `ack` itself.
 
 ## Task list
 
-- [ ] Task 1: Stop re-exporting `ack`
+- [x] Task 1: Stop re-exporting `ack`
 
 ### Checkpoint: Phase 2 complete
 
-- [ ] `copilotkit.dart` exports nothing from `ack`
-- [ ] Every package and app that uses `ack` declares it in its
+- [x] `copilotkit.dart` exports nothing from `ack`
+- [x] Every package and app that uses `ack` declares it in its
       `pubspec.yaml`
-- [ ] Every phase 2 point of the intent document holds
-- [ ] Ready for review
+- [x] Every phase 2 point of the intent document holds
+- [x] Ready for review
 
 ## Risks and mitigations
 
