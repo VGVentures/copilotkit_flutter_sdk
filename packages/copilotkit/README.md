@@ -73,6 +73,56 @@ and be answered in any order. An answer for an unknown, already answered or
 non-human-in-the-loop call is ignored. See
 [ADR 0009](../../docs/adr/0009-human-in-the-loop-responses.md).
 
+## Web and CORS
+
+The core has no `dart:io` dependency and runs on the web, compiled to
+JavaScript or WebAssembly: `package:http` uses `fetch` there (`BrowserClient`),
+which streams the response body, so events arrive as the runtime sends them,
+and stopping a run aborts the request. The core needs `http` 1.6.0 or later,
+which fixes cancelling a response body that is waiting for data.
+
+A browser only lets a page call a runtime on another origin when the runtime
+allows it with CORS headers. Every run and stop is a `POST` with
+`Content-Type: application/json`, so the browser first sends a preflight
+`OPTIONS` request to `agent/<id>/run` and `agent/<id>/stop/<thread>`. The
+runtime has to answer it, and the real responses, with:
+
+| Header | Value |
+| --- | --- |
+| `Access-Control-Allow-Origin` | The origin of the app, e.g. `https://app.example.com`, or `*` |
+| `Access-Control-Allow-Methods` | `POST, OPTIONS` |
+| `Access-Control-Allow-Headers` | `content-type`, plus every header your `headers` builder returns, such as `authorization` or `x-session-id` |
+
+- Name `authorization` explicitly: `Access-Control-Allow-Headers: *` does not
+  cover it, so a runtime that only answers `*` rejects requests that carry a
+  bearer token.
+- `Access-Control-Allow-Origin: *` can't be combined with credentials: a
+  browser rejects a credentialed response with a wildcard origin, so a runtime
+  that allows credentials must answer with the exact origin. The SDK does not
+  send cookies (`withCredentials` is off), so authenticate with the `headers`
+  builder instead.
+- The runtime must not buffer the event stream: it answers with
+  `Cache-Control: no-cache`, and a proxy or CDN in front of it must pass the
+  chunks through, or events arrive in one batch at the end.
+- A browser keeps at most six HTTP/1.1 connections per origin and each running
+  agent holds one open, so serve the runtime over HTTP/2 when an app runs
+  several agents at once.
+
+The Copilot Runtime sets these headers with `cors: true`, which allows every
+origin and `*` headers (not `authorization`, see above), and takes a config
+for anything stricter:
+
+```ts
+createCopilotNodeListener({
+  runtime,
+  basePath: '/api/copilotkit',
+  cors: {
+    origin: ['https://app.example.com'],
+    allowHeaders: ['content-type', 'authorization', 'x-session-id'],
+  },
+});
+```
+
 ---
 
 ## Continuous Integration 🤖

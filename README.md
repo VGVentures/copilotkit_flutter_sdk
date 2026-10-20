@@ -103,6 +103,14 @@ For the full list of checks, see the
 [manual test checklist](example/README.md#manual-test-checklist). If messages
 fail, see [Troubleshooting](example/README.md#troubleshooting).
 
+## Web
+
+The SDK runs on Flutter web, including WebAssembly builds. A browser calls the
+runtime across origins, so the runtime must answer CORS preflight requests; see
+[Web and CORS](packages/copilotkit/README.md#web-and-cors) for the headers it
+needs, and [`example/README.md`](example/README.md#run-on-the-web) to run the
+example app in Chrome.
+
 ## Repository layout
 
 The repository is a Dart pub workspace with three packages.

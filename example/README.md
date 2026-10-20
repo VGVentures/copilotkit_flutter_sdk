@@ -61,7 +61,7 @@ Optional environment variables:
 | `COPILOTKIT_MODEL` | `openai:gpt-5-mini` | Model used by the `default` agent. |
 
 From an Android emulator use `10.0.2.2` instead of `localhost`; from a
-physical device use the LAN URL.
+physical device use the LAN URL. In Chrome use `localhost`.
 
 ### Model availability
 
@@ -86,6 +86,22 @@ fvm flutter run --dart-define=RUNTIME_URL=<runtime url>
 | iOS simulator or desktop | `http://localhost:8200/api/copilotkit` |
 | Android emulator | `http://10.0.2.2:8200/api/copilotkit` |
 | Physical device on the same network | The LAN URL printed by the runtime |
+
+### Run on the web
+
+The app has a `web` target. Start the local runtime and run the app in Chrome
+with the runtime URL:
+
+```sh
+cd example
+fvm flutter run -d chrome --dart-define=RUNTIME_URL=http://localhost:8200/api/copilotkit
+```
+
+The local runtime starts with `cors: true`, so the page may call it from any
+origin. A runtime that you run elsewhere must answer CORS preflight requests; see
+[Web and CORS](../packages/copilotkit/README.md#web-and-cors). To build for
+production, use `fvm flutter build web --wasm` with the same `--dart-define`;
+CI builds the example this way on every change.
 
 Without a valid `RUNTIME_URL`, the app shows a **Runtime URL missing** screen
 instead of the chat. The app logs errors through `dart:developer`, so check the

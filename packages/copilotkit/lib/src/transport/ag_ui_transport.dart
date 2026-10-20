@@ -12,6 +12,9 @@ import 'package:http/http.dart' as http;
 /// Every run gets its own [http.Client], closed when the run ends or its
 /// subscription is cancelled, so cancelling really closes the connection
 /// (`ag_ui`'s own cancel only stops listening).
+///
+/// On the web the runtime must allow the app's origin with CORS; see the
+/// README of the `copilotkit` package.
 class AgUiTransport({
   required Uri runtimeUrl,
   http.Client Function()? httpClientFactory,
