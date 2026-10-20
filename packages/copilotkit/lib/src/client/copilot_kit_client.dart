@@ -4,6 +4,8 @@ import 'dart:developer' as developer;
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/agent_runner.dart';
+import 'package:copilotkit/src/client/run_streamer.dart';
+import 'package:copilotkit/src/client/tool_call_runner.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
@@ -46,11 +48,16 @@ class CopilotKitClient({
 
   late final _runner = AgentRunner(
     transport: _transport,
-    tools: _tools,
-    context: _context,
     onError: _report,
-    headers: _headers,
-    properties: _properties,
+    streamer: RunStreamer(
+      transport: _transport,
+      tools: _tools,
+      context: _context,
+      onError: _report,
+      headers: _headers,
+      properties: _properties,
+    ),
+    toolCalls: ToolCallRunner(tools: _tools, onError: _report),
   );
 
   /// The open agents, by agent id. A read-only view.

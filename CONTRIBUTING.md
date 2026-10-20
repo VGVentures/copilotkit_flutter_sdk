@@ -74,8 +74,9 @@ by `test/src/tools/models/tool_call_view_test.dart`.
 Logic lives in well-named classes whose collaborators are passed to the
 constructor, with production defaults, so tests can replace each one. The
 facade composes them: `CopilotKitClient` builds a `ToolRegistry`, an
-`AgentContextStore` and an `AgentRunner`, and the runner takes a
-`RunInputBuilder` and a `ToolCallExecutor`.
+`AgentContextStore` and an `AgentRunner`. The runner takes a `RunStreamer`,
+which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
+which runs the tool calls between runs with a `ToolCallExecutor`.
 
 ```dart
 // Good: the reducer gets its JSON helpers injected
@@ -144,8 +145,8 @@ agent.addMessage(message);
 ```
 
 Classes that track things that come and go, like `ToolRegistry`,
-`ToolResponses` or `AgentRunner`, are the other mutable classes. Each says so
-in its doc comment. Everything else is immutable.
+`ToolResponses`, `Turn` or `AgentRunner`, are the other mutable classes. Each
+says so in its doc comment. Everything else is immutable.
 
 ## Blocs
 

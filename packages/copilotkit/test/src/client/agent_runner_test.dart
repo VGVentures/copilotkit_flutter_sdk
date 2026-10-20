@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
@@ -9,7 +8,6 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
-import '../../helpers/json_values.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
@@ -53,59 +51,6 @@ void main() {
     group('run', () {
       final message = UserMessage(id: 'u1', content: 'Hi');
 
-      test('sends the agent, tools, context, properties and headers', () async {
-        useHarness(
-          RunnerHarness(
-            headers: () async => {'Authorization': 'Bearer token'},
-            properties: const JsonObject({'userId': '42'}),
-          ),
-        );
-        harness.tools.register(weatherTool((_, {required signal}) async => ''));
-        harness.context.add(
-          AgentContextEntry(description: 'Unread', value: const Count(3)),
-        );
-        agent.addMessage(message);
-        runs.add(const Stream.empty());
-
-        await runner.run(agent);
-
-        final input =
-            verify(
-                  () => transport.run(
-                    agentId: 'default',
-                    input: captureAny(named: 'input'),
-                    headers: {'Authorization': 'Bearer token'},
-                  ),
-                ).captured.single
-                as RunAgentInput;
-        expect(input.threadId, threadId());
-        expect(Uuid.isValidUUID(fromString: input.runId), isTrue);
-        expect(input.messages, [message]);
-        expect(input.tools.single.name, 'showWeather');
-        expect(input.context.single.value, '3');
-        expect(input.forwardedProps, {'userId': '42'});
-      });
-
-      test(
-        'sends the state and messages the agent has when it starts',
-        () async {
-          runs.add(const Stream.empty());
-
-          agent
-            ..setSharedState(const SharedState({'count': 3}))
-            ..patchSharedState(const [
-              JsonPatchReplace(path: '/count', value: 4),
-            ])
-            ..addMessage(UserMessage(id: 'old', content: 'Old'))
-            ..setMessages([UserMessage(id: 'new', content: 'New')]);
-          await runner.run(agent);
-
-          final input = sentInputs().single;
-          expect(input.state, {'count': 4});
-          expect(input.messages.map((message) => message.id), ['new']);
-        },
-      );
-
       test('appends the given message before the run', () async {
         runs.add(const Stream.empty());
 
@@ -133,105 +78,6 @@ void main() {
           expect(agent.state.messages, isEmpty);
         },
       );
-
-      test('uses a new run id for every run', () async {
-        runs.addAll([const Stream.empty(), const Stream.empty()]);
-
-        await runner.run(agent);
-        await runner.run(agent);
-
-        final runIds = sentInputs().map((input) => input.runId);
-        expect(runIds.toSet(), hasLength(2));
-      });
-
-      test('sends no headers when no builder is given', () async {
-        runs.add(const Stream.empty());
-
-        await runner.run(agent);
-
-        verify(
-          () => transport.run(
-            agentId: 'default',
-            input: any(named: 'input'),
-          ),
-        ).called(1);
-      });
-
-      test('streams the assistant reply into messages', () async {
-        queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r'),
-          const TextMessageStartEvent(messageId: 'm1'),
-          const TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
-          const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-          RunFinishedEvent(threadId: threadId(), runId: 'r'),
-        ]);
-        final texts = <String?>[];
-        agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
-
-        await runner.run(agent);
-        await pumpEventQueue();
-
-        expect(agent.state.messages.single.content, 'Hello');
-        expect(agent.state.isRunning, isFalse);
-        expect(texts, containsAllInOrder(['', 'Hel', 'Hello']));
-        expect(errors, isEmpty);
-      });
-
-      test('applies state snapshots and deltas to sharedState', () async {
-        queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r'),
-          const StateSnapshotEvent(snapshot: {'count': 1}),
-          const TextMessageStartEvent(messageId: 'm1'),
-          const StateDeltaEvent(
-            delta: [
-              {'op': 'replace', 'path': '/count', 'value': 2},
-            ],
-          ),
-          RunFinishedEvent(threadId: threadId(), runId: 'r'),
-        ]);
-        final sharedStates = <Object?>[];
-        agent.stream
-            .map((state) => state.sharedState)
-            .where((shared) => shared != null)
-            .distinct()
-            .listen(sharedStates.add);
-
-        await runner.run(agent);
-        await pumpEventQueue();
-
-        expect(agent.state.sharedState, const SharedState({'count': 2}));
-        expect(sharedStates, [
-          const SharedState({'count': 1}),
-          const SharedState({'count': 2}),
-        ]);
-      });
-
-      test('applies the recorded state_snapshot_delta patch', () async {
-        queueRun(loadFixture('state_snapshot_delta').events);
-
-        await runner.run(agent);
-
-        expect(
-          agent.state.sharedState,
-          const SharedState({
-            'todos': ['buy milk', 'walk dog'],
-          }),
-        );
-      });
-
-      test('the state the runtime sends replaces a local edit', () async {
-        queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r1'),
-          const StateSnapshotEvent(snapshot: {'count': 1}),
-          RunFinishedEvent(threadId: threadId(), runId: 'r1'),
-        ]);
-
-        agent.setSharedState(const SharedState({'count': 3}));
-        await runner.run(agent);
-
-        expect(sentInputs().single.state, {'count': 3});
-        expect(agent.state.sharedState, const SharedState({'count': 1}));
-      });
 
       test('is running as soon as the run starts', () async {
         events = StreamController<BaseEvent>();
@@ -272,151 +118,6 @@ void main() {
         expect(agent.state.isRunning, isFalse);
         expect(agent.state.error, same(failure));
       });
-
-      final badTransport = StateError('bad transport');
-
-      test('reports a transport that throws synchronously', () async {
-        transport.stubRunThrows(badTransport);
-
-        await runner.run(agent);
-
-        expect(errors.single, same(badTransport));
-        expect(agent.state.isRunning, isFalse);
-      });
-
-      test('reports a stream that ends before the run finishes', () async {
-        queueRun([RunStartedEvent(threadId: threadId(), runId: 'r')]);
-
-        await runner.run(agent);
-
-        expect(errors.single, isA<StateError>());
-        expect(agent.state.isRunning, isFalse);
-        expect(agent.state.error, isA<StateError>());
-      });
-
-      final noToken = Exception('no token');
-
-      test('reports header builder errors without running', () async {
-        useHarness(RunnerHarness(headers: () async => throw noToken));
-
-        await runner.run(agent);
-
-        expect(errors.single, same(noToken));
-        expect(agent.state.isRunning, isFalse);
-        transport.verifyNoRun();
-      });
-
-      test(
-        'reports a context value that is not JSON without running',
-        () async {
-          harness.context.add(
-            AgentContextEntry(
-              description: 'Clock',
-              value: const NonJsonValue(),
-            ),
-          );
-
-          await runner.run(agent);
-
-          expect(errors.single, isA<JsonUnsupportedObjectError>());
-          transport.verifyNoRun();
-        },
-      );
-    });
-
-    group('resilience', () {
-      test(
-        'reasoning, activity, raw and custom events leave text intact',
-        () async {
-          queueRun([
-            RunStartedEvent(threadId: threadId(), runId: 'r'),
-            const ReasoningStartEvent(messageId: 'think'),
-            const ReasoningMessageContentEvent(
-              messageId: 'think',
-              delta: 'Hmm',
-            ),
-            const TextMessageStartEvent(messageId: 'm1'),
-            const TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
-            const ActivitySnapshotEvent(
-              messageId: 'act',
-              activityType: 'search',
-              content: {'query': 'weather'},
-            ),
-            const ThinkingStartEvent(title: 'plan'),
-            const RawEvent(event: {'anything': true}),
-            const CustomEvent(name: 'progress', value: 0.5),
-            const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-            RunFinishedEvent(threadId: threadId(), runId: 'r'),
-          ]);
-
-          await runner.run(agent);
-
-          expect(agent.state.messages.single.content, 'Hello');
-          expect(agent.state.isRunning, isFalse);
-          expect(errors, isEmpty);
-        },
-      );
-
-      const runError = RunErrorEvent(message: 'Invalid API key', code: 'AUTH');
-
-      test('RUN_ERROR ends the run and reports the error once', () async {
-        queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r'),
-          const TextMessageStartEvent(messageId: 'm1'),
-          const TextMessageContentEvent(messageId: 'm1', delta: 'Par'),
-          runError,
-        ]);
-
-        await runner.run(agent);
-
-        expect(errors, [same(runError)]);
-        expect(agent.state.isRunning, isFalse);
-        expect(agent.state.error, same(runError));
-        expect(agent.state.messages.single.content, 'Par');
-      });
-
-      test('unknown_events fixture keeps the text reply', () async {
-        queueRun(loadFixture('unknown_events').events);
-
-        await runner.run(agent);
-
-        expect(
-          agent.state.messages.single.content,
-          'Hello! Wonderful to meet you.',
-        );
-        expect(agent.state.isRunning, isFalse);
-        expect(errors, isEmpty);
-      });
-
-      test('recorded run_error fixture reports the runtime error', () async {
-        queueRun(loadFixture('run_error').events);
-
-        await runner.run(agent);
-
-        expect(errors.single, isA<RunErrorEvent>());
-        expect(
-          agent.state.error,
-          isA<RunErrorEvent>().having(
-            (error) => error.message,
-            'message',
-            contains('gemini-2.5-flash'),
-          ),
-        );
-        expect(agent.state.isRunning, isFalse);
-      });
-
-      test(
-        'dropped_connection fixture fails the run and keeps the partial reply',
-        () async {
-          queueRun(loadFixture('dropped_connection').events);
-
-          await runner.run(agent);
-
-          expect(errors.single, isA<StateError>());
-          expect(agent.state.messages.single.content, 'Hello! Wonderful to');
-          expect(agent.state.isRunning, isFalse);
-        },
-      );
     });
 
     group('stop', () {
@@ -761,49 +462,6 @@ void main() {
         expect(errors, hasLength(1));
       });
 
-      final failure = Exception('no network');
-
-      test(
-        'turns handler errors into a generic result and reports them',
-        () async {
-          registerTool(
-            weatherTool((_, {required signal}) async => throw failure),
-          );
-          queueToolCallAndReply();
-
-          await runner.run(agent);
-
-          expect(errors, [same(failure)]);
-          final toolMessage = sentInputs().last.messages.last as ToolMessage;
-          expect(toolMessage.content, 'Tool failed.');
-          expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
-        },
-      );
-
-      test('passes the handler the args parsed by the schema', () async {
-        receivedArgs = null;
-        registerTool(
-          FrontendTool<JsonObject>(
-            name: 'showWeather',
-            description: 'Show the weather for a city',
-            parameters: Ack.object({
-              'city': Ack.string(),
-              'days': Ack.integer().withDefault(3),
-            }),
-            decode: JsonObject.new,
-            handler: (args, {required signal}) async {
-              receivedArgs = args;
-              return 'ok';
-            },
-          ),
-        );
-        queueToolCallAndReply();
-
-        await runner.run(agent);
-
-        expect(receivedArgs, const JsonObject({'city': 'Lima', 'days': 3}));
-      });
-
       late bool called;
 
       /// Registers the weather tool with a handler that records it was
@@ -817,91 +475,6 @@ void main() {
           }),
         );
       }
-
-      test('answers invalid args without running the handler', () async {
-        registerRecordingTool();
-        queueRun(
-          toolCallRun(threadId())
-            ..[2] = const ToolCallArgsEvent(
-              toolCallId: 'c1',
-              delta: '{"days": "3"}',
-            ),
-        );
-        queueRun(replyRun(threadId()));
-
-        await runner.run(agent);
-
-        expect(called, isFalse);
-        expect(errors, isEmpty);
-        final result = agent.state.toolCalls.single.result;
-        expect(
-          result,
-          allOf(
-            startsWith("The tool didn't run"),
-            contains('- city: Required property "city" is missing.'),
-            contains('- days: Expected integer, got string.'),
-          ),
-        );
-        final toolMessage = sentInputs().last.messages.last as ToolMessage;
-        expect(toolMessage.content, result);
-        expect(agent.state.messages.last.content, 'Sunny in Lima');
-      });
-
-      test('closes calls to unregistered tools as unavailable', () async {
-        queueRun(toolCallRun(threadId()));
-
-        await runner.run(agent);
-
-        expect(sentInputs(), hasLength(1));
-        final view = agent.state.toolCalls.single;
-        expect(view.status, ToolCallStatus.complete);
-        expect(view.result, 'Tool is not available.');
-        expect(agent.state.messages.last, isA<ToolMessage>());
-      });
-
-      test('closes unregistered calls before running again', () async {
-        registerTool(weatherTool((_, {required signal}) async => 'ok'));
-        queueRun(
-          toolCallRun(threadId())..insertAll(4, const [
-            ToolCallStartEvent(
-              toolCallId: 'c2',
-              toolCallName: 'gone',
-              parentMessageId: 'a1',
-            ),
-            ToolCallEndEvent(toolCallId: 'c2'),
-          ]),
-        );
-        queueRun(replyRun(threadId()));
-
-        await runner.run(agent);
-
-        final results = {
-          for (final message
-              in sentInputs().last.messages.whereType<ToolMessage>())
-            message.toolCallId: message.content,
-        };
-        expect(results, {'c1': 'ok', 'c2': 'Tool is not available.'});
-      });
-
-      test('does not run handlers for calls the runtime completed', () async {
-        registerRecordingTool();
-        queueRun(
-          toolCallRun(threadId())..insert(
-            4,
-            const ToolCallResultEvent(
-              messageId: 't1',
-              toolCallId: 'c1',
-              content: 'from server',
-            ),
-          ),
-        );
-
-        await runner.run(agent);
-
-        expect(called, isFalse);
-        expect(sentInputs(), hasLength(1));
-        expect(agent.state.toolCalls.single.result, 'from server');
-      });
 
       test('does not run handlers when the run fails', () async {
         registerRecordingTool();
@@ -1145,16 +718,6 @@ void main() {
         expect(errors, isEmpty);
       });
 
-      test('JSON-encodes an answer that is not a string', () async {
-        queueCallsAndReply();
-
-        await startRun();
-        runner.respond('c1', {'decision': 'approve', 'count': 2});
-        await run;
-
-        expect(sentResults(), {'c1': '{"decision":"approve","count":2}'});
-      });
-
       group('an answer that arrives before the turn waits for the call', () {
         late StreamController<BaseEvent> events;
 
@@ -1179,37 +742,6 @@ void main() {
           await run;
 
           expect(sentResults(), {'c1': 'early'});
-        });
-
-        test('is ignored while the arguments still stream', () async {
-          run = runner.run(agent);
-          events
-            ..add(RunStartedEvent(threadId: threadId(), runId: 'r1'))
-            ..add(
-              const ToolCallStartEvent(
-                toolCallId: 'c1',
-                toolCallName: 'confirmAction',
-                parentMessageId: 'a1',
-              ),
-            )
-            ..add(const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"act'));
-          await pumpEventQueue();
-
-          runner.respond('c1', 'too early');
-          events
-            ..add(
-              const ToolCallArgsEvent(toolCallId: 'c1', delta: 'ion": "x"}'),
-            )
-            ..add(const ToolCallEndEvent(toolCallId: 'c1'))
-            ..add(RunFinishedEvent(threadId: threadId(), runId: 'r1'));
-          await events.close();
-          await pumpEventQueue();
-          waiting = agent.state;
-          runner.respond('c1', 'on time');
-          await run;
-
-          expect(waiting.awaitingResponseIds, ['c1']);
-          expect(sentResults(), {'c1': 'on time'});
         });
       });
 
@@ -1254,80 +786,6 @@ void main() {
         expect(sentHumanInputs(), hasLength(1));
       });
 
-      test(
-        'two calls wait together and can be answered out of order',
-        () async {
-          queueCallsAndReply(ids: const ['c1', 'c2']);
-
-          await startRun();
-          runner.respond('c2', 'second');
-          await pumpEventQueue();
-          final mid = agent.state.awaitingResponseIds;
-          runner.respond('c1', 'first');
-          await run;
-
-          expect(waiting.awaitingResponseIds, ['c1', 'c2']);
-          expect(mid, ['c1', 'c2']);
-          expect(sentResults(), {'c1': 'first', 'c2': 'second'});
-          final messages = sentHumanInputs().last.messages;
-          expect(messages.whereType<ToolMessage>().map((m) => m.toolCallId), [
-            'c1',
-            'c2',
-          ]);
-          expect(agent.state.awaitingResponseIds, isEmpty);
-        },
-      );
-
-      test(
-        'ignores a duplicate answer and answers for unknown calls',
-        () async {
-          queueCallsAndReply();
-
-          await startRun();
-          runner
-            ..respond('missing', 'nobody asked')
-            ..respond('c1', 'first')
-            ..respond('c1', 'second');
-          await run;
-          runner.respond('c1', 'third');
-
-          expect(sentResults(), {'c1': 'first'});
-          expect(agent.state.toolCalls.single.result, 'first');
-          expect(errors, isEmpty);
-        },
-      );
-
-      test('ignores an answer for a call of a frontend tool', () async {
-        harness.tools.register(
-          weatherTool((_, {required signal}) async => 'sunny'),
-        );
-        queueRun(toolCallRun(threadId()));
-        queueRun(replyRun(threadId()));
-
-        run = runner.run(agent);
-        await pumpEventQueue();
-        runner.respond('c1', 'not for you');
-        await run;
-
-        expect(sentResults(), {'c1': 'sunny'});
-      });
-
-      test('an answer that cannot be encoded is reported and the call keeps '
-          'waiting', () async {
-        queueCallsAndReply();
-
-        await startRun();
-        runner.respond('c1', DateTime(2026));
-        await pumpEventQueue();
-        final mid = agent.state.awaitingResponseIds;
-        runner.respond('c1', 'fine');
-        await run;
-
-        expect(errors.single, isA<JsonUnsupportedObjectError>());
-        expect(mid, ['c1']);
-        expect(sentResults(), {'c1': 'fine'});
-      });
-
       group('cancelAwaiting', () {
         test('answers the waiting calls as cancelled and continues', () async {
           queueCallsAndReply();
@@ -1341,47 +799,7 @@ void main() {
           expect(agent.state.toolCalls.single.awaitingResponse, isFalse);
           expect(agent.state.isRunning, isFalse);
         });
-
-        test('leaves the calls of other tools alone', () async {
-          queueCallsAndReply();
-
-          await startRun();
-          runner
-            ..cancelAwaiting('other')
-            ..respond('c1', 'ok');
-          await run;
-
-          expect(sentResults(), {'c1': 'ok'});
-        });
       });
-
-      test(
-        'closes a call of an unregistered tool as unavailable without waiting',
-        () async {
-          harness.tools.unregister(tool);
-          queueRun(approvalRun(threadId()));
-          queueRun(replyRun(threadId()));
-
-          await runner.run(agent);
-
-          final call = agent.state.toolCalls.single;
-          expect(call.result, 'Tool is not available.');
-          expect(call.awaitingResponse, isFalse);
-        },
-      );
-
-      test(
-        'answers arguments that do not match the schema without waiting',
-        () async {
-          queueRun(approvalRun(threadId(), args: '{"action": 1}'));
-          queueRun(replyRun(threadId()));
-
-          await runner.run(agent);
-
-          expect(sentResults()['c1'], contains("arguments don't match"));
-          expect(agent.state.awaitingResponseIds, isEmpty);
-        },
-      );
 
       group('followUp', () {
         test('false ends the turn without another run', () async {
@@ -1403,38 +821,6 @@ void main() {
           );
           expect(agent.state.isRunning, isFalse);
         });
-
-        test(
-          'false still runs again when another call in the turn follows up',
-          () async {
-            harness.tools
-              ..register(approvalTool(followUp: false))
-              ..register(weatherTool((_, {required signal}) async => 'sunny'));
-            queueRun([
-              RunStartedEvent(threadId: threadId(), runId: 'r1'),
-              ...approvalCall('c1'),
-              const ToolCallStartEvent(
-                toolCallId: 'c2',
-                toolCallName: 'showWeather',
-                parentMessageId: 'a1',
-              ),
-              const ToolCallArgsEvent(
-                toolCallId: 'c2',
-                delta: '{"city": "Lima"}',
-              ),
-              const ToolCallEndEvent(toolCallId: 'c2'),
-              RunFinishedEvent(threadId: threadId(), runId: 'r1'),
-            ]);
-            queueRun(replyRun(threadId()));
-
-            await startRun();
-            runner.respond('c1', 'noted');
-            await run;
-
-            expect(sentHumanInputs(), hasLength(2));
-            expect(sentResults(), {'c1': 'noted', 'c2': 'sunny'});
-          },
-        );
       });
 
       test('isRunning stays true until the end of the turn', () async {
