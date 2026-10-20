@@ -49,18 +49,17 @@ jobs:
   copilotkit:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: packages/copilotkit
       flutter_version_file: .fvmrc
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
-      run_bloc_lint: false
 
   copilotkit_flutter:
     needs: changes
     if: ${{ needs.changes.outputs.copilotkit_flutter == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: packages/copilotkit_flutter
       flutter_version_file: .fvmrc
@@ -69,12 +68,33 @@ jobs:
   example:
     needs: changes
     if: ${{ needs.changes.outputs.example == 'true' }}
-    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v1.21.1
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
     with:
       working_directory: example
       flutter_version_file: .fvmrc
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
+
+  web:
+    needs: changes
+    if: ${{ needs.changes.outputs.example == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 🌐 Build Web (WebAssembly)
+        working-directory: example
+        run: flutter build web --wasm --dart-define=RUNTIME_URL=http://localhost:8200/api/copilotkit
 
   codegen:
     needs: changes

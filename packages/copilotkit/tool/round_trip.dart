@@ -1,4 +1,4 @@
-// Dev-only probe for the Copilot Runtime v2 contract (task A1).
+// Dev-only probe for the Copilot Runtime v2 contract.
 //
 // Usage:
 //   fvm dart run tool/round_trip.dart \
@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/tools/tool_schema.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:http/http.dart' as http;
 
 Future<void> main(List<String> arguments) async {
@@ -82,27 +82,31 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
     onError: (error, stackTrace) => print('onError: $error'),
   );
   final agent = client.agent(agentId);
-  final subscription = agent.changes.listen((snapshot) {
-    final last = snapshot.messages.lastOrNull;
+  final subscription = agent.stream.listen((state) {
+    final last = state.messages.lastOrNull;
     print(
-      'running: ${snapshot.isRunning} | ${last?.role.value}: '
+      'running: ${state.isRunning} | ${last?.role.value}: '
       '${last?.content}',
     );
   });
-  await agent.addMessage(UserMessage(id: 'user-1', content: message));
-  await agent.run();
+  await client.runAgent(
+    agentId,
+    message: UserMessage(id: 'user-1', content: message),
+  );
   await subscription.cancel();
-  print('done | running: ${agent.isRunning} | error: ${agent.snapshot.error}');
-  await client.dispose();
+  print(
+    'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',
+  );
+  await client.close();
 }
 
-/// Placeholder tool from `example/lib/demo/weather_demo.dart`.
+/// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: ToolSchema(
+  parameters: const JsonSchemaEncoder().encode(
     Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
-  ).toJson(),
+  ),
 );
 
 Future<void> _record({

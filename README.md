@@ -77,7 +77,7 @@ the model, see [`example/README.md`](example/README.md).
 
 The example app ships with placeholder demo content so you can check the full
 flow before the real demo scenario exists. It lives in
-`example/lib/demo/weather_demo.dart` and will be replaced.
+`example/lib/demo/widgets/weather_demo.dart` and will be replaced.
 
 <!-- prettier-ignore -->
 > [!NOTE]
@@ -91,6 +91,9 @@ Send these prompts to see each part of the SDK:
 - **Frontend tool with generative UI:** "What's the weather in Lima?" The agent
   calls the `showWeather` tool, which runs in the app, and a weather card
   appears in the chat while it runs.
+- **Human in the loop:** "Delete my draft files." The agent calls the
+  `confirmAction` tool and an approval card with **Approve** and **Reject**
+  appears; the agent continues with your answer.
 - **App context:** "Where do I live?" The agent answers from the current user
   that the app shares as context (Ada, from Lima).
 - **Stop:** Tap the stop button while a reply streams. The partial reply stays,
@@ -100,17 +103,23 @@ For the full list of checks, see the
 [manual test checklist](example/README.md#manual-test-checklist). If messages
 fail, see [Troubleshooting](example/README.md#troubleshooting).
 
+## Web
+
+The SDK runs on Flutter web, including WebAssembly builds. A browser calls the
+runtime across origins, so the runtime must answer CORS preflight requests; see
+[Web and CORS](packages/copilotkit/README.md#web-and-cors) for the headers it
+needs, and [`example/README.md`](example/README.md#run-on-the-web) to run the
+example app in Chrome.
+
 ## Repository layout
 
 The repository is a Dart pub workspace with three packages.
 
 | Path | What it is |
 | --- | --- |
-| `packages/copilotkit` | Pure Dart core: `CopilotKitClient`, `CopilotAgent`, frontend tools, context, and the AG-UI transport. No Flutter dependency. |
-| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotTool`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, and `CopilotChatBloc`. Re-exports the core. |
+| `packages/copilotkit` | Pure Dart core: `CopilotKitClient` (agents, frontend and human-in-the-loop tools, context and runs), `CopilotAgent` (one conversation, with its `CopilotAgentState` as `state` and `stream`), and the AG-UI transport. No Flutter or bloc dependency. |
+| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `CopilotHumanInTheLoop`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, `CopilotChatProvider` and `CopilotChatBloc`. Re-exports the core. |
 | `example` | Demo app, plus the local runtime in `example/tool/`. |
-
-Planning documents live in `docs/requirements.md` and `tasks/`.
 
 ## Development
 

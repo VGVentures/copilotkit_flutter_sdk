@@ -1,5 +1,4 @@
-// Headless use of the CopilotKit core: the API sketch from
-// docs/requirements.md without Flutter.
+// Headless use of the CopilotKit core without Flutter.
 // ignore_for_file: avoid_print
 
 import 'dart:convert';
@@ -10,48 +9,73 @@ Future<void> main() async {
   final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
-    properties: {'userId': '42'},
+    properties: const JsonObject({'userId': '42'}),
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 
   // A frontend tool. In Flutter, `CopilotTool` registers it for the
   // lifetime of a widget and renders `ToolCallView`s with a builder.
-  final unregisterTool = client.registerTool(
-    FrontendTool(
-      name: 'showWeather',
-      description: 'Show the weather for a city',
-      parameters: Ack.object({'city': Ack.string()}),
-      handler: (args, {required signal}) async =>
-          jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
-    ),
+  final showWeather = FrontendTool(
+    name: 'showWeather',
+    description: 'Show the weather for a city',
+    parameters: Ack.object({'city': Ack.string()}),
+    decode: _WeatherArgs.fromJson,
+    handler: (args, {required signal}) async =>
+        jsonEncode({'city': args.city, 'forecast': 'sunny'}),
   );
 
   // App data the agent can answer from. In Flutter, `CopilotContext`.
-  final user = client.addContext('Current user', {'name': 'Ada'});
+  final user = AgentContextEntry(
+    description: 'Current user',
+    value: const _User('Ada'),
+  );
 
+  client
+    ..registerTool(showWeather)
+    ..addContext(user);
   final agent = client.agent('default');
-  final subscription = agent.changes.listen((snapshot) {
-    for (final call in snapshot.toolCalls) {
+  final subscription = agent.stream.listen((state) {
+    for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
-        ToolCallStatus.executing => 'weather for ${call.args['city']}',
+        ToolCallStatus.executing =>
+          'weather for ${call.args.tryDecode(_WeatherArgs.fromJson)?.city}',
         ToolCallStatus.complete => call.result!,
       };
       print('${call.name}: $view');
     }
     print(
-      'running: ${snapshot.isRunning}, '
-      'messages: ${snapshot.messages.length}',
+      'running: ${state.isRunning}, '
+      'messages: ${state.messages.length}',
     );
   });
 
-  await agent.addMessage(
-    UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
+  // Shared state is sent with every run.
+  agent
+    ..setSharedState(const SharedState({'theme': 'dark'}))
+    ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')]);
+
+  // Completes once the whole turn ends, tool calls included.
+  await client.runAgent(
+    'default',
+    message: UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
   );
-  await agent.run();
 
   await subscription.cancel();
-  user.remove();
-  unregisterTool();
-  await client.dispose();
+  client
+    ..removeContext(user.id)
+    ..unregisterTool(showWeather);
+  await client.close();
+}
+
+/// The arguments of the `showWeather` tool.
+class const _WeatherArgs(final String city) {
+  factory fromJson(Map<String, Object?> json) =>
+      _WeatherArgs(json['city']! as String);
+}
+
+/// The current user, shared with the agent as context.
+class const _User(final String name) implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'name': name};
 }

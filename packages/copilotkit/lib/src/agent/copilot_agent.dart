@@ -1,94 +1,139 @@
-part of '../client/copilot_kit_client.dart';
+import 'dart:async';
 
-/// {@template copilot_agent}
+import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent/agent_event_reducer.dart';
+import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/shared_state.dart';
+import 'package:copilotkit/src/json/json.dart';
+import 'package:copilotkit/src/tools/tools.dart';
+import 'package:meta/meta.dart';
+import 'package:uuid/uuid.dart';
+
 /// A conversation with one agent on a Copilot Runtime.
 ///
-/// Holds the messages, shared state and tool calls of a thread, and exposes
-/// them through synchronous getters and the [changes] stream. Get one with
-/// `CopilotKitClient.agent`.
-/// {@endtemplate}
+/// Holds the messages, shared state and tool calls of a thread as its
+/// [state], and adds the new state to [stream] every time it changes.
+/// Open one with `CopilotKitClient.agent`.
+///
+/// It changes over time, so unlike the value types it is mutable: [state] is
+/// replaced, never modified.
 class CopilotAgent({
-  /// Id of the agent on the runtime, e.g. `default`.
-  required final String agentId,
-  required final CopilotKitClient _client,
+  required String agentId,
   String? threadId,
+  final AgentEventReducer _reducer = const AgentEventReducer(),
+  final JsonPatcher _patcher = const JsonPatcher(),
 }) {
-  /// {@macro copilot_agent}
+  /// Creates the agent [agentId].
   ///
-  /// Prefer `CopilotKitClient.agent`, which caches agents by id. A random
-  /// [threadId] is generated when none is given.
+  /// Internal: only `CopilotKitClient.agent` creates agents, so the client
+  /// tracks every agent it runs. A random [threadId] is generated when none
+  /// is given. The reducer applies AG-UI events to the state, and the
+  /// patcher applies the app's edits to the shared state.
+  @internal
   this;
 
-  final _changes = StreamController<AgentSnapshot>.broadcast();
-  final _stateChanges = StreamController<Object?>.broadcast();
-  final _events = StreamController<BaseEvent>.broadcast();
-  AgentSnapshot _snapshot = const AgentSnapshot();
+  CopilotAgentState _state = CopilotAgentState(
+    agentId: agentId,
+    threadId: threadId ?? const Uuid().v4(),
+  );
 
-  /// Id of the conversation thread sent with every run.
-  final String threadId = threadId ?? const Uuid().v4();
+  final _states = StreamController<CopilotAgentState>.broadcast();
 
-  /// Current state of the agent.
-  AgentSnapshot get snapshot => _snapshot;
+  /// The agent as of now. Up to date as soon as a change is made.
+  CopilotAgentState get state => _state;
 
-  /// Conversation messages, oldest first.
-  List<Message> get messages => _snapshot.messages;
+  /// Every new [state], from the moment of listening. Read [state] first for
+  /// the current one: the stream doesn't replay it.
+  Stream<CopilotAgentState> get stream => _states.stream;
 
-  /// Shared agent state, or `null` if the agent sent none.
-  Object? get state => _snapshot.state;
+  /// Whether [close] has been called. A closed agent ignores every change.
+  bool get isClosed => _states.isClosed;
 
-  /// Whether the agent is working: from `run()` until the whole turn ends,
-  /// including frontend tool handlers and the runs that follow them.
-  bool get isRunning => _snapshot.isRunning;
-
-  /// Tool calls made by the agent, in call order.
-  List<ToolCallView> get toolCalls => _snapshot.toolCalls;
-
-  /// Emits a new [AgentSnapshot] every time the agent changes.
-  Stream<AgentSnapshot> get changes => _changes.stream;
-
-  /// Emits the shared state every time it changes.
-  Stream<Object?> get stateStream => _stateChanges.stream;
-
-  /// Emits every raw AG-UI event received from the runtime.
-  Stream<BaseEvent> get events => _events.stream;
-
-  /// Appends [message] to the conversation without starting a run.
-  Future<void> addMessage(Message message) async {
-    _update(_snapshot.copyWith(messages: [..._snapshot.messages, message]));
-  }
-
-  /// Runs the agent on the current messages.
+  /// Appends [message] to the conversation, without starting a run.
   ///
-  /// Same as `CopilotKitClient.runAgent(this)`. Completes when the run ends;
-  /// errors go to `CopilotKitClient.onError` instead of being thrown.
-  Future<void> run() => _client.runAgent(this);
+  /// Run the agent with `CopilotKitClient.runAgent`, which can also add a
+  /// message.
+  void addMessage(Message message) {
+    _update(_state.copyWith(messages: [..._state.messages, message]));
+  }
 
-  /// Stops the current run, if any.
+  /// Replaces every message of the conversation with [messages].
   ///
-  /// Same as `CopilotKitClient.stopAgent(this)`.
-  Future<void> stop() => _client.stopAgent(this);
+  /// Use it to reset a conversation (`setMessages([])`) or to restore a saved
+  /// one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
+  /// `CopilotAgentState.toolCalls` from [messages]: a call a message holds
+  /// keeps the view the agent already has, or becomes executing, or complete
+  /// when a tool message answers it; calls no message holds anymore are
+  /// dropped. Allowed while the agent is running; the events that stream in
+  /// afterwards apply on top of [messages].
+  void setMessages(List<Message> messages) =>
+      apply(MessagesSnapshotEvent(messages: messages));
 
-  /// Applies an event received from the runtime.
-  void _apply(BaseEvent event) {
-    _events.add(event);
-    _reduce(event);
+  /// Replaces the shared state with [state], or clears it with `null`.
+  ///
+  /// The next run sends [state] as `RunAgentInput.state`. A `STATE_SNAPSHOT`
+  /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
+  /// a local edit made during a run can be overwritten by the agent.
+  void setSharedState(SharedState? state) {
+    _update(_state.copyWith(sharedState: () => state));
   }
 
-  /// Applies an event produced locally (e.g. a tool result), without
-  /// emitting it on [events].
-  void _reduce(BaseEvent event) => _update(reduceAgentEvent(_snapshot, event));
-
-  void _update(AgentSnapshot next) {
-    if (next == _snapshot) return;
-    final previous = _snapshot;
-    _snapshot = next;
-    _changes.add(next);
-    if (next.state != previous.state) _stateChanges.add(next.state);
+  /// Edits the shared state with the RFC 6902 JSON Patch [operations], the
+  /// same format as a `STATE_DELTA`.
+  ///
+  /// A missing state is patched as an empty object. When an operation
+  /// doesn't apply (a missing path, a failed test), none of them does: the
+  /// state stays as it was and a [FormatException] is thrown.
+  void patchSharedState(List<JsonPatchOperation> operations) {
+    final document = _state.sharedState?.toJson() ?? const <String, Object?>{};
+    final patched = _patcher.apply(document, operations);
+    _update(_state.copyWith(sharedState: () => SharedState(patched)));
   }
 
-  Future<void> _close() async {
-    await _changes.close();
-    await _stateChanges.close();
-    await _events.close();
+  /// Applies an AG-UI [event], from the runtime or produced locally (a tool
+  /// result).
+  @internal
+  void apply(BaseEvent event) => _update(_reducer.reduce(_state, event));
+
+  /// Marks the executing tool call [toolCallId] as waiting for the user's
+  /// answer (`ToolCallView.awaitingResponse`), until it gets its result.
+  @internal
+  void awaitResponse(String toolCallId) {
+    _update(
+      _state.copyWith(
+        toolCalls: [
+          for (final call in _state.toolCalls)
+            if (call.id == toolCallId &&
+                call.status == ToolCallStatus.executing)
+              call.copyWith(awaitingResponse: true)
+            else
+              call,
+        ],
+      ),
+    );
+  }
+
+  /// Marks the agent running for a turn and clears the previous error.
+  @internal
+  void startTurn() {
+    _update(_state.copyWith(isRunning: true, error: () => null));
+  }
+
+  /// Marks the turn over: it finished, failed or was stopped.
+  @internal
+  void endTurn() => _update(_state.copyWith(isRunning: false));
+
+  /// Records [error], which ended the current run. A [RunErrorEvent] is
+  /// recorded by [apply] instead.
+  @internal
+  void fail(Object error) => _update(_state.copyWith(error: () => error));
+
+  /// Stops [stream]. Changes after this are ignored.
+  Future<void> close() => _states.close();
+
+  void _update(CopilotAgentState next) {
+    if (isClosed || next == _state) return;
+    _state = next;
+    _states.add(next);
   }
 }

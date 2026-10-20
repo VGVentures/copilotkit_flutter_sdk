@@ -61,7 +61,7 @@ Optional environment variables:
 | `COPILOTKIT_MODEL` | `openai:gpt-5-mini` | Model used by the `default` agent. |
 
 From an Android emulator use `10.0.2.2` instead of `localhost`; from a
-physical device use the LAN URL.
+physical device use the LAN URL. In Chrome use `localhost`.
 
 ### Model availability
 
@@ -86,6 +86,22 @@ fvm flutter run --dart-define=RUNTIME_URL=<runtime url>
 | iOS simulator or desktop | `http://localhost:8200/api/copilotkit` |
 | Android emulator | `http://10.0.2.2:8200/api/copilotkit` |
 | Physical device on the same network | The LAN URL printed by the runtime |
+
+### Run on the web
+
+The app has a `web` target. Start the local runtime and run the app in Chrome
+with the runtime URL:
+
+```sh
+cd example
+fvm flutter run -d chrome --dart-define=RUNTIME_URL=http://localhost:8200/api/copilotkit
+```
+
+The local runtime starts with `cors: true`, so the page may call it from any
+origin. A runtime that you run elsewhere must answer CORS preflight requests; see
+[Web and CORS](../packages/copilotkit/README.md#web-and-cors). To build for
+production, use `fvm flutter build web --wasm` with the same `--dart-define`;
+CI builds the example this way on every change.
 
 Without a valid `RUNTIME_URL`, the app shows a **Runtime URL missing** screen
 instead of the chat. The app logs errors through `dart:developer`, so check the
@@ -113,7 +129,9 @@ curl -N -X POST http://localhost:8200/api/copilotkit/agent/default/run \
 ## Manual test checklist
 
 Use this checklist to check the app end to end against a running runtime. The
-demo in `lib/demo/weather_demo.dart` registers a `showWeather` frontend tool
+demo in `lib/demo/widgets/weather_demo.dart` registers a `showWeather`
+frontend tool and a `confirmAction` human-in-the-loop tool
+(`lib/demo/widgets/approval_demo.dart`),
 and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
 
 <!-- prettier-ignore -->
@@ -149,6 +167,18 @@ These checks cover the tool call lifecycle and the weather card.
   forecast. This confirms that the tool result went back to the runtime.
 - Ask "What's the weather at home?" The agent uses the context and picks Lima.
 - Ask for two cities in one message. Two cards appear.
+
+### Human in the loop
+
+These checks cover the `confirmAction` approval tool.
+
+- Ask "Delete my draft files, but ask me first." An approval card shows what
+  will happen with **Approve** and **Reject**. The composer's send button
+  stays a stop button while the card waits.
+- Tap **Approve**. The card shows the answer, and the agent replies using it.
+- Repeat and tap **Reject**. The agent acknowledges that it did not proceed.
+- Repeat and tap **Stop** instead of answering. The card shows
+  `Tool call cancelled.` and the button turns back into **Send**.
 
 ### Stop
 

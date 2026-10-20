@@ -16,6 +16,68 @@ Install via `flutter pub add`:
 dart pub add copilotkit_flutter
 ```
 
+## Reading the agent below the client
+
+`CopilotAgentScope` opens an agent on the nearest `CopilotKit` client and
+provides it to its subtree, so a tool card, a form or any other widget can
+read the agent's state or edit its shared state without wiring the client by
+hand. The client owns the agent: the scope never closes it.
+
+```dart
+CopilotAgentScope(
+  agentId: 'ops',
+  child: AgentStateBuilder<SharedState?>(
+    selector: (state) => state.sharedState,
+    builder: (context, shared) => Text('${shared?.toJson()}'),
+  ),
+)
+
+// Below the scope, e.g. in a tool card or a button:
+CopilotAgentScope.of(context).setSharedState(
+  const SharedState({'theme': 'dark'}),
+);
+```
+
+The agent's conversation is rebuilt when the runtime sends a
+`MESSAGES_SNAPSHOT`, tool calls included, so tool calls that only exist in a
+snapshot (a loaded history) render through `ToolCallWidget` like live ones.
+
+## Asking the user
+
+`CopilotHumanInTheLoop` registers a `HumanInTheLoopTool` while it is mounted
+and renders its calls with their arguments decoded by the tool's `decode`.
+`respond` is `null` until the call waits for the user, so a card can only
+answer when it is time:
+
+```dart
+CopilotHumanInTheLoop(
+  tool: confirmAction,
+  builder: (context, call, args, respond) => Column(
+    children: [
+      Text('${args?.action}'),
+      if (respond != null) ...[
+        FilledButton(
+          onPressed: () => respond({'decision': 'approve'}),
+          child: const Text('Approve'),
+        ),
+        OutlinedButton(
+          onPressed: () => respond({'decision': 'reject'}),
+          child: const Text('Reject'),
+        ),
+      ],
+    ],
+  ),
+  child: const ChatPage(),
+)
+```
+
+The widget the builder returns keeps its state while the call moves from
+streaming to waiting to complete. Keep the tool stable across rebuilds (a
+field, not a new instance in `build`): a different tool replaces the
+registered one, and unmounting the widget while a call waits answers the call
+as cancelled. The agent's `isRunning` stays `true` while a call waits; read
+`CopilotAgentState.awaitingResponseIds` to know the agent waits for the user.
+
 ---
 
 ## Continuous Integration 🤖
