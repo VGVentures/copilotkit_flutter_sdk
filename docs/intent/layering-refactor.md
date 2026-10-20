@@ -26,7 +26,10 @@ The following table lists what crosses package boundaries today.
 
 Each package exposes only its own types in its public API. Dependencies are
 implementation details that a package converts at its boundary and never
-forwards.
+forwards. The one exception is `ack`: it's how apps describe tool
+parameters, so its schema types are part of the public API on purpose. Apps
+and packages that use them depend on `ack` themselves, and no package
+re-exports it.
 
 ```text
 ag_ui ─────────┐
@@ -37,26 +40,30 @@ json utility ──┘
 - `copilotkit` is a layer that adds functionality on top of `ag_ui`. It
   exports its own models and APIs, including the ones that
   `copilotkit_flutter` uses.
-- `copilotkit_flutter` uses only `copilotkit` models. It depends on `ack`
-  directly only if it must send raw schemas. Ideally, it uses a schema model
-  from `copilotkit` that `copilotkit` converts to `ack` internally.
+- `copilotkit_flutter` uses only `copilotkit` models, plus `ack` schemas
+  where a tool takes them.
+- `ClientTool.parameters` stays an `ack` `ObjectSchema`. A schema model
+  owned by `copilotkit` was considered and rejected: it duplicated `ack`'s
+  builders, dropped its constraints and annotation-driven schema generation,
+  and only paid off if `ack` were to be replaced. A JSON Schema map was
+  rejected too: validating it through `Ack.fromJsonSchema` reports only the
+  first error, with messages the agent can't act on.
 - The JSON utility package is a dependency of `copilotkit` only.
 - No package re-exports another package's types.
 
 ## Phases
 
 The refactor lands in four phases. Phase 1 comes first because it's the
-smallest and it settles the `Map<String, Object?>` convention that phases 2
-and 3 reuse. Phases 2 and 3 are independent of each other. Phase 4 depends
+smallest and it settles the `Map<String, Object?>` convention that phase 3
+reuses. Phases 2 and 3 are independent of each other. Phase 4 depends
 on both.
 
 1. **Extract the JSON utility.** Move the JSON code into a standalone package
    and remove the JSON types from the public API of `copilotkit`.
-2. **Add a core-owned schema model.** `copilotkit` defines its own tool
-   parameter schema and converts it to `ack` internally, both to validate
-   arguments and to build the JSON Schema through the utility's normalizer.
-   `ClientTool.parameters` takes the core type, and the `ack` re-export goes
-   away.
+2. **Make `ack` a direct dependency.** `copilotkit` stops re-exporting
+   `ack`. `ClientTool.parameters` keeps taking an `ack` `ObjectSchema`, and
+   apps, `copilotkit_flutter` and the example app depend on `ack`
+   themselves.
 3. **Add core-owned message and event models.** `copilotkit` defines its own
    `Message` hierarchy, `ToolCall`, and `FunctionCall`, and maps them to and
    from `ag_ui` in the transport and reducer. The publicly exposed
