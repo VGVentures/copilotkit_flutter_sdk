@@ -83,27 +83,15 @@ class CopilotAgent({
   /// JSON Patch, the same format as a `STATE_DELTA`.
   ///
   /// A missing state is patched as an empty object. When an operation
-  /// doesn't apply (a missing path, a failed test, a state or result that
-  /// isn't a JSON object), none of them does: the state stays as it was and
-  /// a [FormatException] is thrown.
+  /// doesn't apply (a missing path, a failed test, a result that isn't a JSON
+  /// object), none of them does: the state stays as it was and a
+  /// [FormatException] is thrown.
   void patchSharedState(List<StatePatchOperation> operations) {
-    final patched = _patcher.apply(_document, [
+    final patched = _patcher.apply(_state.sharedState?.toJson() ?? const {}, [
       for (final operation in operations) operation.toJson(),
     ]);
     _update(_state.copyWith(sharedState: () => SharedState(patched)));
   }
-
-  /// The JSON object the shared state holds, or an empty one when there is
-  /// none.
-  ///
-  /// Throws a [FormatException] when the shared state isn't a JSON object.
-  Map<String, Object?> get _document => switch (_state.sharedState?.toJson()) {
-    null => const {},
-    final Map<String, Object?> document => document,
-    final value => throw FormatException(
-      'Shared state is not a JSON object: $value',
-    ),
-  };
 
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool
   /// result).

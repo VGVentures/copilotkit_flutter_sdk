@@ -16,15 +16,15 @@ void main() {
       );
     });
 
-    test('rejects decoding a value that is not a JSON object', () {
+    test('throws what the decoder throws', () {
       expect(
-        () => const SharedState(['a']).decode(_Counter.fromJson),
-        throwsFormatException,
+        () => const SharedState({}).decode(_Counter.fromJson),
+        throwsA(isA<TypeError>()),
       );
     });
 
-    test('encodes as the value the agent sent', () {
-      expect(const SharedState(['a']).toJson(), ['a']);
+    test('encodes as the object the agent sent', () {
+      expect(const SharedState({'count': 2}).toJson(), {'count': 2});
     });
 
     test('supports value equality', () {

@@ -157,16 +157,17 @@ void main() {
         expect(agent.state.sharedState, const SharedState({'count': 1}));
       });
 
-      test('keeps the state and throws when it is not an object', () {
-        final agent = buildAgent()..setSharedState(const SharedState(['a']));
+      test('keeps the state and throws when the result is not an object', () {
+        final agent = buildAgent()
+          ..setSharedState(const SharedState({'count': 1}));
 
         expect(
           () => agent.patchSharedState(const [
-            StatePatchAdd(path: '/-', value: 'b'),
+            StatePatchReplace(path: '', value: 'text'),
           ]),
           throwsFormatException,
         );
-        expect(agent.state.sharedState, const SharedState(['a']));
+        expect(agent.state.sharedState, const SharedState({'count': 1}));
       });
     });
 

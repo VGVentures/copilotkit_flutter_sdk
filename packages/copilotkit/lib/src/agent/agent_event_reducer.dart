@@ -67,8 +67,9 @@ class const AgentEventReducer({
         :final content,
       ) =>
         _completeToolCall(snapshot, messageId, toolCallId, content),
-      StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-        sharedState: () => SharedState(state),
+      StateSnapshotEvent(snapshot: final state) => _replaceState(
+        snapshot,
+        state,
       ),
       StateDeltaEvent() => _applyStateDelta(snapshot, event),
       MessagesSnapshotEvent(:final messages) => _replaceMessages(
@@ -140,8 +141,7 @@ class const AgentEventReducer({
   /// client never saw) is dropped; the next snapshot resyncs the state.
   ///
   /// Before any state exists the delta applies to an empty object, as in the
-  /// AG-UI client, instead of being dropped. A state that isn't a JSON
-  /// object can't be patched, so the delta is dropped too.
+  /// AG-UI client, instead of being dropped.
   CopilotAgentState _applyStateDelta(
     CopilotAgentState snapshot,
     StateDeltaEvent event,
@@ -149,7 +149,10 @@ class const AgentEventReducer({
     try {
       return snapshot.copyWith(
         sharedState: () => SharedState(
-          _patcher.apply(_documentOf(snapshot.sharedState), event.delta),
+          _patcher.apply(
+            snapshot.sharedState?.toJson() ?? const {},
+            event.delta,
+          ),
         ),
       );
     } on FormatException {
@@ -157,16 +160,18 @@ class const AgentEventReducer({
     }
   }
 
-  /// The JSON object [state] holds, or an empty one when there is none.
+  /// [snapshot] with the shared state replaced by [state], or cleared when
+  /// [state] is `null`.
   ///
-  /// Throws a [FormatException] when [state] isn't a JSON object.
-  Map<String, Object?> _documentOf(SharedState? state) =>
-      switch (state?.toJson()) {
-        null => const {},
-        final Map<String, Object?> document => document,
-        final value => throw FormatException(
-          'Shared state is not a JSON object: $value',
+  /// Shared state is always a JSON object, so a snapshot of any other JSON
+  /// value is dropped, like a delta that doesn't apply.
+  CopilotAgentState _replaceState(CopilotAgentState snapshot, Object? state) =>
+      switch (state) {
+        null => snapshot.copyWith(sharedState: () => null),
+        final Map<String, Object?> json => snapshot.copyWith(
+          sharedState: () => SharedState(json),
         ),
+        _ => snapshot,
       };
 
   CopilotAgentState _startToolCall(
