@@ -9,6 +9,8 @@ import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../helpers/json_values.dart';
+
 class _MockUuid extends Mock implements Uuid;
 
 void main() {
@@ -57,6 +59,29 @@ void main() {
       expect(input.context.single.description, 'Current user');
       expect(input.context.single.value, '{"name":"Ada"}');
       expect(input.forwardedProps, {'locale': 'en'});
+    });
+
+    test('keeps the context order and JSON-encodes each value', () {
+      final input = const RunInputBuilder().build(
+        agent: agent,
+        tools: const [],
+        context: [
+          entry,
+          AgentContextEntry(description: 'Locale', value: const Label('es')),
+          AgentContextEntry(description: 'Unread', value: const Count(3)),
+        ],
+      );
+
+      expect(input.context.map((c) => c.description), [
+        'Current user',
+        'Locale',
+        'Unread',
+      ]);
+      expect(input.context.map((c) => c.value), [
+        '{"name":"Ada"}',
+        '"es"',
+        '3',
+      ]);
     });
 
     test('generates a new run id for every run by default', () {
