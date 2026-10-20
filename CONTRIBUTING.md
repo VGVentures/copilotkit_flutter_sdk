@@ -1,6 +1,25 @@
 # Contributing
 
-This guide covers the conventions and the commands used in this repository.
+This guide covers the architecture, the conventions and the commands used in
+this repository.
+
+## Architecture
+
+The SDK has two packages, layered from the network up:
+
+```
+packages/copilotkit           pure Dart, no Flutter and no bloc
+  transport   sends runs to the Copilot Runtime over AG-UI
+  client      CopilotKitClient: agents, tools, context and runs
+  agent       CopilotAgent: one conversation, its state and stream
+packages/copilotkit_flutter   Flutter
+  widgets     CopilotKit, CopilotTool, CopilotContext, CopilotChatProvider
+  blocs       CopilotChatBloc: a thin adapter from an agent to a chat UI
+```
+
+The core holds all the logic in plain Dart classes. Flutter adds widgets and
+blocs on top of it and never reimplements core behavior. A core class never
+imports `package:flutter` or `package:bloc`.
 
 ## Layout
 
@@ -10,36 +29,130 @@ folder has the same shape:
 ```
 lib/src/<feature>/
   <feature>.dart   barrel: exports what other features and the package use
-  models/          the feature's data classes
-  <name>.dart      the feature's other classes
-  bloc/            the feature's bloc
-  widgets/         the feature's widgets (copilotkit_flutter only)
+  models/          immutable value types
+  <name>.dart      logic classes: services, state holders, mappers
+  bloc/            blocs (copilotkit_flutter only)
+  widgets/         widgets (copilotkit_flutter only)
 ```
 
 A feature only has the folders it needs. Code shared by several features is a
 feature of its own, e.g. `json/`. No files sit directly in `lib/src/`, and
-there is no `support/`, `utils/` or `helpers/` folder.
+there is no `support/`, `utils/`, `helpers/` or `extensions/` folder. Widgets
+and blocs sit in their folders, never at the root of a feature.
 
-```
-lib/src/
-  json/
-    json.dart
-    partial_json_parser.dart
-  tools/
-    tools.dart
-    frontend_tool.dart
-    models/tool_call_view.dart
-```
+Inside a feature, dependencies point one way: `widgets` → `bloc` → logic →
+`models`. A model imports only other models, never I/O, streams or state
+management.
+
+Between features, dependencies form a fixed graph with no cycles:
+
+| Package | Feature | May import |
+| --- | --- | --- |
+| `copilotkit` | `json` | — |
+| | `transport` | `json` |
+| | `agent` | `json`, `tools` |
+| | `tools` | `json` |
+| | `context` | `json` |
+| | `client` | `json`, `transport`, `agent`, `tools`, `context` |
+| `copilotkit_flutter` | `client` | the core |
+| | `tools`, `context` | `client`, the core |
+| | `chat` | `client`, `tools`, the core |
 
 A feature imports another feature only through its barrel
-(`package:copilotkit/src/json/json.dart`), never one of its files. The package
-barrel (`lib/copilotkit.dart`) exports only feature barrels, and uses `show` /
-`hide` to keep internal types private.
+(`package:copilotkit/src/json/json.dart`), never one of its files; a model may
+import another feature's model directly. The package barrel
+(`lib/copilotkit.dart`) exports only feature barrels, and uses `show` / `hide`
+to keep internal types private. A new feature, or a new edge between
+features, is a design change: add it to this table in the same pull request.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
 
+## Logic lives in classes
+
+Logic lives in well-named classes whose collaborators are passed to the
+constructor, with production defaults, so tests can replace each one. The
+facade composes them: `CopilotKitClient` builds a `ToolRegistry`, an
+`AgentContextStore` and an `AgentRunner`, and the runner takes a
+`RunInputBuilder` and a `ToolCallExecutor`.
+
+```dart
+// Good: the reducer gets its JSON helpers injected
+class const AgentEventReducer({
+  final PartialJsonParser _parser = const PartialJsonParser(),
+  final JsonPatcher _patcher = const JsonPatcher(),
+}) {
+  this;
+
+  CopilotAgentState reduce(CopilotAgentState state, BaseEvent event) => ...;
+}
+```
+
+Nothing is declared at the top level except types, and that includes private
+declarations. There are no extensions and no static helpers.
+
+- A function used by one class becomes a private method on it.
+- A function reused across files becomes a method of a class that is injected
+  where it's needed.
+- A constant becomes a static field, or an enum when it is one of a set.
+- The only static methods are `of` / `maybeOf` lookups on inherited widgets.
+
+```dart
+// Bad
+const _cancelledResult = 'Tool call cancelled.';
+String _randomId() => ...;
+extension RunAgentInputX on RunAgentInput { ... }
+static Object? apply(Object? document, List<Map<String, Object?>> ops) => ...;
+
+// Good
+enum FallbackToolResult {
+  cancelled('Tool call cancelled.');
+
+  new(this.message);
+
+  final String message;
+}
+
+class const JsonPatcher() {
+  this;
+
+  Object? apply(Object? document, List<JsonPatchOperation> operations) => ...;
+}
+```
+
+## State holders
+
+State that changes over time lives in a state holder: a plain class that keeps
+an immutable state and replaces it on every change. `CopilotAgent` is the
+model:
+
+- `state` is the current value, up to date as soon as a change is made.
+- `stream` emits each new state. It is a broadcast stream that emits only on
+  change and doesn't replay the current state, so read `state` first.
+- Members are named after what they hold, never their type: `state` and
+  `stream`, not `stateStream`.
+- Methods that only the SDK may call are `@internal`.
+- `close()` closes the stream; a closed holder ignores changes, and `isClosed`
+  says so.
+
+```dart
+// Good
+agent.state.messages;
+agent.stream.listen((state) => ...);
+agent.addMessage(message);
+```
+
+Classes that track things that come and go, like `ToolRegistry` or
+`AgentRunner`, are the other mutable classes. Each says so in its doc comment.
+Everything else is immutable.
+
 ## Blocs
+
+Blocs live only in `copilotkit_flutter`. A bloc is a thin adapter between a
+state holder and a widget tree: it mirrors the holder's `stream` with
+`emit.forEach` and turns UI events into calls on the client. Logic it needs,
+like mapping messages to chat rows, comes from an injected class
+(`ChatRowMapper`).
 
 A bloc for the feature `[feature]` lives in `[feature_dir]/bloc/` as three
 files at the same level: `[feature]_bloc.dart`, `[feature]_event.dart` and
@@ -62,10 +175,72 @@ class CopilotChatBloc extends Bloc<CopilotChatEvent, CopilotChatState> {
 bloc.add(const ChatMessageSent('Hi'));
 ```
 
-Blocs are tested with `blocTest` from `package:bloc_test`, never with a plain
-`test`. Assert emitted states with `expect`, and side effects (calls on mocks,
-states of other blocs) with `verify`. Event and state classes are value
-models and keep plain `test`s for equality and `copyWith`.
+Provide a bloc with a widget that owns its lifecycle, like
+`CopilotChatProvider`, rather than asking apps to wire `BlocProvider`s.
+
+## Models and JSON
+
+Every value in the API is a model, not a raw `Map<String, Object?>`. Raw JSON
+appears only at the wire boundary:
+
+- in the `json` and `transport` features,
+- in a model's `fromJson` / `toJson`,
+- in generated `*.g.dart` files.
+
+Everywhere else, JSON goes through these types:
+
+| Type | Use it for |
+| --- | --- |
+| `JsonDecoder<T>` | Decoding JSON into a model, e.g. `WeatherArgs.fromJson` |
+| `JsonEncodable` | Values the app sends, e.g. context values and `properties` |
+| `JsonObject` | JSON received but not decoded yet, e.g. tool call arguments while they stream in |
+
+```dart
+// Bad
+handler: (Map<String, Object?> args, {required signal}) async =>
+    'weather in ${args['city']}',
+
+// Good: the tool decodes its arguments into a model
+FrontendTool(
+  name: 'showWeather',
+  description: 'Show the weather for a city',
+  parameters: Ack.object({'city': Ack.string()}),
+  decode: WeatherArgs.fromJson,
+  handler: (args, {required signal}) async => 'weather in ${args.city}',
+)
+```
+
+HTTP headers stay `Map<String, String>`: they aren't JSON.
+
+### Value models use `Equatable`
+
+Every value model extends `Equatable` so that equal values compare equal and
+state holders and blocs skip unchanged states. Compare with `==`, never
+`identical`: a type that needs instance equality keeps the default `==`.
+
+### Nullable fields in `copyWith`
+
+For a nullable field, `copyWith` takes a getter closure so a caller can keep,
+set or clear the value without a sentinel.
+
+```dart
+// Bad
+CopilotAgentState copyWith({Object? error = _unset}) =>
+    CopilotAgentState(error: identical(error, _unset) ? this.error : error);
+
+// Good
+CopilotAgentState copyWith({Object? Function()? error}) =>
+    CopilotAgentState(error: error == null ? this.error : error());
+
+state.copyWith();                         // keep
+state.copyWith(error: () => exception);   // set
+state.copyWith(error: () => null);        // clear
+```
+
+### Ids
+
+Generate ids with `package:uuid` (v4). Don't build them from timestamps or
+counters.
 
 ## One public type per file
 
@@ -100,36 +275,8 @@ class ChatMessageRow extends ChatRow { ... }
 class ChatToolCallRow extends ChatRow { ... }
 
 // Good: the handler typedef in tools/frontend_tool.dart
-typedef FrontendToolHandler = Future<String> Function(...);
-class FrontendTool { ... }
-```
-
-## No top-level functions or variables
-
-Nothing is declared at the top level except types. This applies to private
-declarations too.
-
-- A function used by one class becomes a private or static method on it.
-- A function reused across files becomes an extension method.
-- A constant becomes a static field, or an enum when it is one of a set.
-
-```dart
-// Bad
-const _cancelledResult = 'Tool call cancelled.';
-String _randomId() => ...;
-
-// Good
-enum _FallbackToolResult {
-  cancelled('Tool call cancelled.');
-
-  const _FallbackToolResult(this.message);
-
-  final String message;
-}
-
-extension RunAgentInputX on RunAgentInput {
-  RunAgentInput toSimpleInput() => ...;
-}
+typedef FrontendToolHandler<T> = Future<String> Function(...);
+class FrontendTool<T> { ... }
 ```
 
 ## Enums over constant sets
@@ -147,59 +294,22 @@ enum _SubschemaKey { items, additionalProperties, not }
 if (_SubschemaKey.values.asNameMap().containsKey(key)) ...
 ```
 
-## Immutability
+## Tests
 
-Classes are immutable: every field is `final` and changes produce a new
-instance. State that changes over time lives in a bloc, which emits a new
-immutable state on each change. Mutable fields outside a bloc are documented
-exceptions.
-
-```dart
-// Bad
-class Turn {
-  var pending = <String>[];
-}
-
-// Good
-class TurnState extends Equatable {
-  const TurnState({this.pending = const []});
-
-  final List<String> pending;
-
-  TurnState copyWith({List<String>? pending}) =>
-      TurnState(pending: pending ?? this.pending);
-}
-```
-
-### Value models use `Equatable`
-
-Every value model extends `Equatable` so that equal values compare equal and
-blocs skip emitting unchanged states. Compare with `==`, never `identical`: a
-type that needs instance equality keeps the default `==`.
-
-### Nullable fields in `copyWith`
-
-For a nullable field, `copyWith` takes a getter closure so a caller can keep,
-set or clear the value without a sentinel.
-
-```dart
-// Bad
-CopilotAgentState copyWith({Object? error = _unset}) =>
-    CopilotAgentState(error: identical(error, _unset) ? this.error : error);
-
-// Good
-CopilotAgentState copyWith({Object? Function()? error}) =>
-    CopilotAgentState(error: error == null ? this.error : error());
-
-state.copyWith();                         // keep
-state.copyWith(error: () => exception);   // set
-state.copyWith(error: () => null);        // clear
-```
-
-### Ids
-
-Generate ids with `package:uuid` (v4). Don't build them from timestamps or
-counters.
+- Core classes are tested with plain `test`s. Replace a collaborator through
+  its constructor parameter, with a fake or a `mocktail` mock, rather than
+  stubbing internals.
+- A method that returns a `Future` is awaited in the test; there's no need to
+  pump events to wait for it.
+- A test that reads a `stream` lets its last event arrive with
+  `pumpEventQueue()` before asserting.
+- Blocs are tested with `blocTest` from `package:bloc_test`. Assert emitted
+  states with `expect`, and calls on the client with `verify`.
+- Widgets are tested with `testWidgets`; verify calls on the client with a
+  mock or a recording fake.
+- Value models keep plain `test`s for equality and `copyWith`. To check
+  equality rather than identity, compare against a separate instance (e.g.
+  built with `Map.of`).
 
 ## Doc comments
 
