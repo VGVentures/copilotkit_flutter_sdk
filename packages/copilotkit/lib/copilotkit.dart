@@ -20,17 +20,21 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent/bloc/copilot_agent_bloc.dart'
-    hide
-        AgentEventReceived,
-        AgentRunFailed,
-        AgentSettleRequested,
-        AgentTurnEnded,
-        AgentTurnStarted;
-export 'src/client/bloc/copilot_kit_bloc.dart';
-export 'src/context/agent_context_entry.dart';
-export 'src/tools/cancellation_signal.dart';
-export 'src/tools/frontend_tool.dart';
-export 'src/tools/models/tool_call_status.dart';
-export 'src/tools/models/tool_call_view.dart';
-export 'src/transport/agent_transport.dart';
+export 'src/agent/agent.dart';
+export 'src/client/client.dart' hide AgentRunner, RunInputBuilder;
+export 'src/context/context.dart' hide AgentContextStore;
+export 'src/json/json.dart'
+    show
+        JsonDecoder,
+        JsonEncodable,
+        JsonObject,
+        JsonPatchAdd,
+        JsonPatchCopy,
+        JsonPatchMove,
+        JsonPatchOperation,
+        JsonPatchRemove,
+        JsonPatchReplace,
+        JsonPatchTest;
+export 'src/tools/tools.dart'
+    hide FallbackToolResult, ToolCallExecutor, ToolCallOutcome, ToolRegistry;
+export 'src/transport/transport.dart' show AgentTransport;

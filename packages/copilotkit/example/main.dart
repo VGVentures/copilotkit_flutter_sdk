@@ -6,10 +6,10 @@ import 'dart:convert';
 import 'package:copilotkit/copilotkit.dart';
 
 Future<void> main() async {
-  final client = CopilotKitBloc(
+  final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
-    properties: {'userId': '42'},
+    properties: const JsonObject({'userId': '42'}),
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 
@@ -19,28 +19,27 @@ Future<void> main() async {
     name: 'showWeather',
     description: 'Show the weather for a city',
     parameters: Ack.object({'city': Ack.string()}),
+    decode: _WeatherArgs.fromJson,
     handler: (args, {required signal}) async =>
-        jsonEncode({'city': args['city'], 'forecast': 'sunny'}),
+        jsonEncode({'city': args.city, 'forecast': 'sunny'}),
   );
 
   // App data the agent can answer from. In Flutter, `CopilotContext`.
   final user = AgentContextEntry(
     description: 'Current user',
-    value: const {'name': 'Ada'},
+    value: const _User('Ada'),
   );
 
   client
-    ..add(ToolRegistered(showWeather))
-    ..add(ContextAdded(user))
-    ..add(const AgentOpened('default'));
-  final agent = (await client.stream
-      .map((state) => state.agents['default'])
-      .firstWhere((agent) => agent != null))!;
+    ..registerTool(showWeather)
+    ..addContext(user);
+  final agent = client.agent('default');
   final subscription = agent.stream.listen((state) {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
-        ToolCallStatus.executing => 'weather for ${call.args['city']}',
+        ToolCallStatus.executing =>
+          'weather for ${call.args.tryDecode(_WeatherArgs.fromJson)?.city}',
         ToolCallStatus.complete => call.result!,
       };
       print('${call.name}: $view');
@@ -51,30 +50,32 @@ Future<void> main() async {
     );
   });
 
-  // Shared state is sent with every run. Edits made before a run, even in the
-  // same tick, are part of that run's input.
+  // Shared state is sent with every run.
   agent
-    ..add(const AgentStateSet({'theme': 'dark'}))
-    ..add(
-      const AgentStatePatched([
-        {'op': 'add', 'path': '/units', 'value': 'metric'},
-      ]),
-    );
+    ..setSharedState(const SharedState({'theme': 'dark'}))
+    ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')]);
 
-  client.add(
-    AgentRunRequested(
-      'default',
-      message: UserMessage(
-        id: 'user-1',
-        content: "What's the weather in Lima?",
-      ),
-    ),
+  // Completes once the whole turn ends, tool calls included.
+  await client.runAgent(
+    'default',
+    message: UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
   );
-  await agent.stream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();
   client
-    ..add(ContextRemoved(user.id))
-    ..add(ToolUnregistered(showWeather));
+    ..removeContext(user.id)
+    ..unregisterTool(showWeather);
   await client.close();
+}
+
+/// The arguments of the `showWeather` tool.
+class const _WeatherArgs(final String city) {
+  factory fromJson(Map<String, Object?> json) =>
+      _WeatherArgs(json['city']! as String);
+}
+
+/// The current user, shared with the agent as context.
+class const _User(final String name) implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'name': name};
 }

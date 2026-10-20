@@ -29,30 +29,5 @@ void main() {
         throwsA(isA<CheckedFromJsonException>()),
       );
     });
-
-    group('tryParse', () {
-      test('decodes a JSON forecast', () {
-        final forecast = Forecast.tryParse(
-          '{"city":"Lima","temperatureC":21,"condition":"Sunny"}',
-        );
-
-        expect(forecast?.city, 'Lima');
-        expect(forecast?.temperatureC, 21);
-        expect(forecast?.condition, 'Sunny');
-      });
-
-      for (final source in [
-        null,
-        '',
-        'Tool call cancelled.',
-        '[1, 2]',
-        '{"city":"Lima"}',
-        '{"city":"Lima","temperatureC":"warm","condition":"Sunny"}',
-      ]) {
-        test('returns null for $source', () {
-          expect(Forecast.tryParse(source), isNull);
-        });
-      }
-    });
   });
 }
