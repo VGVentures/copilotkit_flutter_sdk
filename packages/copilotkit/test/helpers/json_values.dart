@@ -27,6 +27,20 @@ class const Label(final String value)
   List<Object?> get props => [value];
 }
 
+/// A JSON object shared with the agent, for tests.
+class const Fields(final Map<String, Object?> value)
+    extends Equatable
+    implements JsonEncodable {
+  /// Creates an object with the fields [value].
+  this;
+
+  @override
+  Map<String, Object?> toJson() => value;
+
+  @override
+  List<Object?> get props => [value];
+}
+
 /// A value whose JSON isn't encodable, for tests.
 class const NonJsonValue() implements JsonEncodable {
   /// Creates the value.

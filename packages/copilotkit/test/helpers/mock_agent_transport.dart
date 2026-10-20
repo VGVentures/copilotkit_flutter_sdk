@@ -4,11 +4,16 @@ import 'package:mocktail/mocktail.dart';
 /// A mocked [AgentTransport] with shortcuts for the stubs and checks the
 /// client tests share.
 ///
+/// Shared on purpose by every test of a class that streams runs, rather than
+/// a private mock per file: they all need the same stubs on the one
+/// transport the client talks to.
+///
 /// Each shortcut matches any arguments. Tests that care about specific
 /// arguments use `when` or `verify` directly.
 class MockAgentTransport extends Mock implements AgentTransport {
-  /// Registers the fallback `RunAgentInput` used by `any` matchers.
-  static void registerFallbacks() {
+  /// Creates a mock, registering the fallback `RunAgentInput` its `any`
+  /// matchers need.
+  new() {
     registerFallbackValue(
       const RunAgentInput(
         threadId: 't',
@@ -18,6 +23,14 @@ class MockAgentTransport extends Mock implements AgentTransport {
         context: [],
       ),
     );
+  }
+
+  /// Answers every run with the stream [nextRun] returns, and makes every
+  /// stop and the close succeed.
+  void stubAll(Stream<BaseEvent> Function() nextRun) {
+    stubRun(nextRun);
+    stubStop();
+    when(close).thenAnswer((_) async {});
   }
 
   /// Answers every run with the stream [nextRun] returns.

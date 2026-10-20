@@ -8,6 +8,7 @@ import 'package:copilotkit/src/agent/extensions/copilotkit_agent_state_tool_call
 import 'package:copilotkit/src/agent/mappers/agent_event_mapper.dart';
 import 'package:copilotkit/src/agent/models/copilotkit_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
+import 'package:copilotkit/src/agent/shared_state_patcher.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:meta/meta.dart';
@@ -25,7 +26,7 @@ class CopilotKitAgent({
   required String agentId,
   String? threadId,
   final AgentEventMapper _mapper = const AgentEventMapper(),
-  final JsonPatcher _patcher = const JsonPatcher(),
+  final SharedStatePatcher _patcher = const SharedStatePatcher(),
 }) {
   /// Creates the agent [agentId].
   ///
@@ -80,6 +81,8 @@ class CopilotKitAgent({
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///
+  /// Build [state] from an app model with [SharedState.of].
+  ///
   /// The next run sends [state] as [RunAgentInput.state]. A `STATE_SNAPSHOT`
   /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
   /// a local edit made during a run can be overwritten by the agent.
@@ -92,11 +95,11 @@ class CopilotKitAgent({
   ///
   /// A missing state is patched as an empty object. When an operation
   /// doesn't apply (a missing path, a failed test), none of them does: the
-  /// state stays as it was and a [FormatException] is thrown.
+  /// state stays as it was and a [FormatException] is thrown. So it does
+  /// when the patched state isn't a JSON object.
   void patchSharedState(List<JsonPatchOperation> operations) {
-    final document = _state.sharedState?.toJson() ?? const <String, Object?>{};
-    final patched = _patcher.apply(document, operations);
-    _update(_state.copyWith(sharedState: () => SharedState(patched)));
+    final patched = _patcher.apply(_state.sharedState, operations);
+    _update(_state.copyWith(sharedState: () => patched));
   }
 
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool

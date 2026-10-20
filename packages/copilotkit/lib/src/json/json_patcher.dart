@@ -51,7 +51,7 @@ class const JsonPatcher() {
       current = switch (current) {
         Map<String, Object?>() when current.containsKey(token) =>
           current[token],
-        List<Object?>() => current[_index(current, token, current.length - 1)],
+        List<Object?>() => current[_index(token, current.length - 1)],
         _ => throw FormatException('JSON Patch path not found: /$token'),
       };
     }
@@ -78,7 +78,7 @@ class const JsonPatcher() {
         if (token == '-') {
           parent.add(value);
         } else {
-          parent.insert(_index(parent, token, parent.length), value);
+          parent.insert(_index(token, parent.length), value);
         }
       default:
         throw FormatException('JSON Patch parent is not a container: /$token');
@@ -93,14 +93,14 @@ class const JsonPatcher() {
       case Map<String, Object?>() when parent.containsKey(token):
         parent.remove(token);
       case List<Object?>():
-        parent.removeAt(_index(parent, token, parent.length - 1));
+        parent.removeAt(_index(token, parent.length - 1));
       default:
         throw FormatException('JSON Patch path not found: /$token');
     }
   }
 
   /// Parses an array index token, allowing values up to [max].
-  int _index(List<Object?> list, String token, int max) {
+  int _index(String token, int max) {
     final index = int.tryParse(token);
     if (index == null || index < 0 || index > max) {
       throw FormatException('Invalid JSON Patch array index: $token');

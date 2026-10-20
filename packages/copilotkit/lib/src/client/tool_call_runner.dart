@@ -1,6 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/run_streamer.dart';
+import 'package:copilotkit/src/client/copilotkit_client.dart';
 import 'package:copilotkit/src/client/turn.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:uuid/uuid.dart';
@@ -37,7 +37,9 @@ class ToolCallRunner({
   /// human-in-the-loop calls are all marked as awaiting a response first, so
   /// the user can answer them in any order. Returns `false` when there was
   /// nothing to run, when [turn] was stopped meanwhile, or when every call
-  /// was to a human-in-the-loop tool with `followUp` set to `false`.
+  /// was to a human-in-the-loop tool with `followUp` set to `false` and had
+  /// valid arguments: a call with invalid ones always runs the agent again,
+  /// so it can fix them.
   Future<bool> runPending(Turn turn) async {
     final agent = turn.agent;
     final pending = _pendingToolCalls(agent);
@@ -61,7 +63,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= tool.followsUp;
+      followUp |= tool.followsUp || outcome.invalidArguments;
     }
     return followUp;
   }

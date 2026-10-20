@@ -25,7 +25,7 @@ void main() {
       final registry = ToolRegistry()..register(weather);
 
       expect(registry.tools, {'showWeather': weather});
-      expect(registry['showWeather'], same(weather));
+      expect(registry['showWeather'], weather);
     });
 
     test('replaces a tool registered under the same name', () {
@@ -35,7 +35,7 @@ void main() {
         ..register(first)
         ..register(second);
 
-      expect(registry['showWeather'], same(second));
+      expect(registry['showWeather'], second);
     });
 
     test('unregisters only the tool that is registered', () {
@@ -52,7 +52,32 @@ void main() {
         ..register(second);
 
       expect(registry.unregister(first), isFalse);
-      expect(registry['showWeather'], same(second));
+      expect(registry['showWeather'], second);
+
+      expect(registry.unregister(second), isTrue);
+      expect(registry.tools, isEmpty);
+    });
+
+    test('keeps an equal tool until each registration is undone', () {
+      final weather = tool('showWeather');
+      final registry = ToolRegistry()
+        ..register(weather)
+        ..register(weather);
+
+      expect(registry.unregister(weather), isFalse);
+      expect(registry['showWeather'], weather);
+
+      expect(registry.unregister(weather), isTrue);
+      expect(registry.tools, isEmpty);
+    });
+
+    test('counts registrations again after a different tool replaces', () {
+      final first = tool('showWeather');
+      final second = tool('showWeather');
+      final registry = ToolRegistry()
+        ..register(first)
+        ..register(first)
+        ..register(second);
 
       expect(registry.unregister(second), isTrue);
       expect(registry.tools, isEmpty);

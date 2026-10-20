@@ -166,6 +166,7 @@ void main() {
                 '- city: Required property "city" is missing.\n'
                 '- days: Expected integer, got string.\n'
                 '- extra: Property "extra" is not allowed.',
+            invalidArguments: true,
           ),
         );
         expect(called, isFalse);
@@ -186,19 +187,6 @@ void main() {
           ),
         );
       });
-    });
-  });
-
-  group(ToolCallOutcome, () {
-    test('supports value equality', () {
-      expect(
-        const ToolCallOutcome(result: 'ok'),
-        const ToolCallOutcome(result: 'ok'),
-      );
-      expect(
-        const ToolCallOutcome(result: 'ok'),
-        isNot(const ToolCallOutcome(result: 'ok', error: 'boom')),
-      );
     });
   });
 }

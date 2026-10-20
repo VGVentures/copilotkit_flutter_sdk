@@ -34,9 +34,9 @@ final _input = RunAgentInput(
 );
 
 void main() {
-  setUpAll(() => registerFallbackValue(_FakeBaseRequest()));
-
   group(AgUiTransport, () {
+    setUpAll(() => registerFallbackValue(_FakeBaseRequest()));
+
     late _MockHttpClient httpClient;
     late AgUiTransport transport;
 

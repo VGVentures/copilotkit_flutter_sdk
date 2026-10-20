@@ -30,15 +30,15 @@ void main() {
         expect(state.toolCalls, [_first, _second.complete('x')]);
       });
 
-      test('returns the state itself for an unknown call', () {
+      test('returns the state unchanged for an unknown call', () {
         expect(
           _state.updateToolCall('x', (view) => view.complete('x')),
-          same(_state),
+          _state,
         );
       });
 
-      test('returns the state itself when the view does not change', () {
-        expect(_state.updateToolCall('c1', (view) => view), same(_state));
+      test('returns the state unchanged when the view does not change', () {
+        expect(_state.updateToolCall('c1', (view) => view), _state);
       });
     });
   });

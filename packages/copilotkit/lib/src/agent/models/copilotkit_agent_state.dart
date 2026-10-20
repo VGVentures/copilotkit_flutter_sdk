@@ -85,6 +85,9 @@ class const CopilotKitAgentState({
   /// [sharedState] and [error] are callbacks so a caller can set a value
   /// (`error: () => e`), clear it (`error: () => null`) or leave it alone by
   /// not passing it.
+  ///
+  /// The [messages] and [toolCalls] given are copied into unmodifiable
+  /// lists, so the state can't change behind an agent's back.
   CopilotKitAgentState copyWith({
     List<Message>? messages,
     SharedState? Function()? sharedState,
@@ -95,10 +98,12 @@ class const CopilotKitAgentState({
     return CopilotKitAgentState(
       agentId: agentId,
       threadId: threadId,
-      messages: messages ?? this.messages,
+      messages: messages == null ? this.messages : List.unmodifiable(messages),
       sharedState: sharedState == null ? this.sharedState : sharedState(),
       isRunning: isRunning ?? this.isRunning,
-      toolCalls: toolCalls ?? this.toolCalls,
+      toolCalls: toolCalls == null
+          ? this.toolCalls
+          : List.unmodifiable(toolCalls),
       error: error == null ? this.error : error(),
     );
   }

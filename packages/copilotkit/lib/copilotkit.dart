@@ -20,17 +20,11 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent/agent.dart';
+export 'src/agent/agent.dart'
+    show CopilotKitAgent, CopilotKitAgentState, SharedState;
 export 'src/client/client.dart'
-    hide
-        ActiveRun,
-        AgentRunner,
-        RunInputBuilder,
-        RunResult,
-        RunStreamer,
-        ToolCallRunner,
-        Turn;
-export 'src/context/context.dart' hide AgentContextStore;
+    show CopilotKitClient, CopilotKitErrorHandler, HeadersBuilder;
+export 'src/context/context.dart' show AgentContextEntry;
 export 'src/json/json.dart'
     show
         JsonDecoder,
@@ -44,11 +38,13 @@ export 'src/json/json.dart'
         JsonPatchReplace,
         JsonPatchTest;
 export 'src/tools/tools.dart'
-    hide
-        FallbackToolResult,
-        ToolCallExecutor,
-        ToolCallOutcome,
-        ToolCallViewTransitions,
-        ToolRegistry,
-        ToolResponses;
-export 'src/transport/transport.dart' show AgentTransport;
+    show
+        CancellationSignal,
+        ClientTool,
+        FrontendTool,
+        FrontendToolHandler,
+        HumanInTheLoopTool,
+        ToolCallStatus,
+        ToolCallView;
+export 'src/transport/transport.dart'
+    show AgUiTransport, AgentTransport, SkippedEventHandler;

@@ -18,11 +18,15 @@ class const PartialJsonParser() {
   JsonObject parse(String input) => JsonObject(_fields(input));
 
   Map<String, Object?> _fields(String input) {
-    try {
-      final decoded = jsonDecode(input);
-      return decoded is Map<String, Object?> ? decoded : {};
-    } on FormatException {
-      // Incomplete or invalid; fall through to the tolerant parser.
+    // Only an input that ends its object can be complete. Streamed arguments
+    // are parsed after every delta, so skip a decode that would throw.
+    if (input.trimRight().endsWith('}')) {
+      try {
+        final decoded = jsonDecode(input);
+        return decoded is Map<String, Object?> ? decoded : {};
+      } on FormatException {
+        // Incomplete or invalid; fall through to the tolerant parser.
+      }
     }
     try {
       final cursor = _Cursor(input).._skipWhitespace();

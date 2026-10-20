@@ -11,6 +11,19 @@ class Fixture({
   required final Map<String, Object?> header,
   required final List<Map<String, Object?>> rawEvents,
 }) {
+  /// Loads `test/fixtures/<name>.jsonl`.
+  factory load(String name) {
+    final lines = File('test/fixtures/$name.jsonl')
+        .readAsLinesSync()
+        .where((line) => line.trim().isNotEmpty)
+        .map((line) => jsonDecode(line) as Map<String, Object?>)
+        .toList();
+    return Fixture(
+      header: lines.first['fixture']! as Map<String, Object?>,
+      rawEvents: lines.skip(1).toList(),
+    );
+  }
+
   /// Every event `ag_ui` can decode, in order. Undecodable events are
   /// skipped, like `AgUiTransport` does.
   late final List<BaseEvent> events = [
@@ -25,25 +38,12 @@ class Fixture({
 
   /// Whether the events were written by hand rather than recorded.
   bool get isSynthetic => header['source'] == 'synthetic';
-}
 
-/// Loads `test/fixtures/<name>.jsonl`.
-Fixture loadFixture(String name) {
-  final lines = File('test/fixtures/$name.jsonl')
-      .readAsLinesSync()
-      .where((line) => line.trim().isNotEmpty)
-      .map((line) => jsonDecode(line) as Map<String, Object?>)
-      .toList();
-  return Fixture(
-    header: lines.first['fixture']! as Map<String, Object?>,
-    rawEvents: lines.skip(1).toList(),
-  );
-}
-
-BaseEvent? _decode(Map<String, Object?> json) {
-  try {
-    return const EventDecoder().decodeJson(json);
-  } on DecodingError {
-    return null;
+  BaseEvent? _decode(Map<String, Object?> json) {
+    try {
+      return const EventDecoder().decodeJson(json);
+    } on DecodingError {
+      return null;
+    }
   }
 }

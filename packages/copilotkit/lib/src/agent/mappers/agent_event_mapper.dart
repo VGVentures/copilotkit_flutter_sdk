@@ -3,6 +3,7 @@ import 'package:copilotkit/src/agent/mappers/text_message_mapper.dart';
 import 'package:copilotkit/src/agent/mappers/tool_call_mapper.dart';
 import 'package:copilotkit/src/agent/models/copilotkit_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
+import 'package:copilotkit/src/agent/shared_state_patcher.dart';
 import 'package:copilotkit/src/json/json.dart';
 
 /// Applies AG-UI events to a [CopilotKitAgentState].
@@ -14,7 +15,7 @@ class const AgentEventMapper({
   final ToolCallMapper _toolCalls = const ToolCallMapper(),
 
   /// Applies [StateDeltaEvent] patches to the shared state.
-  final JsonPatcher _patcher = const JsonPatcher(),
+  final SharedStatePatcher _sharedState = const SharedStatePatcher(),
 }) {
   /// Creates a mapper.
   this;
@@ -60,9 +61,14 @@ class const AgentEventMapper({
         :final content,
       ) =>
         _toolCalls.complete(snapshot, messageId, toolCallId, content),
-      StateSnapshotEvent(snapshot: final state) => snapshot.copyWith(
-        sharedState: () => SharedState(state),
+      StateSnapshotEvent(snapshot: final Map<String, Object?> state) =>
+        snapshot.copyWith(sharedState: () => SharedState(state)),
+      StateSnapshotEvent(snapshot: null) => snapshot.copyWith(
+        sharedState: () => null,
       ),
+      // AG-UI only sends a JSON object as the state of a run, so a snapshot
+      // of anything else is dropped; the next one resyncs the state.
+      StateSnapshotEvent() => snapshot,
       StateDeltaEvent() => _applyStateDelta(snapshot, event),
       MessagesSnapshotEvent(:final messages) => _toolCalls.replaceMessages(
         snapshot,
@@ -73,7 +79,8 @@ class const AgentEventMapper({
   }
 
   /// A delta that doesn't apply (e.g. it was computed against a state this
-  /// client never saw) is dropped; the next snapshot resyncs the state.
+  /// client never saw), or that leaves a state that isn't a JSON object, is
+  /// dropped; the next snapshot resyncs the state.
   ///
   /// Before any state exists the delta applies to an empty object, as in the
   /// AG-UI client, instead of being dropped.
@@ -83,14 +90,8 @@ class const AgentEventMapper({
   ) {
     try {
       final operations = event.delta.map(JsonPatchOperation.fromJson).toList();
-      return snapshot.copyWith(
-        sharedState: () => SharedState(
-          _patcher.apply(
-            snapshot.sharedState?.toJson() ?? const <String, Object?>{},
-            operations,
-          ),
-        ),
-      );
+      final patched = _sharedState.apply(snapshot.sharedState, operations);
+      return snapshot.copyWith(sharedState: () => patched);
     } on FormatException {
       return snapshot;
     }

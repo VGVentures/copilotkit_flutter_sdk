@@ -8,3 +8,6 @@ pubspec.lock
 
 # Test related
 coverage/
+
+# Generated API docs
+doc/api/

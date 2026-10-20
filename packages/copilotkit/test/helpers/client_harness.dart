@@ -1,5 +1,4 @@
 import 'package:copilotkit/copilotkit.dart';
-import 'package:mocktail/mocktail.dart';
 
 import 'mock_agent_transport.dart';
 
@@ -9,10 +8,7 @@ import 'mock_agent_transport.dart';
 class ClientHarness {
   /// Creates a harness with no queued runs.
   new() {
-    transport
-      ..stubRun(() => runs.removeAt(0))
-      ..stubStop();
-    when(transport.close).thenAnswer((_) async {});
+    transport.stubAll(() => runs.removeAt(0));
   }
 
   /// The mocked transport behind [client].

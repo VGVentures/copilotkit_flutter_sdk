@@ -28,6 +28,20 @@ void main() {
       expect(store.entries, [user, city]);
     });
 
+    test('replaces an entry added again with the same id in place', () {
+      final renamed = AgentContextEntry(
+        id: 'user',
+        description: 'Signed-in user',
+        value: const Label('Grace'),
+      );
+      final store = AgentContextStore()
+        ..add(user)
+        ..add(city)
+        ..add(renamed);
+
+      expect(store.entries, [renamed, city]);
+    });
+
     test('updates the value of an entry, keeping its place', () {
       final store = AgentContextStore()
         ..add(user)

@@ -122,7 +122,7 @@ void main() {
     });
 
     test('every prefix of recorded tool args parses', () {
-      final delta = loadFixture('frontend_tool_call').events
+      final delta = Fixture.load('frontend_tool_call').events
           .whereType<ToolCallArgsEvent>()
           .map((event) => event.delta)
           .join();

@@ -3,7 +3,7 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 
 /// The status changes of a [ToolCallView] over its lifecycle.
 ///
-/// Each returns this view itself when the change doesn't apply.
+/// Each returns an equal view when the change doesn't apply.
 extension ToolCallViewTransitions on ToolCallView {
   /// Returns this view marked executing if its arguments were still
   /// streaming in.

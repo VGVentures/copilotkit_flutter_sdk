@@ -11,6 +11,8 @@ import 'package:uuid/uuid.dart';
 import '../../helpers/tool_runs.dart';
 
 void main() {
+  const toolRuns = ToolRuns();
+
   group(ToolCallRunner, () {
     late ToolRegistry tools;
     late List<Object> errors;
@@ -44,13 +46,13 @@ void main() {
         JsonObject? receivedArgs;
         CancellationSignal? receivedSignal;
         tools.register(
-          weatherTool((args, {required signal}) async {
+          toolRuns.weatherTool((args, {required signal}) async {
             receivedArgs = args;
             receivedSignal = signal;
             return 'sunny';
           }),
         );
-        receive(toolCallRun(threadId()));
+        receive(toolRuns.toolCallRun(threadId()));
 
         expect(await toolCalls.runPending(turn), isTrue);
         expect(receivedArgs, const JsonObject({'city': 'Lima'}));
@@ -80,7 +82,7 @@ void main() {
             },
           ),
         );
-        receive(toolCallRun(threadId()));
+        receive(toolRuns.toolCallRun(threadId()));
 
         await toolCalls.runPending(turn);
 
@@ -93,9 +95,9 @@ void main() {
         'turns handler errors into a generic result and reports them',
         () async {
           tools.register(
-            weatherTool((_, {required signal}) async => throw failure),
+            toolRuns.weatherTool((_, {required signal}) async => throw failure),
           );
-          receive(toolCallRun(threadId()));
+          receive(toolRuns.toolCallRun(threadId()));
 
           expect(await toolCalls.runPending(turn), isTrue);
           expect(errors, [same(failure)]);
@@ -106,13 +108,13 @@ void main() {
       test('answers invalid args without running the handler', () async {
         var called = false;
         tools.register(
-          weatherTool((_, {required signal}) async {
+          toolRuns.weatherTool((_, {required signal}) async {
             called = true;
             return '';
           }),
         );
         receive(
-          toolCallRun(threadId())
+          toolRuns.toolCallRun(threadId())
             ..[2] = const ToolCallArgsEvent(
               toolCallId: 'c1',
               delta: '{"days": "3"}',
@@ -133,7 +135,7 @@ void main() {
       });
 
       test('closes calls to unregistered tools as unavailable', () async {
-        receive(toolCallRun(threadId()));
+        receive(toolRuns.toolCallRun(threadId()));
 
         expect(await toolCalls.runPending(turn), isFalse);
         expect(results(), {'c1': 'Tool is not available.'});
@@ -141,9 +143,11 @@ void main() {
       });
 
       test('closes unregistered calls next to registered ones', () async {
-        tools.register(weatherTool((_, {required signal}) async => 'ok'));
+        tools.register(
+          toolRuns.weatherTool((_, {required signal}) async => 'ok'),
+        );
         receive(
-          toolCallRun(threadId())..insertAll(4, const [
+          toolRuns.toolCallRun(threadId())..insertAll(4, const [
             ToolCallStartEvent(
               toolCallId: 'c2',
               toolCallName: 'gone',
@@ -160,13 +164,13 @@ void main() {
       test('does not run handlers for calls the runtime completed', () async {
         var called = false;
         tools.register(
-          weatherTool((_, {required signal}) async {
+          toolRuns.weatherTool((_, {required signal}) async {
             called = true;
             return '';
           }),
         );
         receive(
-          toolCallRun(threadId())..insert(
+          toolRuns.toolCallRun(threadId())..insert(
             4,
             const ToolCallResultEvent(
               messageId: 't1',
@@ -184,9 +188,9 @@ void main() {
       test('adds no result once the turn is stopped', () async {
         final handlerDone = Completer<String>();
         tools.register(
-          weatherTool((_, {required signal}) => handlerDone.future),
+          toolRuns.weatherTool((_, {required signal}) => handlerDone.future),
         );
-        receive(toolCallRun(threadId()));
+        receive(toolRuns.toolCallRun(threadId()));
 
         final again = toolCalls.runPending(turn);
         await pumpEventQueue();
@@ -201,8 +205,8 @@ void main() {
     group('closeOpen', () {
       setUp(
         () => receive([
-          ...approvalCall('c1'),
-          ...approvalCall('c2'),
+          ...toolRuns.approvalCall('c1'),
+          ...toolRuns.approvalCall('c2'),
           const ToolCallResultEvent(
             messageId: 't3',
             toolCallId: 'c2',
@@ -235,14 +239,14 @@ void main() {
       late HumanInTheLoopTool<JsonObject> tool;
 
       setUp(() {
-        tool = approvalTool();
+        tool = toolRuns.approvalTool();
         tools.register(tool);
       });
 
       /// Receives a run that calls the tool for each of [ids] and starts
       /// waiting for them; returns what `runPending` returns.
       Future<bool> wait({List<String> ids = const ['c1']}) {
-        receive(approvalRun(threadId(), ids: ids));
+        receive(toolRuns.approvalRun(threadId(), ids: ids));
         return toolCalls.runPending(turn);
       }
 
@@ -340,8 +344,10 @@ void main() {
       });
 
       test('ignores an answer for a call of a frontend tool', () async {
-        tools.register(weatherTool((_, {required signal}) async => 'sunny'));
-        receive(toolCallRun(threadId()));
+        tools.register(
+          toolRuns.weatherTool((_, {required signal}) async => 'sunny'),
+        );
+        receive(toolRuns.toolCallRun(threadId()));
 
         respond('c1', 'not for you');
         await toolCalls.runPending(turn);
@@ -368,7 +374,7 @@ void main() {
       );
 
       test('keeps an answer that arrives before the wait', () async {
-        receive(approvalRun(threadId()));
+        receive(toolRuns.approvalRun(threadId()));
 
         respond('c1', 'early');
 
@@ -377,7 +383,7 @@ void main() {
       });
 
       test('ignores an answer while the arguments still stream', () async {
-        receive(approvalCall('c1').sublist(0, 1));
+        receive(toolRuns.approvalCall('c1').sublist(0, 1));
 
         respond('c1', 'too early');
         receive([
@@ -405,7 +411,7 @@ void main() {
       });
 
       test('clear forgets an answer that arrived early', () async {
-        receive(approvalRun(threadId()));
+        receive(toolRuns.approvalRun(threadId()));
         respond('c1', 'early');
 
         toolCalls.clear();
@@ -443,7 +449,7 @@ void main() {
       });
 
       test('answers arguments that do not match without waiting', () async {
-        receive(approvalRun(threadId(), args: '{"action": 1}'));
+        receive(toolRuns.approvalRun(threadId(), args: '{"action": 1}'));
 
         expect(await toolCalls.runPending(turn), isTrue);
         expect(results()['c1'], contains("arguments don't match"));
@@ -452,7 +458,7 @@ void main() {
 
       group('followUp', () {
         test('false returns false once answered', () async {
-          tools.register(approvalTool(followUp: false));
+          tools.register(toolRuns.approvalTool(followUp: false));
           final again = wait();
           await pumpEventQueue();
 
@@ -462,12 +468,25 @@ void main() {
           expect(results(), {'c1': 'noted'});
         });
 
+        test(
+          'false still returns true for arguments that do not match',
+          () async {
+            tools.register(toolRuns.approvalTool(followUp: false));
+            receive(toolRuns.approvalRun(threadId(), args: '{"action": 1}'));
+
+            expect(await toolCalls.runPending(turn), isTrue);
+            expect(results()['c1'], contains("arguments don't match"));
+          },
+        );
+
         test('false still returns true when another call follows up', () async {
           tools
-            ..register(approvalTool(followUp: false))
-            ..register(weatherTool((_, {required signal}) async => 'sunny'));
+            ..register(toolRuns.approvalTool(followUp: false))
+            ..register(
+              toolRuns.weatherTool((_, {required signal}) async => 'sunny'),
+            );
           receive([
-            ...approvalCall('c1'),
+            ...toolRuns.approvalCall('c1'),
             const ToolCallStartEvent(
               toolCallId: 'c2',
               toolCallName: 'showWeather',

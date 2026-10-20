@@ -13,7 +13,7 @@ import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
 
 void main() {
-  setUpAll(MockAgentTransport.registerFallbacks);
+  const toolRuns = ToolRuns();
 
   group(AgentRunner, () {
     late RunnerHarness harness;
@@ -358,8 +358,8 @@ void main() {
     group('frontend tools', () {
       /// Queues a run calling the tool, then a run replying to its result.
       void queueToolCallAndReply() {
-        queueRun(toolCallRun(threadId()));
-        queueRun(replyRun(threadId()));
+        queueRun(toolRuns.toolCallRun(threadId()));
+        queueRun(toolRuns.replyRun(threadId()));
       }
 
       void registerTool(ClientTool<Object?> tool) =>
@@ -371,7 +371,7 @@ void main() {
 
       test('runs the handler, sends the result and runs again', () async {
         registerTool(
-          weatherTool((args, {required signal}) async {
+          toolRuns.weatherTool((args, {required signal}) async {
             receivedArgs = args;
             receivedSignal = signal;
             return '{"forecast": "sunny"}';
@@ -417,7 +417,9 @@ void main() {
 
       test('stays running while the handler runs', () async {
         handlerDone = Completer<String>();
-        registerTool(weatherTool((_, {required signal}) => handlerDone.future));
+        registerTool(
+          toolRuns.weatherTool((_, {required signal}) => handlerDone.future),
+        );
         queueToolCallAndReply();
 
         final run = runner.run(agent);
@@ -434,7 +436,9 @@ void main() {
       late List<bool> running;
 
       test('stays running from the first run to the end of the turn', () async {
-        registerTool(weatherTool((_, {required signal}) async => 'ok'));
+        registerTool(
+          toolRuns.weatherTool((_, {required signal}) async => 'ok'),
+        );
         queueToolCallAndReply();
         running = recordRunning();
 
@@ -469,7 +473,7 @@ void main() {
       void registerRecordingTool() {
         called = false;
         registerTool(
-          weatherTool((_, {required signal}) async {
+          toolRuns.weatherTool((_, {required signal}) async {
             called = true;
             return '';
           }),
@@ -479,7 +483,7 @@ void main() {
       test('does not run handlers when the run fails', () async {
         registerRecordingTool();
         queueRun(
-          toolCallRun(threadId())
+          toolRuns.toolCallRun(threadId())
             ..[4] = const RunErrorEvent(message: 'model error'),
         );
 
@@ -491,7 +495,9 @@ void main() {
 
       test('ignores a run while handlers are running', () async {
         handlerDone = Completer<String>();
-        registerTool(weatherTool((_, {required signal}) => handlerDone.future));
+        registerTool(
+          toolRuns.weatherTool((_, {required signal}) => handlerDone.future),
+        );
         queueToolCallAndReply();
 
         final run = runner.run(agent);
@@ -515,8 +521,10 @@ void main() {
         }
 
         test('when the connection drops after the call ended', () async {
-          registerTool(weatherTool((_, {required signal}) async => ''));
-          queueRun(toolCallRun(threadId())..removeLast());
+          registerTool(
+            toolRuns.weatherTool((_, {required signal}) async => ''),
+          );
+          queueRun(toolRuns.toolCallRun(threadId())..removeLast());
 
           await runner.run(agent);
 
@@ -526,7 +534,7 @@ void main() {
 
         test('when the runtime reports an error mid-args', () async {
           queueRun([
-            ...toolCallRun(threadId()).take(3),
+            ...toolRuns.toolCallRun(threadId()).take(3),
             const RunErrorEvent(message: 'model error'),
           ]);
 
@@ -536,8 +544,8 @@ void main() {
         });
 
         test('so the next run sends a valid conversation', () async {
-          queueRun(toolCallRun(threadId())..removeLast());
-          queueRun(replyRun(threadId()));
+          queueRun(toolRuns.toolCallRun(threadId())..removeLast());
+          queueRun(toolRuns.replyRun(threadId()));
 
           await runner.run(agent);
           await runner.run(agent);
@@ -554,12 +562,12 @@ void main() {
           () async {
             handlerDone = Completer<String>();
             registerTool(
-              weatherTool((_, {required signal}) {
+              toolRuns.weatherTool((_, {required signal}) {
                 handlerSignal = signal;
                 return handlerDone.future;
               }),
             );
-            queueRun(toolCallRun(threadId()));
+            queueRun(toolRuns.toolCallRun(threadId()));
 
             final run = runner.run(agent);
             await pumpEventQueue();
@@ -608,13 +616,13 @@ void main() {
         test('runs the handler and sends its result in the next run', () async {
           calls = [];
           registerTool(
-            weatherTool((args, {required signal}) async {
+            toolRuns.weatherTool((args, {required signal}) async {
               calls.add(args);
               return 'Sunny, 24°C';
             }),
           );
-          queueRun(loadFixture('frontend_tool_call').events);
-          queueRun(loadFixture('text_stream').events);
+          queueRun(Fixture.load('frontend_tool_call').events);
+          queueRun(Fixture.load('text_stream').events);
 
           await runner.run(agent);
 
@@ -631,7 +639,7 @@ void main() {
         });
 
         test('leaves backend tool calls with a runtime result alone', () async {
-          queueRun(loadFixture('state_snapshot_delta').events);
+          queueRun(Fixture.load('state_snapshot_delta').events);
 
           await runner.run(agent);
 
@@ -654,7 +662,7 @@ void main() {
       List<RunAgentInput>? inputs;
 
       setUp(() {
-        tool = approvalTool();
+        tool = toolRuns.approvalTool();
         inputs = null;
         harness.tools.register(tool);
       });
@@ -663,8 +671,8 @@ void main() {
 
       /// Queues a run that calls the tool for each of [ids], then a reply.
       void queueCallsAndReply({List<String> ids = const ['c1']}) {
-        queueRun(approvalRun(threadId(), ids: ids));
-        queueRun(replyRun(threadId()));
+        queueRun(toolRuns.approvalRun(threadId(), ids: ids));
+        queueRun(toolRuns.replyRun(threadId()));
       }
 
       /// Starts the turn and waits until it is blocked on the user.
@@ -724,13 +732,13 @@ void main() {
         setUp(() {
           events = StreamController<BaseEvent>();
           runs.add(events.stream);
-          queueRun(replyRun(threadId()));
+          queueRun(toolRuns.replyRun(threadId()));
         });
 
         test('is kept until the run has finished streaming', () async {
           run = runner.run(agent);
           events.add(RunStartedEvent(threadId: threadId(), runId: 'r1'));
-          approvalCall('c1').forEach(events.add);
+          toolRuns.approvalCall('c1').forEach(events.add);
           await pumpEventQueue();
           // The call is complete, but the run has not finished: the turn
           // doesn't wait for it yet.
@@ -748,7 +756,7 @@ void main() {
       test(
         'stop while awaiting answers the call as cancelled and ends the turn',
         () async {
-          queueRun(approvalRun(threadId()));
+          queueRun(toolRuns.approvalRun(threadId()));
 
           await startRun();
           await runner.stop(agent);
@@ -765,7 +773,7 @@ void main() {
       );
 
       test('an answer after a stop is ignored', () async {
-        queueRun(approvalRun(threadId()));
+        queueRun(toolRuns.approvalRun(threadId()));
 
         await startRun();
         await runner.stop(agent);
@@ -777,7 +785,7 @@ void main() {
       });
 
       test('close while awaiting ends the turn', () async {
-        queueRun(approvalRun(threadId()));
+        queueRun(toolRuns.approvalRun(threadId()));
 
         await startRun();
         await runner.close();
@@ -803,9 +811,9 @@ void main() {
 
       group('followUp', () {
         test('false ends the turn without another run', () async {
-          tool = approvalTool(followUp: false);
+          tool = toolRuns.approvalTool(followUp: false);
           harness.tools.register(tool);
-          queueRun(approvalRun(threadId()));
+          queueRun(toolRuns.approvalRun(threadId()));
 
           await startRun();
           runner.respond('c1', 'noted');

@@ -15,7 +15,7 @@ import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
 
 void main() {
-  setUpAll(MockAgentTransport.registerFallbacks);
+  const toolRuns = ToolRuns();
 
   group(RunStreamer, () {
     late RunnerHarness harness;
@@ -50,7 +50,9 @@ void main() {
           properties: const JsonObject({'userId': '42'}),
         ),
       );
-      harness.tools.register(weatherTool((_, {required signal}) async => ''));
+      harness.tools.register(
+        toolRuns.weatherTool((_, {required signal}) async => ''),
+      );
       harness.context.add(
         AgentContextEntry(description: 'Unread', value: const Count(3)),
       );
@@ -181,7 +183,7 @@ void main() {
     });
 
     test('applies the recorded state_snapshot_delta patch', () async {
-      queueRun(loadFixture('state_snapshot_delta').events);
+      queueRun(Fixture.load('state_snapshot_delta').events);
 
       await stream();
 
@@ -331,7 +333,7 @@ void main() {
       });
 
       test('unknown_events fixture keeps the text reply', () async {
-        queueRun(loadFixture('unknown_events').events);
+        queueRun(Fixture.load('unknown_events').events);
 
         expect(await stream(), RunResult.finished);
         expect(
@@ -342,7 +344,7 @@ void main() {
       });
 
       test('recorded run_error fixture reports the runtime error', () async {
-        queueRun(loadFixture('run_error').events);
+        queueRun(Fixture.load('run_error').events);
 
         expect(await stream(), RunResult.failed);
         expect(errors.single, isA<RunErrorEvent>());
@@ -359,7 +361,7 @@ void main() {
       test(
         'dropped_connection fixture fails the run and keeps the partial reply',
         () async {
-          queueRun(loadFixture('dropped_connection').events);
+          queueRun(Fixture.load('dropped_connection').events);
 
           expect(await stream(), RunResult.failed);
           expect(errors.single, isA<StateError>());

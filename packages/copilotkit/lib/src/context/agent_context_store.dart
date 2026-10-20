@@ -16,8 +16,15 @@ class AgentContextStore() {
   /// A read-only copy.
   List<AgentContextEntry> get entries => List.unmodifiable(_entries);
 
-  /// Adds [entry].
-  void add(AgentContextEntry entry) => _entries.add(entry);
+  /// Adds [entry], or replaces the entry with its id in place.
+  void add(AgentContextEntry entry) {
+    final index = _entries.indexWhere((e) => e.id == entry.id);
+    if (index == -1) {
+      _entries.add(entry);
+    } else {
+      _entries[index] = entry;
+    }
+  }
 
   /// Replaces the value of the entry [id].
   ///

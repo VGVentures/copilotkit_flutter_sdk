@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:copilotkit/src/json/models/json_encodable.dart';
 import 'package:equatable/equatable.dart';
 
@@ -25,13 +27,13 @@ class const JsonObject([final Map<String, Object?> _fields = const {}])
   /// Decodes this object with [decoder].
   ///
   /// Throws what [decoder] throws.
-  T decode<T>(JsonDecoder<T> decoder) => decoder(_fields);
+  T decode<T>(JsonDecoder<T> decoder) => decoder(toJson());
 
   /// Decodes this object with [decoder], or returns `null` when [decoder]
   /// throws, e.g. for arguments that are still streaming in.
   T? tryDecode<T>(JsonDecoder<T> decoder) {
     try {
-      return decoder(_fields);
+      return decoder(toJson());
       // Decoders throw anything, e.g. a TypeError from a hand-written one.
       // ignore: avoid_catches_without_on_clauses
     } catch (_) {
@@ -39,8 +41,9 @@ class const JsonObject([final Map<String, Object?> _fields = const {}])
     }
   }
 
+  /// The fields as a read-only map.
   @override
-  Map<String, Object?> toJson() => _fields;
+  Map<String, Object?> toJson() => UnmodifiableMapView(_fields);
 
   @override
   List<Object?> get props => [_fields];

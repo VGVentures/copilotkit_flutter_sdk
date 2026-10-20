@@ -19,13 +19,13 @@ void main() {
         );
       });
 
-      test('returns any other view itself', () {
+      test('returns any other view unchanged', () {
         for (final status in [
           ToolCallStatus.executing,
           ToolCallStatus.complete,
         ]) {
           final view = _view(status);
-          expect(view.finishArgs(), same(view));
+          expect(view.finishArgs(), view);
         }
       });
     });
@@ -38,13 +38,13 @@ void main() {
         );
       });
 
-      test('returns any other view itself', () {
+      test('returns any other view unchanged', () {
         for (final status in [
           ToolCallStatus.inProgress,
           ToolCallStatus.complete,
         ]) {
           final view = _view(status);
-          expect(view.awaitResponse(), same(view));
+          expect(view.awaitResponse(), view);
         }
       });
     });

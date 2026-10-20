@@ -84,6 +84,18 @@ void main() {
       ]);
     });
 
+    test('throws when the properties are not a JSON object', () {
+      expect(
+        () => const RunInputBuilder().build(
+          agent: agent,
+          tools: const [],
+          context: const [],
+          properties: const Label('en'),
+        ),
+        throwsFormatException,
+      );
+    });
+
     test('generates a new run id for every run by default', () {
       const builder = RunInputBuilder();
       RunAgentInput build() =>

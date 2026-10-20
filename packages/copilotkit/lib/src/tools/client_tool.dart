@@ -110,7 +110,9 @@ class const HumanInTheLoopTool<T>({
 
   /// Whether the agent runs again with the user's answer once the call is
   /// answered. When `false`, the answer is recorded and the turn ends without
-  /// another run, e.g. for a tool that only shows a notice.
+  /// another run, e.g. for a tool that only shows a notice. A call whose
+  /// arguments don't match [parameters] runs the agent again either way, so
+  /// it can fix them.
   final bool followUp = true,
 }) extends ClientTool<T> {
   /// Creates a tool the user answers.

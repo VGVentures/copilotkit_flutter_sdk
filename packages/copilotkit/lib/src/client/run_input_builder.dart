@@ -21,6 +21,9 @@ class const RunInputBuilder({
   /// Returns the input for a new run of [agent], with the client [tools], the
   /// [context] entries (each value JSON-encoded) and the forwarded
   /// [properties], if any.
+  ///
+  /// Throws a [FormatException] when the JSON of [properties] isn't an
+  /// object: AG-UI only sends an object as the forwarded properties.
   RunAgentInput build({
     required CopilotKitAgentState agent,
     required Iterable<ClientTool<Object?>> tools,
@@ -43,6 +46,8 @@ class const RunInputBuilder({
       for (final entry in context)
         Context(description: entry.description, value: jsonEncode(entry.value)),
     ],
-    forwardedProps: properties?.toJson(),
+    forwardedProps: properties == null
+        ? null
+        : JsonObject.fromJson(properties.toJson()).toJson(),
   );
 }

@@ -23,163 +23,173 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:http/http.dart' as http;
+import 'package:uuid/uuid.dart';
 
-Future<void> main(List<String> arguments) async {
-  final options = _parse(arguments);
-  final url = options['url'];
-  if (url == null) {
-    stderr.writeln(
-      'usage: round_trip.dart --url <runtimeUrl> '
-      '[--agent <id>] [--message <text>]',
-    );
-    exit(64);
-  }
-  final agent = options['agent'] ?? 'default';
-  final message = options['message'] ?? 'Say hello in five words.';
-  if (options['via-client'] == 'true') {
-    return await _viaClient(Uri.parse(url), agent, message);
-  }
-  final record = options['record'];
-  if (record != null) {
-    return await _record(
-      url: url,
-      agentId: agent,
-      message: message,
-      file: File(record),
-      withTool: options['tool'] == 'true',
-      state: options['state'] == null ? null : jsonDecode(options['state']!),
-    );
-  }
+Future<void> main(List<String> arguments) =>
+    const RoundTripProbe().run(arguments);
 
-  final httpClient = http.Client();
-  try {
-    final info = await httpClient.get(Uri.parse('$url/info'));
-    print('GET $url/info -> ${info.statusCode}');
-    print(info.body);
+/// Probes a Copilot Runtime with one run; see the usage at the top.
+class const RoundTripProbe({final Uuid _uuid = const Uuid()}) {
+  /// Creates a probe that generates thread and run ids with [Uuid.v4].
+  this;
 
-    final client = AgUiClient(
-      config: AgUiClientConfig(baseUrl: url),
-      httpClient: httpClient,
-    );
-    final input = SimpleRunAgentInput(
-      threadId: 'thread-${DateTime.now().millisecondsSinceEpoch}',
-      runId: 'run-${DateTime.now().millisecondsSinceEpoch}',
-      messages: [UserMessage(id: 'user-1', content: message)],
-    );
+  /// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
+  static final _showWeather = Tool(
+    name: 'showWeather',
+    description: 'Show the current weather for a city on the user screen.',
+    parameters: const JsonSchemaEncoder().encode(
+      Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
+    ),
+  );
 
-    print('POST $url/agent/$agent/run');
-    await for (final event in client.runAgent('agent/$agent/run', input)) {
-      print(jsonEncode(event.toJson()));
+  /// Runs the probe with the command line [arguments].
+  Future<void> run(List<String> arguments) async {
+    final options = _parse(arguments);
+    final url = options['url'];
+    if (url == null) {
+      stderr.writeln(
+        'usage: round_trip.dart --url <runtimeUrl> '
+        '[--agent <id>] [--message <text>]',
+      );
+      exit(64);
     }
-  } finally {
-    httpClient.close();
-  }
-}
-
-Future<void> _viaClient(Uri url, String agentId, String message) async {
-  final client = CopilotKitClient(
-    runtimeUrl: url,
-    onError: (error, stackTrace) => print('onError: $error'),
-  );
-  final agent = client.agent(agentId);
-  final subscription = agent.stream.listen((state) {
-    final last = state.messages.lastOrNull;
-    print(
-      'running: ${state.isRunning} | ${last?.role.value}: '
-      '${last?.content}',
-    );
-  });
-  await client.runAgent(
-    agentId,
-    message: UserMessage(id: 'user-1', content: message),
-  );
-  await subscription.cancel();
-  print(
-    'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',
-  );
-  await client.close();
-}
-
-/// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
-final _showWeather = Tool(
-  name: 'showWeather',
-  description: 'Show the current weather for a city on the user screen.',
-  parameters: const JsonSchemaEncoder().encode(
-    Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
-  ),
-);
-
-Future<void> _record({
-  required String url,
-  required String agentId,
-  required String message,
-  required File file,
-  required bool withTool,
-  required Object? state,
-}) async {
-  final httpClient = http.Client();
-  try {
-    final info = jsonDecode(
-      (await httpClient.get(Uri.parse('$url/info'))).body,
-    ) as Map<String, Object?>;
-    final stamp = DateTime.now().millisecondsSinceEpoch;
-    final input = RunAgentInput(
-      threadId: 'thread-$stamp',
-      runId: 'run-$stamp',
-      state: state,
-      messages: [UserMessage(id: 'user-1', content: message)],
-      tools: [if (withTool) _showWeather],
-      context: const [],
-    );
-    final request = http.Request('POST', Uri.parse('$url/agent/$agentId/run'))
-      ..headers.addAll({
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-      })
-      ..body = jsonEncode(input.toJson());
-    final response = await httpClient.send(request);
-    if (response.statusCode >= 400) {
-      stderr.writeln('run failed: HTTP ${response.statusCode}');
-      exit(1);
+    final agent = options['agent'] ?? 'default';
+    final message = options['message'] ?? 'Say hello in five words.';
+    if (options['via-client'] == 'true') {
+      return await _viaClient(Uri.parse(url), agent, message);
+    }
+    final record = options['record'];
+    if (record != null) {
+      return await _record(
+        url: url,
+        agentId: agent,
+        message: message,
+        file: File(record),
+        withTool: options['tool'] == 'true',
+        state: options['state'] == null ? null : jsonDecode(options['state']!),
+      );
     }
 
-    final lines = <String>[
-      jsonEncode({
-        'fixture': {
-          'source': 'recorded',
-          'runtimeVersion': info['version'],
-          'recordedOn': DateTime.now().toIso8601String().substring(0, 10),
-          'message': message,
-          'tools': [if (withTool) _showWeather.name],
-          'state': ?state,
-        },
-      }),
-    ];
-    final data = <String>[];
-    await for (final line
-        in response.stream
-            .transform(utf8.decoder)
-            .transform(const LineSplitter())) {
-      if (line.startsWith('data:')) {
-        data.add(line.substring(5).trimLeft());
-      } else if (line.isEmpty && data.isNotEmpty) {
-        lines.add(jsonEncode(jsonDecode(data.join('\n'))));
-        print(lines.last);
-        data.clear();
+    final httpClient = http.Client();
+    try {
+      final info = await httpClient.get(Uri.parse('$url/info'));
+      print('GET $url/info -> ${info.statusCode}');
+      print(info.body);
+
+      final client = AgUiClient(
+        config: AgUiClientConfig(baseUrl: url),
+        httpClient: httpClient,
+      );
+      final input = SimpleRunAgentInput(
+        threadId: _uuid.v4(),
+        runId: _uuid.v4(),
+        messages: [UserMessage(id: 'user-1', content: message)],
+      );
+
+      print('POST $url/agent/$agent/run');
+      await for (final event in client.runAgent('agent/$agent/run', input)) {
+        print(jsonEncode(event.toJson()));
       }
+    } finally {
+      httpClient.close();
     }
-    await file.parent.create(recursive: true);
-    await file.writeAsString('${lines.join('\n')}\n');
-    print('wrote ${lines.length - 1} events to ${file.path}');
-  } finally {
-    httpClient.close();
   }
-}
 
-Map<String, String> _parse(List<String> arguments) {
-  final options = <String, String>{};
-  for (var i = 0; i + 1 < arguments.length; i += 2) {
-    options[arguments[i].replaceFirst('--', '')] = arguments[i + 1];
+  Future<void> _viaClient(Uri url, String agentId, String message) async {
+    final client = CopilotKitClient(
+      runtimeUrl: url,
+      onError: (error, stackTrace) => print('onError: $error'),
+    );
+    final agent = client.agent(agentId);
+    final subscription = agent.stream.listen((state) {
+      final last = state.messages.lastOrNull;
+      print(
+        'running: ${state.isRunning} | ${last?.role.value}: '
+        '${last?.content}',
+      );
+    });
+    await client.runAgent(
+      agentId,
+      message: UserMessage(id: 'user-1', content: message),
+    );
+    await subscription.cancel();
+    print(
+      'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',
+    );
+    await client.close();
   }
-  return options;
+
+  Future<void> _record({
+    required String url,
+    required String agentId,
+    required String message,
+    required File file,
+    required bool withTool,
+    required Object? state,
+  }) async {
+    final httpClient = http.Client();
+    try {
+      final info = jsonDecode(
+        (await httpClient.get(Uri.parse('$url/info'))).body,
+      ) as Map<String, Object?>;
+      final input = RunAgentInput(
+        threadId: _uuid.v4(),
+        runId: _uuid.v4(),
+        state: state,
+        messages: [UserMessage(id: 'user-1', content: message)],
+        tools: [if (withTool) _showWeather],
+        context: const [],
+      );
+      final request = http.Request('POST', Uri.parse('$url/agent/$agentId/run'))
+        ..headers.addAll({
+          'Content-Type': 'application/json',
+          'Accept': 'text/event-stream',
+        })
+        ..body = jsonEncode(input.toJson());
+      final response = await httpClient.send(request);
+      if (response.statusCode >= 400) {
+        stderr.writeln('run failed: HTTP ${response.statusCode}');
+        exit(1);
+      }
+
+      final lines = <String>[
+        jsonEncode({
+          'fixture': {
+            'source': 'recorded',
+            'runtimeVersion': info['version'],
+            'recordedOn': DateTime.now().toIso8601String().substring(0, 10),
+            'message': message,
+            'tools': [if (withTool) _showWeather.name],
+            'state': ?state,
+          },
+        }),
+      ];
+      final data = <String>[];
+      await for (final line
+          in response.stream
+              .transform(utf8.decoder)
+              .transform(const LineSplitter())) {
+        if (line.startsWith('data:')) {
+          data.add(line.substring(5).trimLeft());
+        } else if (line.isEmpty && data.isNotEmpty) {
+          lines.add(jsonEncode(jsonDecode(data.join('\n'))));
+          print(lines.last);
+          data.clear();
+        }
+      }
+      await file.parent.create(recursive: true);
+      await file.writeAsString('${lines.join('\n')}\n');
+      print('wrote ${lines.length - 1} events to ${file.path}');
+    } finally {
+      httpClient.close();
+    }
+  }
+
+  Map<String, String> _parse(List<String> arguments) {
+    final options = <String, String>{};
+    for (var i = 0; i + 1 < arguments.length; i += 2) {
+      options[arguments[i].replaceFirst('--', '')] = arguments[i + 1];
+    }
+    return options;
+  }
 }

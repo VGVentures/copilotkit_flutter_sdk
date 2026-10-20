@@ -2,7 +2,6 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/client/client.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/tools/tools.dart';
-import 'package:mocktail/mocktail.dart';
 
 import 'mock_agent_transport.dart';
 
@@ -20,10 +19,7 @@ class RunnerHarness {
     JsonEncodable? properties,
     CopilotKitErrorHandler? onError,
   }) {
-    transport
-      ..stubRun(() => runs.removeAt(0))
-      ..stubStop();
-    when(transport.close).thenAnswer((_) async {});
+    transport.stubAll(() => runs.removeAt(0));
     final report = onError ?? (error, _) => errors.add(error);
     streamer = RunStreamer(
       transport: transport,

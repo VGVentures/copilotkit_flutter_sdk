@@ -7,6 +7,12 @@ import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/models/stop_request.dart';
 import 'package:http/http.dart' as http;
 
+/// Receives an event the transport skipped because it couldn't be decoded.
+typedef SkippedEventHandler = void Function(
+  Object error,
+  StackTrace stackTrace,
+);
+
 /// [AgentTransport] over a Copilot Runtime v2 using `ag_ui`'s SSE client.
 ///
 /// Every run gets its own [http.Client], closed when the run ends or its
@@ -17,32 +23,29 @@ import 'package:http/http.dart' as http;
 /// README of the `copilotkit` package.
 class AgUiTransport({
   required Uri runtimeUrl,
-  http.Client Function()? httpClientFactory,
-  Duration stopTimeout = const Duration(seconds: 10),
-  void Function(Object error, StackTrace stackTrace)? onSkippedEvent,
+
+  /// Creates the per-run client.
+  final http.Client Function() _httpClientFactory = http.Client.new,
+
+  /// Bounds the stop request, so a hung runtime can't hang `stop`.
+  final Duration _stopTimeout = const Duration(seconds: 10),
+
+  /// Called with each event the transport skipped because it couldn't be
+  /// decoded, so apps can report it. Errors it throws are logged and don't
+  /// end the run.
+  final SkippedEventHandler? _onSkippedEvent,
 }) implements AgentTransport {
   /// Creates a transport for the runtime at [runtimeUrl].
   ///
-  /// [httpClientFactory] creates the per-run client; defaults to
-  /// [http.Client.new].
-  ///
-  /// [stopTimeout] bounds the stop request, so a hung runtime can't hang
-  /// `stop`.
-  ///
-  /// [onSkippedEvent] is called with each event the transport skipped because
-  /// it couldn't be decoded, so apps can report it. Errors it throws are
-  /// logged and don't end the run.
+  /// Pass it to `CopilotKitClient` as its `transport` to set its options:
+  /// `httpClientFactory` defaults to [http.Client.new], `stopTimeout` to 10
+  /// seconds, and `onSkippedEvent` to logging only.
   this;
 
   final String _baseUrl = runtimeUrl.toString().replaceFirst(
     RegExp(r'/+$'),
     '',
   );
-  final http.Client Function() _httpClientFactory =
-      httpClientFactory ?? http.Client.new;
-  final Duration _stopTimeout = stopTimeout;
-  final void Function(Object error, StackTrace stackTrace)? _onSkippedEvent =
-      onSkippedEvent;
 
   /// Ends each run in flight, see [close].
   final Set<void Function()> _runEnds = {};

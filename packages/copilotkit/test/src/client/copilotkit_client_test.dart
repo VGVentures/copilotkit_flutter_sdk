@@ -12,7 +12,7 @@ import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
 void main() {
-  setUpAll(MockAgentTransport.registerFallbacks);
+  const toolRuns = ToolRuns();
 
   group(CopilotKitClient, () {
     final runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
@@ -200,6 +200,46 @@ void main() {
           expect(agent.state.error, isA<Exception>());
         },
       );
+
+      group('when onError throws', () {
+        setUp(() {
+          client = CopilotKitClient(
+            runtimeUrl: runtimeUrl,
+            onError: (_, _) => throw StateError('broken handler'),
+            transport: transport,
+          );
+        });
+
+        test('still ends the turn of a failed run', () async {
+          final agent = client.agent('default');
+          stubRun(Stream.error(failure));
+
+          await client.runAgent('default');
+
+          expect(agent.state.error, failure);
+          expect(agent.state.isRunning, isFalse);
+        });
+
+        test('still continues the turn after a tool handler fails', () async {
+          final agent = client.agent('default');
+          final threadId = agent.state.threadId;
+          final runs = [
+            Stream.fromIterable(toolRuns.toolCallRun(threadId)),
+            Stream.fromIterable(toolRuns.replyRun(threadId)),
+          ];
+          transport.stubRun(() => runs.removeAt(0));
+          client.registerTool(
+            toolRuns.weatherTool(
+              (_, {required signal}) => throw Exception('tool'),
+            ),
+          );
+
+          await expectLater(client.runAgent('default'), completes);
+
+          expect(agent.state.messages.last.content, 'Sunny in Lima');
+          expect(agent.state.isRunning, isFalse);
+        });
+      });
     });
 
     group('stopAgent', () {
@@ -259,6 +299,26 @@ void main() {
 
         expect(cancelled, isTrue);
       });
+
+      test('keeps the open agents but opens no new one', () async {
+        final agent = client.agent('default');
+        expect(client.isClosed, isFalse);
+
+        await client.close();
+
+        expect(client.isClosed, isTrue);
+        expect(client.agent('default'), agent);
+        expect(() => client.agent('other'), throwsStateError);
+      });
+
+      test('runs nothing once closed', () async {
+        await client.close();
+
+        await client.runAgent('default');
+
+        transport.verifyNoRun();
+        expect(client.agents, isEmpty);
+      });
     });
 
     group('human-in-the-loop tools', () {
@@ -272,11 +332,11 @@ void main() {
         harness = ClientHarness();
         client = harness.client;
         agent = harness.agent;
-        tool = approvalTool();
+        tool = toolRuns.approvalTool();
         client.registerTool(tool);
         harness.runs
-          ..add(Stream.fromIterable(approvalRun(agent.state.threadId)))
-          ..add(Stream.fromIterable(replyRun(agent.state.threadId)));
+          ..add(Stream.fromIterable(toolRuns.approvalRun(agent.state.threadId)))
+          ..add(Stream.fromIterable(toolRuns.replyRun(agent.state.threadId)));
         run = client.runAgent(agent.state.agentId);
         await pumpEventQueue();
       });
@@ -330,7 +390,9 @@ void main() {
       });
 
       test('unregistering a frontend tool cancels nothing', () async {
-        final weather = weatherTool((_, {required signal}) async => '');
+        final weather = toolRuns.weatherTool(
+          (_, {required signal}) async => '',
+        );
         client
           ..registerTool(weather)
           ..unregisterTool(weather);

@@ -9,11 +9,11 @@ Future<void> main() async {
   final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
-    properties: const JsonObject({'userId': '42'}),
+    properties: const _Properties(userId: '42'),
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 
-  // A frontend tool. In Flutter, `CopilotKitTool` registers it for the
+  // A frontend tool. In Flutter, `CopilotTool` registers it for the
   // lifetime of a widget and renders `ToolCallView`s with a builder.
   final showWeather = FrontendTool(
     name: 'showWeather',
@@ -21,10 +21,10 @@ Future<void> main() async {
     parameters: Ack.object({'city': Ack.string()}),
     decode: _WeatherArgs.fromJson,
     handler: (args, {required signal}) async =>
-        jsonEncode({'city': args.city, 'forecast': 'sunny'}),
+        jsonEncode(_Forecast(city: args.city, forecast: 'sunny')),
   );
 
-  // App data the agent can answer from. In Flutter, `CopilotKitContext`.
+  // App data the agent can answer from. In Flutter, `CopilotContext`.
   final user = AgentContextEntry(
     description: 'Current user',
     value: const _User('Ada'),
@@ -52,7 +52,7 @@ Future<void> main() async {
 
   // Shared state is sent with every run.
   agent
-    ..setSharedState(const SharedState({'theme': 'dark'}))
+    ..setSharedState(SharedState.of(const _Preferences(theme: 'dark')))
     ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')]);
 
   // Completes once the whole turn ends, tool calls included.
@@ -78,4 +78,27 @@ class const _WeatherArgs(final String city) {
 class const _User(final String name) implements JsonEncodable {
   @override
   Map<String, Object?> toJson() => {'name': name};
+}
+
+/// The properties sent with every run.
+class const _Properties({required final String userId})
+    implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'userId': userId};
+}
+
+/// The result of the `showWeather` tool.
+class const _Forecast({
+  required final String city,
+  required final String forecast,
+}) implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'city': city, 'forecast': forecast};
+}
+
+/// The app preferences shared with the agent as its state.
+class const _Preferences({required final String theme})
+    implements JsonEncodable {
+  @override
+  Map<String, Object?> toJson() => {'theme': theme};
 }

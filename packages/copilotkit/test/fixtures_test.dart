@@ -16,7 +16,7 @@ void main() {
 
     for (final name in names) {
       test('$name has a header and starts with RUN_STARTED', () {
-        final fixture = loadFixture(name);
+        final fixture = Fixture.load(name);
 
         expect(fixture.header['source'], anyOf('recorded', 'synthetic'));
         expect(fixture.events.first, isA<RunStartedEvent>());
@@ -30,7 +30,7 @@ void main() {
         'state_snapshot_delta',
         'run_error',
       ]) {
-        final fixture = loadFixture(name);
+        final fixture = Fixture.load(name);
 
         expect(fixture.isSynthetic, isFalse, reason: name);
         expect(fixture.undecodable, isEmpty, reason: name);
@@ -38,7 +38,7 @@ void main() {
     });
 
     test('unknown_events only drops the event type ag_ui does not know', () {
-      final fixture = loadFixture('unknown_events');
+      final fixture = Fixture.load('unknown_events');
 
       expect(fixture.isSynthetic, isTrue);
       expect(fixture.undecodable, [containsPair('type', 'SUBAGENT_STARTED')]);
@@ -46,7 +46,7 @@ void main() {
     });
 
     test('dropped_connection ends without a terminal event', () {
-      final fixture = loadFixture('dropped_connection');
+      final fixture = Fixture.load('dropped_connection');
 
       expect(fixture.isSynthetic, isTrue);
       expect(fixture.events.last, isA<TextMessageContentEvent>());

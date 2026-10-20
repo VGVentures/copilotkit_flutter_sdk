@@ -110,10 +110,10 @@ void main() {
 
         expect(copy.agentId, 'a');
         expect(copy.threadId, 't');
-        expect(copy.messages, same(snapshot.messages));
-        expect(copy.sharedState, same(snapshot.sharedState));
+        expect(copy.messages, snapshot.messages);
+        expect(copy.sharedState, snapshot.sharedState);
         expect(copy.isRunning, isTrue);
-        expect(copy.toolCalls, same(snapshot.toolCalls));
+        expect(copy.toolCalls, snapshot.toolCalls);
         expect(copy.error, same(error));
       });
 
@@ -139,6 +139,33 @@ void main() {
         expect(copy.isRunning, isTrue);
         expect(copy.toolCalls, [toolCall]);
         expect(copy.error, 'boom');
+      });
+
+      test('copies the given lists into unmodifiable ones', () {
+        final messages = <Message>[UserMessage(id: 'u1', content: 'Hi')];
+        final toolCalls = <ToolCallView>[];
+
+        final copy = const CopilotKitAgentState(
+          agentId: 'a',
+          threadId: 't',
+        ).copyWith(messages: messages, toolCalls: toolCalls);
+        messages.clear();
+
+        expect(copy.messages, hasLength(1));
+        expect(
+          () => copy.messages.add(UserMessage(id: 'u2', content: 'Hey')),
+          throwsUnsupportedError,
+        );
+        expect(
+          () => copy.toolCalls.add(
+            const ToolCallView(
+              id: 'c',
+              name: 't',
+              status: ToolCallStatus.inProgress,
+            ),
+          ),
+          throwsUnsupportedError,
+        );
       });
 
       test('can reset state and error to null', () {

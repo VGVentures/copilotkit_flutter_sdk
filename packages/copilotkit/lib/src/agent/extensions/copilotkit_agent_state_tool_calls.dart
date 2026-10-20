@@ -6,7 +6,7 @@ extension CopilotKitAgentStateToolCalls on CopilotKitAgentState {
   /// Returns this state with the view of call [toolCallId] replaced by
   /// [update]'s result.
   ///
-  /// Returns this state itself when there's no such call or [update] doesn't
+  /// Returns an equal state when there's no such call or [update] doesn't
   /// change it.
   CopilotKitAgentState updateToolCall(
     String toolCallId,

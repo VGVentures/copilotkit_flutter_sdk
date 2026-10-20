@@ -9,11 +9,13 @@ import '../../helpers/agent.dart';
 import '../../helpers/fixtures.dart';
 
 void main() {
+  const agents = AgentFixtures();
+
   group(CopilotKitAgent, () {
     final user = UserMessage(id: 'u1', content: 'Hi');
 
     test('starts idle and empty with the given ids', () {
-      expect(buildAgent().state, agentState);
+      expect(agents.build().state, AgentFixtures.state);
     });
 
     test('generates a thread id when none is given', () {
@@ -23,9 +25,9 @@ void main() {
     });
 
     test('addMessage appends the message', () {
-      final agent = buildAgent()..addMessage(user);
+      final agent = agents.build()..addMessage(user);
 
-      expect(agent.state, agentState.copyWith(messages: [user]));
+      expect(agent.state, AgentFixtures.state.copyWith(messages: [user]));
     });
 
     group('setMessages', () {
@@ -40,15 +42,15 @@ void main() {
       );
 
       test('replaces the messages', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..addMessage(user)
           ..setMessages(const []);
 
-        expect(agent.state, agentState);
+        expect(agent.state, AgentFixtures.state);
       });
 
       test('drops the tool calls no message refers to', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..addMessage(user)
           ..apply(
             const ToolCallStartEvent(
@@ -71,7 +73,7 @@ void main() {
       });
 
       test('rebuilds the tool calls its messages hold', () {
-        final agent = buildAgent()..setMessages(const [assistant]);
+        final agent = agents.build()..setMessages(const [assistant]);
 
         final view = agent.state.toolCalls.single;
         expect(view.id, 'c1');
@@ -82,28 +84,28 @@ void main() {
 
     group('setSharedState', () {
       test('replaces the shared state', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..setSharedState(const SharedState({'old': true}))
           ..setSharedState(const SharedState({'count': 1}));
 
         expect(
           agent.state,
-          agentState.copyWith(
+          AgentFixtures.state.copyWith(
             sharedState: () => const SharedState({'count': 1}),
           ),
         );
       });
 
       test('clears the shared state with null', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..setSharedState(const SharedState({'old': true}))
           ..setSharedState(null);
 
-        expect(agent.state, agentState);
+        expect(agent.state, AgentFixtures.state);
       });
 
       test('an equal state emits nothing', () async {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..setSharedState(const SharedState({'count': 1}));
         final states = agent.stream.toList();
 
@@ -116,7 +118,7 @@ void main() {
 
     group('patchSharedState', () {
       test('applies the operations to the shared state', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..setSharedState(
             const SharedState({
               'count': 1,
@@ -138,20 +140,33 @@ void main() {
       });
 
       test('patches a missing state as an empty object', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..patchSharedState(const [JsonPatchAdd(path: '/count', value: 1)]);
 
         expect(agent.state.sharedState, const SharedState({'count': 1}));
       });
 
       test('keeps the state and throws when an operation fails', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..setSharedState(const SharedState({'count': 1}));
 
         expect(
           () => agent.patchSharedState(const [
             JsonPatchReplace(path: '/count', value: 2),
             JsonPatchRemove(path: '/missing'),
+          ]),
+          throwsFormatException,
+        );
+        expect(agent.state.sharedState, const SharedState({'count': 1}));
+      });
+
+      test('keeps the state and throws when the result is no object', () {
+        final agent = agents.build()
+          ..setSharedState(const SharedState({'count': 1}));
+
+        expect(
+          () => agent.patchSharedState(const [
+            JsonPatchReplace(path: '', value: 'text'),
           ]),
           throwsFormatException,
         );
@@ -176,7 +191,7 @@ void main() {
         ],
       );
 
-      CopilotKitAgent awaiting() => buildAgent()
+      CopilotKitAgent awaiting() => agents.build()
         ..apply(start)
         ..apply(end)
         ..awaitResponse('c1');
@@ -191,7 +206,7 @@ void main() {
       });
 
       test('ignores a call that is still streaming', () {
-        final agent = buildAgent()
+        final agent = agents.build()
           ..apply(start)
           ..awaitResponse('c1');
 
@@ -199,7 +214,7 @@ void main() {
       });
 
       test('ignores an unknown call', () async {
-        final agent = buildAgent();
+        final agent = agents.build();
         final states = agent.stream.toList();
 
         agent.awaitResponse('missing');
@@ -243,37 +258,37 @@ void main() {
     });
 
     test('startTurn sets isRunning and clears the last error', () {
-      final agent = buildAgent()
+      final agent = agents.build()
         ..fail('boom')
         ..startTurn();
 
-      expect(agent.state, agentState.copyWith(isRunning: true));
+      expect(agent.state, AgentFixtures.state.copyWith(isRunning: true));
     });
 
     test('endTurn clears isRunning and keeps the rest', () {
-      final agent = buildAgent()
+      final agent = agents.build()
         ..startTurn()
         ..fail('boom')
         ..endTurn();
 
-      expect(agent.state, agentState.copyWith(error: () => 'boom'));
+      expect(agent.state, AgentFixtures.state.copyWith(error: () => 'boom'));
     });
 
     test('fail records the error', () {
-      final agent = buildAgent()..fail('boom');
+      final agent = agents.build()..fail('boom');
 
-      expect(agent.state, agentState.copyWith(error: () => 'boom'));
+      expect(agent.state, AgentFixtures.state.copyWith(error: () => 'boom'));
     });
 
     test('apply applies the AG-UI event right away', () {
-      final agent = buildAgent()
+      final agent = agents.build()
         ..apply(const TextMessageStartEvent(messageId: 'm1'));
 
       expect(agent.state.messages.single.id, 'm1');
     });
 
     test('stream emits each new state, in order', () async {
-      final agent = buildAgent();
+      final agent = agents.build();
       final states = agent.stream.toList();
 
       agent
@@ -282,13 +297,13 @@ void main() {
       await agent.close();
 
       expect(await states, [
-        agentState.copyWith(messages: [user]),
-        agentState.copyWith(messages: [user], isRunning: true),
+        AgentFixtures.state.copyWith(messages: [user]),
+        AgentFixtures.state.copyWith(messages: [user], isRunning: true),
       ]);
     });
 
     test('a change that changes nothing emits nothing', () async {
-      final agent = buildAgent();
+      final agent = agents.build();
       final states = agent.stream.toList();
 
       agent
@@ -300,23 +315,23 @@ void main() {
     });
 
     test('ignores changes once closed', () async {
-      final agent = buildAgent();
+      final agent = agents.build();
       expect(agent.isClosed, isFalse);
 
       await agent.close();
       agent.addMessage(user);
 
       expect(agent.isClosed, isTrue);
-      expect(agent.state, agentState);
+      expect(agent.state, AgentFixtures.state);
     });
 
     test('applies a recorded stream in order', () async {
-      final fixture = loadFixture('text_stream');
+      final fixture = Fixture.load('text_stream');
       final deltas = [
         for (final event in fixture.events)
           if (event is TextMessageContentEvent) event.delta,
       ];
-      final agent = buildAgent();
+      final agent = agents.build();
       final states = agent.stream.toList();
 
       fixture.events.forEach(agent.apply);

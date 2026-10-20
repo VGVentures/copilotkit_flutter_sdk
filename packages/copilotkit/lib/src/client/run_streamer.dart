@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/client/active_run.dart';
+import 'package:copilotkit/src/client/copilotkit_client.dart';
 import 'package:copilotkit/src/client/models/run_result.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/client/turn.dart';
@@ -9,15 +11,6 @@ import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
-
-/// Returns the headers sent with a run; called once per run.
-typedef HeadersBuilder = Future<Map<String, String>> Function();
-
-/// Receives errors from runs, transports and tool handlers.
-typedef CopilotKitErrorHandler = void Function(
-  Object error,
-  StackTrace stackTrace,
-);
 
 /// Sends one run of an agent to the runtime and applies its events to the
 /// agent.

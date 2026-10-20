@@ -45,7 +45,7 @@ class const ToolCallExecutor() {
           level: 900, // WARNING
           error: error,
         );
-        return ToolCallOutcome(result: result);
+        return ToolCallOutcome(result: result, invalidArguments: true);
     }
     return switch (tool) {
       FrontendTool() => await _run(tool, args, signal),

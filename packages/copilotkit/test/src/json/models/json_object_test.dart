@@ -39,8 +39,11 @@ void main() {
       expect(const JsonObject().tryDecode(_City.fromJson), isNull);
     });
 
-    test('encodes as its fields', () {
-      expect(lima.toJson(), {'name': 'Lima'});
+    test('encodes as its fields, read-only', () {
+      final json = JsonObject(Map.of({'name': 'Lima'})).toJson();
+
+      expect(json, {'name': 'Lima'});
+      expect(() => json['name'] = 'Quito', throwsUnsupportedError);
     });
 
     test('supports value equality', () {
