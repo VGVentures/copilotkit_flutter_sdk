@@ -19,7 +19,7 @@ void main() {
       ),
     );
     registerFallbackValue(
-      AgentContextEntry(description: '', value: DemoUser.ada),
+      AgentContextEntry(description: '', value: DemoUser.ada.toJson()),
     );
   });
 
@@ -45,7 +45,7 @@ void main() {
           verify(() => client.addContext(captureAny())).captured.single
               as AgentContextEntry;
       expect(entry.description, 'Current user');
-      expect(entry.value, DemoUser.ada);
+      expect(entry.value, DemoUser.ada.toJson());
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
   });

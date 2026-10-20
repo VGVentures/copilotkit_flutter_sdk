@@ -7,7 +7,6 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_harness.dart';
-import '../../helpers/json_values.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
@@ -63,7 +62,7 @@ void main() {
       final entry = AgentContextEntry(
         id: 'e1',
         description: 'Unread',
-        value: const Count(3),
+        value: const {'count': 3},
       );
 
       test('registerTool and unregisterTool add and remove the tool', () {
@@ -78,8 +77,10 @@ void main() {
         client.addContext(entry);
         expect(client.context, [entry]);
 
-        client.updateContext('e1', const Count(4));
-        expect(client.context, [entry.copyWith(value: const Count(4))]);
+        client.updateContext('e1', const {'count': 4});
+        expect(client.context, [
+          entry.copyWith(value: const {'count': 4}),
+        ]);
 
         client.removeContext('e1');
         expect(client.context, isEmpty);
@@ -134,7 +135,7 @@ void main() {
             ),
           )
           ..addContext(
-            AgentContextEntry(description: 'Unread', value: const Count(3)),
+            AgentContextEntry(description: 'Unread', value: const {'count': 3}),
           );
         stubRun(
           Stream.fromIterable([
@@ -158,7 +159,7 @@ void main() {
                 as RunAgentInput;
         expect(input.messages, [message]);
         expect(input.tools.single.name, 'showWeather');
-        expect(input.context.single.value, '3');
+        expect(input.context.single.value, '{"count":3}');
         expect(input.forwardedProps, {'userId': '42'});
         expect(agent.state.messages.last.content, 'Hello');
         expect(agent.state.isRunning, isFalse);

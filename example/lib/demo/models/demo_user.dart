@@ -1,4 +1,3 @@
-import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:equatable/equatable.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -13,14 +12,14 @@ class const DemoUser({
 
   /// City the user lives in.
   @JsonKey() required final String homeCity,
-}) extends Equatable implements JsonEncodable {
+}) extends Equatable {
   /// Creates a user.
   this;
 
   /// The user the demo shares with the agent.
   static const ada = DemoUser(name: 'Ada', homeCity: 'Lima');
 
-  @override
+  /// Returns this user as JSON, the value shared with the agent.
   Map<String, Object?> toJson() => _$DemoUserToJson(this);
 
   @override

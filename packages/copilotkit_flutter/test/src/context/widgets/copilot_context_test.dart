@@ -11,7 +11,7 @@ void main() {
     setUp(() => client = RecordingClient());
 
     Widget build(
-      JsonEncodable value, {
+      Map<String, Object?> value, {
       String description = 'Current user',
       CopilotKitClient? withClient,
     }) {
@@ -26,36 +26,48 @@ void main() {
     }
 
     testWidgets('adds the entry on mount', (tester) async {
-      await tester.pumpWidget(build(const JsonObject({'name': 'Ada'})));
+      await tester.pumpWidget(build(const {'name': 'Ada'}));
 
       final added = client.addedEntries.single;
       expect(added.description, 'Current user');
-      expect(added.value, const JsonObject({'name': 'Ada'}));
+      expect(added.value, const {'name': 'Ada'});
       expect(client.calls, hasLength(1));
     });
 
     testWidgets('updates the entry when the value changes', (tester) async {
-      await tester.pumpWidget(build(const JsonObject({'name': 'Ada'})));
+      await tester.pumpWidget(build(const {'name': 'Ada'}));
 
-      await tester.pumpWidget(build(const JsonObject({'name': 'Grace'})));
+      await tester.pumpWidget(build(const {'name': 'Grace'}));
 
       final added = client.addedEntries.single;
       expect(client.calls, [
         ClientCall('addContext', [added]),
         ClientCall('updateContext', [
           added.id,
-          const JsonObject({'name': 'Grace'}),
+          const {'name': 'Grace'},
         ]),
+      ]);
+    });
+
+    testWidgets('keeps the entry when an equal value is rebuilt', (
+      tester,
+    ) async {
+      await tester.pumpWidget(build(const {'name': 'Ada'}));
+
+      await tester.pumpWidget(build(Map.of({'name': 'Ada'})));
+
+      expect(client.calls, [
+        ClientCall('addContext', [client.addedEntries.single]),
       ]);
     });
 
     testWidgets('replaces the entry when the description changes', (
       tester,
     ) async {
-      await tester.pumpWidget(build(const JsonObject({'unread': 1})));
+      await tester.pumpWidget(build(const {'unread': 1}));
 
       await tester.pumpWidget(
-        build(const JsonObject({'unread': 1}), description: 'Unread'),
+        build(const {'unread': 1}, description: 'Unread'),
       );
 
       final [added, replacement] = client.addedEntries;
@@ -69,11 +81,9 @@ void main() {
 
     testWidgets('moves the entry when the client changes', (tester) async {
       final other = RecordingClient();
-      await tester.pumpWidget(build(const JsonObject({'unread': 1})));
+      await tester.pumpWidget(build(const {'unread': 1}));
 
-      await tester.pumpWidget(
-        build(const JsonObject({'unread': 1}), withClient: other),
-      );
+      await tester.pumpWidget(build(const {'unread': 1}, withClient: other));
 
       final added = client.addedEntries.single;
       expect(client.calls, [
@@ -82,11 +92,11 @@ void main() {
       ]);
       final moved = other.addedEntries.single;
       expect(moved.description, 'Current user');
-      expect(moved.value, const JsonObject({'unread': 1}));
+      expect(moved.value, const {'unread': 1});
     });
 
     testWidgets('removes the entry on dispose', (tester) async {
-      await tester.pumpWidget(build(const JsonObject({'unread': 1})));
+      await tester.pumpWidget(build(const {'unread': 1}));
 
       await tester.pumpWidget(
         CopilotKit.value(client: client, child: const SizedBox()),

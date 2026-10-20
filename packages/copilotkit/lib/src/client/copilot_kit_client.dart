@@ -7,7 +7,6 @@ import 'package:copilotkit/src/client/agent_runner.dart';
 import 'package:copilotkit/src/client/run_streamer.dart';
 import 'package:copilotkit/src/client/tool_call_runner.dart';
 import 'package:copilotkit/src/context/context.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 
@@ -113,7 +112,7 @@ class CopilotKitClient({
   void addContext(AgentContextEntry entry) => _context.add(entry);
 
   /// Replaces the value of the context entry [id].
-  void updateContext(String id, JsonEncodable value) =>
+  void updateContext(String id, Map<String, Object?> value) =>
       _context.update(id, value);
 
   /// Removes the context entry [id].

@@ -28,7 +28,7 @@ class const WeatherDemo({
   Widget build(BuildContext context) {
     return CopilotContext(
       description: 'Current user',
-      value: DemoUser.ada,
+      value: DemoUser.ada.toJson(),
       child: ApprovalDemo(
         child: CopilotTool(
           tool: FrontendTool(

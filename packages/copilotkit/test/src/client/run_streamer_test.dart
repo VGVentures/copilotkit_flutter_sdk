@@ -9,7 +9,6 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
-import '../../helpers/json_values.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
@@ -52,7 +51,7 @@ void main() {
       );
       harness.tools.register(weatherTool((_, {required signal}) async => ''));
       harness.context.add(
-        AgentContextEntry(description: 'Unread', value: const Count(3)),
+        AgentContextEntry(description: 'Unread', value: const {'count': 3}),
       );
       final message = UserMessage(id: 'u1', content: 'Hi');
       agent.addMessage(message);
@@ -73,7 +72,7 @@ void main() {
       expect(Uuid.isValidUUID(fromString: input.runId), isTrue);
       expect(input.messages, [message]);
       expect(input.tools.single.name, 'showWeather');
-      expect(input.context.single.value, '3');
+      expect(input.context.single.value, '{"count":3}');
       expect(input.forwardedProps, {'userId': '42'});
     });
 
@@ -247,7 +246,10 @@ void main() {
 
       test('on a context value that is not JSON, without running', () async {
         harness.context.add(
-          AgentContextEntry(description: 'Clock', value: const NonJsonValue()),
+          AgentContextEntry(
+            description: 'Clock',
+            value: {'clock': DateTime(2026)},
+          ),
         );
 
         expect(await stream(), RunResult.failed);

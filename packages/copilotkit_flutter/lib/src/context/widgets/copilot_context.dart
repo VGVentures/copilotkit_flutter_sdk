@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/client.dart';
 import 'package:flutter/widgets.dart';
@@ -10,10 +11,10 @@ class const CopilotContext({
   /// Tells the agent what [value] is.
   required final String description,
 
-  /// The data shared with the agent: an app model with `toJson`. Give it
-  /// value equality (e.g. `Equatable`), or the entry is sent again on every
-  /// rebuild.
-  required final JsonEncodable value,
+  /// The data shared with the agent, as a JSON object, e.g. a model's
+  /// `toJson()`. It is compared deeply, so a new map with the same content
+  /// on a rebuild doesn't update the entry.
+  required final Map<String, Object?> value,
 
   /// The subtree below this widget.
   required final Widget child,
@@ -27,6 +28,9 @@ class const CopilotContext({
 }
 
 class _CopilotContextState extends State<CopilotContext> {
+  /// Compares the values of two builds of the widget.
+  static const _equality = DeepCollectionEquality();
+
   CopilotKitClient? _client;
 
   /// The entry added and the client it was added to, so only that entry is
@@ -48,7 +52,7 @@ class _CopilotContextState extends State<CopilotContext> {
     super.didUpdateWidget(oldWidget);
     if (widget.description != oldWidget.description) {
       _add();
-    } else if (widget.value != oldWidget.value) {
+    } else if (!_equality.equals(widget.value, oldWidget.value)) {
       _client!.updateContext(_entry!.$2.id, widget.value);
     }
   }

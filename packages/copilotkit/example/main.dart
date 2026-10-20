@@ -27,7 +27,7 @@ Future<void> main() async {
   // App data the agent can answer from. In Flutter, `CopilotContext`.
   final user = AgentContextEntry(
     description: 'Current user',
-    value: const _User('Ada'),
+    value: const _User('Ada').toJson(),
   );
 
   client
@@ -75,7 +75,6 @@ class const _WeatherArgs(final String city) {
 }
 
 /// The current user, shared with the agent as context.
-class const _User(final String name) implements JsonEncodable {
-  @override
+class const _User(final String name) {
   Map<String, Object?> toJson() => {'name': name};
 }
