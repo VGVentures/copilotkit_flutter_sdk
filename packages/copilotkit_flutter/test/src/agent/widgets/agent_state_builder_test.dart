@@ -17,7 +17,7 @@ void main() {
 
     Widget build({
       String agentId = 'ops',
-      Object? Function(CopilotAgentState state)? selector,
+      Object? Function(CopilotKitAgentState state)? selector,
     }) => CopilotKit.value(
       client: client,
       child: CopilotAgentScope(

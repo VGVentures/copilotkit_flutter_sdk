@@ -24,7 +24,7 @@ typedef AgentStateWidgetBuilder<T> = Widget Function(
 /// ```
 class const AgentStateBuilder<T>({
   /// Picks the part of the state to build from.
-  required final T Function(CopilotAgentState state) selector,
+  required final T Function(CopilotKitAgentState state) selector,
 
   /// Builds the widget for the selected value.
   required final AgentStateWidgetBuilder<T> builder,
@@ -39,8 +39,8 @@ class const AgentStateBuilder<T>({
 }
 
 class _AgentStateBuilderState<T> extends State<AgentStateBuilder<T>> {
-  CopilotAgent? _agent;
-  StreamSubscription<CopilotAgentState>? _subscription;
+  CopilotKitAgent? _agent;
+  StreamSubscription<CopilotKitAgentState>? _subscription;
   late T _value;
 
   @override
@@ -62,7 +62,7 @@ class _AgentStateBuilderState<T> extends State<AgentStateBuilder<T>> {
     }
   }
 
-  void _onState(CopilotAgentState state) {
+  void _onState(CopilotKitAgentState state) {
     final value = widget.selector(state);
     if (value == _value) return;
     setState(() => _value = value);

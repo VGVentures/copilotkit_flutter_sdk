@@ -7,7 +7,7 @@ import 'package:mocktail/mocktail.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
-class _MockCopilotAgent extends Mock implements CopilotAgent;
+class _MockCopilotAgent extends Mock implements CopilotKitAgent;
 
 void main() {
   group(ChatPage, () {
@@ -16,7 +16,7 @@ void main() {
       final agent = _MockCopilotAgent();
       when(() => client.agent(ChatPage.agentId)).thenReturn(agent);
       when(() => agent.state).thenReturn(
-        CopilotAgentState(
+        CopilotKitAgentState(
           agentId: ChatPage.agentId,
           threadId: 't',
           messages: [UserMessage(id: 'u1', content: 'Hi')],

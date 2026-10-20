@@ -2,9 +2,9 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group(CopilotAgentState, () {
+  group(CopilotKitAgentState, () {
     test('defaults to an idle, empty agent', () {
-      const snapshot = CopilotAgentState(agentId: 'a', threadId: 't');
+      const snapshot = CopilotKitAgentState(agentId: 'a', threadId: 't');
 
       expect(snapshot.agentId, 'a');
       expect(snapshot.threadId, 't');
@@ -24,7 +24,7 @@ void main() {
       );
       final error = StateError('boom');
 
-      final snapshot = CopilotAgentState(
+      final snapshot = CopilotKitAgentState(
         agentId: 'a',
         threadId: 't',
         messages: [message],
@@ -43,14 +43,15 @@ void main() {
 
     test('supports value equality', () {
       final message = UserMessage(id: 'u1', content: 'Hi');
-      CopilotAgentState snapshot({bool isRunning = false}) => CopilotAgentState(
-        agentId: 'a',
-        threadId: 't',
-        messages: [message],
-        sharedState: const SharedState({'a': 1}),
-        isRunning: isRunning,
-        error: 'boom',
-      );
+      CopilotKitAgentState snapshot({bool isRunning = false}) =>
+          CopilotKitAgentState(
+            agentId: 'a',
+            threadId: 't',
+            messages: [message],
+            sharedState: const SharedState({'a': 1}),
+            isRunning: isRunning,
+            error: 'boom',
+          );
 
       expect(snapshot(), snapshot());
       expect(snapshot(), isNot(snapshot(isRunning: true)));
@@ -74,7 +75,7 @@ void main() {
       ];
 
       expect(
-        const CopilotAgentState(
+        const CopilotKitAgentState(
           agentId: 'a',
           threadId: 't',
           toolCalls: calls,
@@ -82,7 +83,7 @@ void main() {
         ['c1', 'c3'],
       );
       expect(
-        const CopilotAgentState(
+        const CopilotKitAgentState(
           agentId: 'a',
           threadId: 't',
         ).awaitingResponseIds,
@@ -93,7 +94,7 @@ void main() {
     group('copyWith', () {
       test('keeps every field when nothing is passed', () {
         final error = StateError('boom');
-        final snapshot = CopilotAgentState(
+        final snapshot = CopilotKitAgentState(
           agentId: 'a',
           threadId: 't',
           messages: [UserMessage(id: 'u1', content: 'Hi')],
@@ -124,7 +125,7 @@ void main() {
           status: ToolCallStatus.inProgress,
         );
 
-        final copy = const CopilotAgentState(agentId: 'a', threadId: 't')
+        final copy = const CopilotKitAgentState(agentId: 'a', threadId: 't')
             .copyWith(
               messages: [message],
               sharedState: () => const SharedState({'a': 1}),
@@ -141,7 +142,7 @@ void main() {
       });
 
       test('can reset state and error to null', () {
-        const snapshot = CopilotAgentState(
+        const snapshot = CopilotKitAgentState(
           agentId: 'a',
           threadId: 't',
           sharedState: SharedState({'a': 1}),

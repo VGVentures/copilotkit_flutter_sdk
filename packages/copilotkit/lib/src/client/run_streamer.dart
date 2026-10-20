@@ -14,7 +14,7 @@ import 'package:copilotkit/src/transport/transport.dart';
 typedef HeadersBuilder = Future<Map<String, String>> Function();
 
 /// Receives errors from runs, transports and tool handlers.
-typedef CopilotErrorHandler = void Function(
+typedef CopilotKitErrorHandler = void Function(
   Object error,
   StackTrace stackTrace,
 );
@@ -32,7 +32,7 @@ class const RunStreamer({
   required final AgentContextStore _context,
 
   /// Receives errors from runs and the transport.
-  required final CopilotErrorHandler _onError,
+  required final CopilotKitErrorHandler _onError,
 
   /// Builds the headers of each run, e.g. for auth.
   final HeadersBuilder? _headers,
@@ -119,7 +119,7 @@ class const RunStreamer({
     return agent.state.error == null ? RunResult.finished : RunResult.failed;
   }
 
-  void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
+  void _fail(CopilotKitAgent agent, Object error, StackTrace stackTrace) {
     agent.fail(error);
     _onError(error, stackTrace);
   }

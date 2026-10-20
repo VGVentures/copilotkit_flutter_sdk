@@ -9,7 +9,7 @@ import '../../helpers/agent.dart';
 import '../../helpers/fixtures.dart';
 
 void main() {
-  group(CopilotAgent, () {
+  group(CopilotKitAgent, () {
     final user = UserMessage(id: 'u1', content: 'Hi');
 
     test('starts idle and empty with the given ids', () {
@@ -17,7 +17,7 @@ void main() {
     });
 
     test('generates a thread id when none is given', () {
-      final agent = CopilotAgent(agentId: 'default');
+      final agent = CopilotKitAgent(agentId: 'default');
 
       expect(Uuid.isValidUUID(fromString: agent.state.threadId), isTrue);
     });
@@ -176,7 +176,7 @@ void main() {
         ],
       );
 
-      CopilotAgent awaiting() => buildAgent()
+      CopilotKitAgent awaiting() => buildAgent()
         ..apply(start)
         ..apply(end)
         ..awaitResponse('c1');

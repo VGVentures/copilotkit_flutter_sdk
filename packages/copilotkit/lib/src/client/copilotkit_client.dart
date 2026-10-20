@@ -18,12 +18,12 @@ import 'package:copilotkit/src/transport/transport.dart';
 ///
 /// Agents, tools and context come and go while the app runs, so this is
 /// mutable: a documented exception to the immutability rule. Each agent's
-/// state lives in its [CopilotAgent].
+/// state lives in its [CopilotKitAgent].
 class CopilotKitClient({
   required Uri runtimeUrl,
   final HeadersBuilder? _headers,
   final JsonEncodable? _properties,
-  final CopilotErrorHandler? _onError,
+  final CopilotKitErrorHandler? _onError,
   AgentTransport? transport,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
@@ -40,7 +40,7 @@ class CopilotKitClient({
   final AgentTransport _transport =
       transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
 
-  final _agents = <String, CopilotAgent>{};
+  final _agents = <String, CopilotKitAgent>{};
 
   final _tools = ToolRegistry();
 
@@ -61,7 +61,7 @@ class CopilotKitClient({
   );
 
   /// The open agents, by agent id. A read-only view.
-  Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
+  Map<String, CopilotKitAgent> get agents => UnmodifiableMapView(_agents);
 
   /// The registered client tools, by name. A read-only view.
   Map<String, ClientTool<Object?>> get tools => _tools.tools;
@@ -70,8 +70,8 @@ class CopilotKitClient({
   List<AgentContextEntry> get context => _context.entries;
 
   /// Returns the agent [agentId], opening it the first time.
-  CopilotAgent agent(String agentId) =>
-      _agents.putIfAbsent(agentId, () => CopilotAgent(agentId: agentId));
+  CopilotKitAgent agent(String agentId) =>
+      _agents.putIfAbsent(agentId, () => CopilotKitAgent(agentId: agentId));
 
   /// Registers [tool]; every run sends it to the agent. Calls to a
   /// [FrontendTool] run its handler on the device, and calls to a
@@ -123,7 +123,7 @@ class CopilotKitClient({
   /// appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to `onError`
-  /// and to `CopilotAgentState.error`. Does nothing while the agent is
+  /// and to `CopilotKitAgentState.error`. Does nothing while the agent is
   /// already running, so the message is dropped too.
   Future<void> runAgent(String agentId, {Message? message}) =>
       _runner.run(agent(agentId), message: message);

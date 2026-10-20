@@ -1,5 +1,5 @@
 export 'agent_runner.dart';
-export 'copilot_kit_client.dart';
+export 'copilotkit_client.dart';
 export 'models/run_result.dart';
 export 'run_input_builder.dart';
 export 'run_streamer.dart';

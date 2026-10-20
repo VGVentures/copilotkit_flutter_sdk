@@ -1,8 +1,9 @@
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/agent_event_reducer.dart';
-import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/extensions/copilotkit_agent_state_tool_calls.dart';
+import 'package:copilotkit/src/agent/mappers/agent_event_mapper.dart';
+import 'package:copilotkit/src/agent/models/copilotkit_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
@@ -17,34 +18,34 @@ import 'package:uuid/uuid.dart';
 ///
 /// It changes over time, so unlike the value types it is mutable: [state] is
 /// replaced, never modified.
-class CopilotAgent({
+class CopilotKitAgent({
   required String agentId,
   String? threadId,
-  final AgentEventReducer _reducer = const AgentEventReducer(),
+  final AgentEventMapper _mapper = const AgentEventMapper(),
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
   /// Creates the agent [agentId].
   ///
   /// Internal: only `CopilotKitClient.agent` creates agents, so the client
   /// tracks every agent it runs. A random [threadId] is generated when none
-  /// is given. The reducer applies AG-UI events to the state, and the
+  /// is given. The mapper applies AG-UI events to the state, and the
   /// patcher applies the app's edits to the shared state.
   @internal
   this;
 
-  CopilotAgentState _state = CopilotAgentState(
+  CopilotKitAgentState _state = CopilotKitAgentState(
     agentId: agentId,
     threadId: threadId ?? const Uuid().v4(),
   );
 
-  final _states = StreamController<CopilotAgentState>.broadcast();
+  final _states = StreamController<CopilotKitAgentState>.broadcast();
 
   /// The agent as of now. Up to date as soon as a change is made.
-  CopilotAgentState get state => _state;
+  CopilotKitAgentState get state => _state;
 
   /// Every new [state], from the moment of listening. Read [state] first for
   /// the current one: the stream doesn't replay it.
-  Stream<CopilotAgentState> get stream => _states.stream;
+  Stream<CopilotKitAgentState> get stream => _states.stream;
 
   /// Whether [close] has been called. A closed agent ignores every change.
   bool get isClosed => _states.isClosed;
@@ -61,7 +62,7 @@ class CopilotAgent({
   ///
   /// Use it to reset a conversation (`setMessages([])`) or to restore a saved
   /// one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
-  /// `CopilotAgentState.toolCalls` from [messages]: a call a message holds
+  /// `CopilotKitAgentState.toolCalls` from [messages]: a call a message holds
   /// keeps the view the agent already has, or becomes executing, or complete
   /// when a tool message answers it; calls no message holds anymore are
   /// dropped. Allowed while the agent is running; the events that stream in
@@ -93,24 +94,13 @@ class CopilotAgent({
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool
   /// result).
   @internal
-  void apply(BaseEvent event) => _update(_reducer.reduce(_state, event));
+  void apply(BaseEvent event) => _update(_mapper(_state, event));
 
   /// Marks the executing tool call [toolCallId] as waiting for the user's
   /// answer (`ToolCallView.awaitingResponse`), until it gets its result.
   @internal
   void awaitResponse(String toolCallId) {
-    _update(
-      _state.copyWith(
-        toolCalls: [
-          for (final call in _state.toolCalls)
-            if (call.id == toolCallId &&
-                call.status == ToolCallStatus.executing)
-              call.copyWith(awaitingResponse: true)
-            else
-              call,
-        ],
-      ),
-    );
+    _update(_state.updateToolCall(toolCallId, (call) => call.awaitResponse()));
   }
 
   /// Marks the agent running for a turn and clears the previous error.
@@ -131,7 +121,7 @@ class CopilotAgent({
   /// Stops [stream]. Changes after this are ignored.
   Future<void> close() => _states.close();
 
-  void _update(CopilotAgentState next) {
+  void _update(CopilotKitAgentState next) {
     if (isClosed || next == _state) return;
     _state = next;
     _states.add(next);

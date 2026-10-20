@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Reads the agent in scope on every build and records it.
-class const _Probe(final List<CopilotAgent> agents) extends StatelessWidget {
+class const _Probe(final List<CopilotKitAgent> agents) extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     agents.add(CopilotAgentScope.of(context));
@@ -14,7 +14,7 @@ class const _Probe(final List<CopilotAgent> agents) extends StatelessWidget {
 void main() {
   group(CopilotAgentScope, () {
     late CopilotKitClient client;
-    late List<CopilotAgent> seen;
+    late List<CopilotKitAgent> seen;
 
     CopilotKitClient newClient(String host) {
       final client = CopilotKitClient(
@@ -44,7 +44,7 @@ void main() {
     testWidgets('shares one agent between scopes with the same id', (
       tester,
     ) async {
-      final other = <CopilotAgent>[];
+      final other = <CopilotKitAgent>[];
       await tester.pumpWidget(
         build(
           Column(
@@ -128,7 +128,7 @@ void main() {
 
     group('maybeOf', () {
       testWidgets('returns null without a scope', (tester) async {
-        CopilotAgent? agent;
+        CopilotKitAgent? agent;
         var built = false;
         await tester.pumpWidget(
           Builder(

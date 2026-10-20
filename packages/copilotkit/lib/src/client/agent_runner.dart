@@ -23,7 +23,7 @@ class AgentRunner({
   required final AgentTransport _transport,
 
   /// Receives the errors of stop requests.
-  required final CopilotErrorHandler _onError,
+  required final CopilotKitErrorHandler _onError,
 
   /// Streams each run of a turn.
   required final RunStreamer _streamer,
@@ -40,9 +40,9 @@ class AgentRunner({
   /// Runs a turn of [agent], after appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to the error
-  /// handler and to `CopilotAgentState.error`. Does nothing while [agent] is
+  /// handler and to `CopilotKitAgentState.error`. Does nothing while [agent] is
   /// already in a turn.
-  Future<void> run(CopilotAgent agent, {Message? message}) async {
+  Future<void> run(CopilotKitAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;
     if (_turns.containsKey(agentId)) return;
     final turn = Turn(agent);
@@ -77,7 +77,7 @@ class AgentRunner({
   ///
   /// Does nothing when [agent] isn't in a turn. Errors from the stop request
   /// go to the error handler.
-  Future<void> stop(CopilotAgent agent) async {
+  Future<void> stop(CopilotKitAgent agent) async {
     final turn = _turns.remove(agent.state.agentId);
     if (turn == null) return;
     turn.signal.cancel();
@@ -112,7 +112,7 @@ class AgentRunner({
     _toolCalls.clear();
   }
 
-  Iterable<CopilotAgent> get _agentsInTurn =>
+  Iterable<CopilotKitAgent> get _agentsInTurn =>
       _turns.values.map((turn) => turn.agent);
 
   /// Streams one run of the agent of [turn]. Returns whether it finished

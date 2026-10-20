@@ -82,7 +82,7 @@ class AgUiTransport({
         subscription = client
             .runAgent(
               'agent/${Uri.encodeComponent(agentId)}/run',
-              _simpleInput(input),
+              input.toSimple(),
             )
             .listen(
               controller.add,
@@ -90,7 +90,7 @@ class AgUiTransport({
                 // ag_ui reports each event it can't decode (unknown types,
                 // missing fields, bad JSON) and keeps streaming. Skip them so
                 // newer runtimes never break a run.
-                if (_isDecodeError(error)) {
+                if (error.isDecodeError) {
                   return _reportSkipped(error, stackTrace);
                 }
                 controller.addError(error, stackTrace);
@@ -157,23 +157,6 @@ class AgUiTransport({
     if (_closed) throw StateError('AgUiTransport is closed.');
   }
 
-  /// Copies [input] into the [SimpleRunAgentInput] that `ag_ui`'s client
-  /// sends to the runtime, field for field.
-  SimpleRunAgentInput _simpleInput(RunAgentInput input) => SimpleRunAgentInput(
-    threadId: input.threadId,
-    runId: input.runId,
-    parentRunId: input.parentRunId,
-    state: input.state,
-    messages: input.messages,
-    tools: input.tools,
-    context: input.context,
-    forwardedProps: input.forwardedProps,
-  );
-
-  /// Whether [error] is `ag_ui` reporting an event it could not decode.
-  bool _isDecodeError(Object error) =>
-      error is DecodingError || error is AGUIValidationError;
-
   /// Logs an event skipped because it couldn't be decoded and reports it to
   /// `onSkippedEvent`, which must not break the run if it throws.
   void _reportSkipped(Object error, StackTrace stackTrace) {
@@ -208,4 +191,25 @@ class AgUiTransport({
       // Nothing to report.
     }
   }
+}
+
+extension on RunAgentInput {
+  /// This input copied into the [SimpleRunAgentInput] that `ag_ui`'s client
+  /// sends to the runtime, field for field.
+  SimpleRunAgentInput toSimple() => SimpleRunAgentInput(
+    threadId: threadId,
+    runId: runId,
+    parentRunId: parentRunId,
+    state: state,
+    messages: messages,
+    tools: tools,
+    context: context,
+    forwardedProps: forwardedProps,
+  );
+}
+
+extension on Object {
+  /// Whether this error is `ag_ui` reporting an event it could not decode.
+  bool get isDecodeError =>
+      this is DecodingError || this is AGUIValidationError;
 }

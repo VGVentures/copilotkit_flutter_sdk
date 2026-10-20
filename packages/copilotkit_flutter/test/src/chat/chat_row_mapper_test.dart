@@ -2,7 +2,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  const agentState = CopilotAgentState(agentId: 'default', threadId: 't');
+  const agentState = CopilotKitAgentState(agentId: 'default', threadId: 't');
   final user = UserMessage(id: 'u1', content: 'Weather in Lima?');
   const assistant = AssistantMessage(id: 'a1', content: 'Let me check');
   const call = ToolCallView(

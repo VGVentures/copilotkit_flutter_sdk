@@ -14,16 +14,6 @@ class const ToolCallExecutor() {
   /// Creates an executor.
   this;
 
-  /// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
-  static final _rootPointer = RegExp('^#/?');
-
-  /// Ack's prefix on constraint errors; the path already says what failed.
-  static const _constraintsPrefix = 'Constraints not met: ';
-
-  static const _invalidArgumentsSummary =
-      "The tool didn't run: its arguments don't match its parameters. "
-      'Fix them and call it again.';
-
   /// Whether the arguments of [call] match the parameters of [tool].
   bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
       tool.parameters.safeParse(call.args.toJson()) is Ok;
@@ -48,7 +38,7 @@ class const ToolCallExecutor() {
       case Ok(:final value):
         args = JsonObject(value ?? const {});
       case Fail(:final error):
-        final result = _invalidArgumentsResult(error);
+        final result = error.invalidArgumentsResult;
         developer.log(
           'Invalid arguments for tool "${call.name}":\n$result',
           name: 'copilotkit',
@@ -80,26 +70,39 @@ class const ToolCallExecutor() {
       );
     }
   }
+}
 
-  /// Lists one problem of [error] per line, by argument path.
-  String _invalidArgumentsResult(SchemaError error) => [
+extension on SchemaError {
+  static const _invalidArgumentsSummary =
+      "The tool didn't run: its arguments don't match its parameters. "
+      'Fix them and call it again.';
+
+  /// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
+  static final _rootPointer = RegExp('^#/?');
+
+  /// Ack's prefix on constraint errors; the path already says what failed.
+  static const _constraintsPrefix = 'Constraints not met: ';
+
+  /// The result of a call whose arguments failed with this error: a summary,
+  /// then one problem per line, by argument path.
+  String get invalidArgumentsResult => [
     _invalidArgumentsSummary,
-    for (final problem in _problems(error)) '- ${_describe(problem)}',
+    for (final problem in problems) '- ${problem.description}',
   ].join('\n');
 
-  /// The innermost errors under [error].
-  Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
+  /// The innermost errors under this one.
+  Iterable<SchemaError> get problems => switch (this) {
     SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
-      _problems,
+      (error) => error.problems,
     ),
-    _ => [error],
+    final error => [error],
   };
 
-  /// Describes [error] as `path: message`, e.g. `unit.step: Expected
-  /// integer, got string.`; root errors have no path.
-  String _describe(SchemaError error) {
-    final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
-    var message = error.message.replaceFirst(_constraintsPrefix, '');
+  /// This error as `path: message`, e.g. `unit.step: Expected integer, got
+  /// string.`; root errors have no path.
+  String get description {
+    final path = this.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
+    var message = this.message.replaceFirst(_constraintsPrefix, '');
     if (!message.endsWith('.')) message = '$message.';
     return path.isEmpty ? message : '$path: $message';
   }

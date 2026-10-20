@@ -19,7 +19,7 @@ void main() {
     late RunnerHarness harness;
     late AgentRunner runner;
     late MockAgentTransport transport;
-    late CopilotAgent agent;
+    late CopilotKitAgent agent;
     late List<Stream<BaseEvent>> runs;
     late List<Object> errors;
 
@@ -128,7 +128,7 @@ void main() {
       /// Uses a harness with [headers] whose runs stream [events].
       void useStreamingHarness({
         HeadersBuilder? headers,
-        CopilotErrorHandler? onError,
+        CopilotKitErrorHandler? onError,
       }) {
         useHarness(
           RunnerHarness(
@@ -194,7 +194,7 @@ void main() {
       test('applies no events after the stop', () async {
         await startStreaming();
         await stopStreaming();
-        final changes = <CopilotAgentState>[];
+        final changes = <CopilotKitAgentState>[];
         agent.stream.listen(changes.add);
 
         events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));
@@ -308,7 +308,7 @@ void main() {
 
       test('stops one agent while another keeps running', () async {
         final otherEvents = StreamController<BaseEvent>();
-        final other = CopilotAgent(agentId: 'other');
+        final other = CopilotKitAgent(agentId: 'other');
         when(
           () => transport.run(
             agentId: 'other',
@@ -648,7 +648,7 @@ void main() {
     group('human-in-the-loop tools', () {
       late HumanInTheLoopTool<JsonObject> tool;
       late Future<void> run;
-      late CopilotAgentState waiting;
+      late CopilotKitAgentState waiting;
       // The inputs of every run, read once: the mock counts a verified call
       // only once.
       List<RunAgentInput>? inputs;

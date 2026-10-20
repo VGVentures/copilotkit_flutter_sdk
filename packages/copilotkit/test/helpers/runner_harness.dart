@@ -18,7 +18,7 @@ class RunnerHarness {
   new({
     HeadersBuilder? headers,
     JsonEncodable? properties,
-    CopilotErrorHandler? onError,
+    CopilotKitErrorHandler? onError,
   }) {
     transport
       ..stubRun(() => runs.removeAt(0))
@@ -58,7 +58,7 @@ class RunnerHarness {
   final List<Stream<BaseEvent>> runs = [];
 
   /// The agent the tests run.
-  final CopilotAgent agent = CopilotAgent(agentId: 'default');
+  final CopilotKitAgent agent = CopilotKitAgent(agentId: 'default');
 
   /// Streams the runs of [runner].
   late final RunStreamer streamer;

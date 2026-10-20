@@ -11,7 +11,7 @@ import 'package:uuid/uuid.dart';
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
 
-/// Drives a chat UI from a [CopilotAgent].
+/// Drives a chat UI from a [CopilotKitAgent].
 ///
 /// Mirrors the agent's state into [CopilotChatState] once
 /// [ChatSubscriptionRequested] is added, and turns [ChatMessageSent] and
@@ -40,7 +40,7 @@ class CopilotChatBloc({
     on<ChatStopRequested>(_onStopRequested);
   }
 
-  final CopilotAgent _agent = _client.agent(agentId);
+  final CopilotKitAgent _agent = _client.agent(agentId);
 
   Future<void> _onSubscriptionRequested(
     ChatSubscriptionRequested event,

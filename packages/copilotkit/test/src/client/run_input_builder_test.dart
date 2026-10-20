@@ -16,7 +16,7 @@ class _MockUuid extends Mock implements Uuid;
 void main() {
   group(RunInputBuilder, () {
     final user = UserMessage(id: 'u1', content: 'Hi');
-    final agent = CopilotAgentState(
+    final agent = CopilotKitAgentState(
       agentId: 'default',
       threadId: 'thread-1',
       messages: [user],

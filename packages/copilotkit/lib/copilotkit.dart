@@ -48,6 +48,7 @@ export 'src/tools/tools.dart'
         FallbackToolResult,
         ToolCallExecutor,
         ToolCallOutcome,
+        ToolCallViewTransitions,
         ToolRegistry,
         ToolResponses;
 export 'src/transport/transport.dart' show AgentTransport;

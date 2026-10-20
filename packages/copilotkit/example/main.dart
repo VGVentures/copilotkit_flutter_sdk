@@ -13,7 +13,7 @@ Future<void> main() async {
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 
-  // A frontend tool. In Flutter, `CopilotTool` registers it for the
+  // A frontend tool. In Flutter, `CopilotKitTool` registers it for the
   // lifetime of a widget and renders `ToolCallView`s with a builder.
   final showWeather = FrontendTool(
     name: 'showWeather',
@@ -24,7 +24,7 @@ Future<void> main() async {
         jsonEncode({'city': args.city, 'forecast': 'sunny'}),
   );
 
-  // App data the agent can answer from. In Flutter, `CopilotContext`.
+  // App data the agent can answer from. In Flutter, `CopilotKitContext`.
   final user = AgentContextEntry(
     description: 'Current user',
     value: const _User('Ada'),

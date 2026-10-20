@@ -32,5 +32,5 @@ class ClientHarness {
   );
 
   /// The default agent of [client].
-  late final CopilotAgent agent = client.agent('default');
+  late final CopilotKitAgent agent = client.agent('default');
 }

@@ -18,7 +18,7 @@ final class const CopilotChatState({
   /// Builds the state shown for [agentState], with its rows mapped by
   /// [rows].
   factory fromAgentState(
-    CopilotAgentState agentState, {
+    CopilotKitAgentState agentState, {
     ChatRowMapper rows = const ChatRowMapper(),
   }) => CopilotChatState(
     rows: rows.rowsFor(agentState),

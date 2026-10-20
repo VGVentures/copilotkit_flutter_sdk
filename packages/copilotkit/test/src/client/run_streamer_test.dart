@@ -20,7 +20,7 @@ void main() {
   group(RunStreamer, () {
     late RunnerHarness harness;
     late MockAgentTransport transport;
-    late CopilotAgent agent;
+    late CopilotKitAgent agent;
     late List<Stream<BaseEvent>> runs;
     late List<Object> errors;
     late Turn turn;

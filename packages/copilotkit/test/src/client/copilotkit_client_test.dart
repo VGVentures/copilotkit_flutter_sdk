@@ -89,7 +89,7 @@ void main() {
         expect(() => client.tools['x'] = tool, throwsUnsupportedError);
         expect(() => client.context.add(entry), throwsUnsupportedError);
         expect(
-          () => client.agents['x'] = CopilotAgent(agentId: 'x'),
+          () => client.agents['x'] = CopilotKitAgent(agentId: 'x'),
           throwsUnsupportedError,
         );
       });
@@ -264,7 +264,7 @@ void main() {
     group('human-in-the-loop tools', () {
       late ClientHarness harness;
       late CopilotKitClient client;
-      late CopilotAgent agent;
+      late CopilotKitAgent agent;
       late HumanInTheLoopTool<JsonObject> tool;
       late Future<void> run;
 

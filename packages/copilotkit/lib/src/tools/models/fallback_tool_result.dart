@@ -7,7 +7,7 @@ enum FallbackToolResult {
   /// A tool call left open by a failed run.
   failed('Tool call failed: the run ended early.'),
 
-  /// A call to a tool that isn't registered, e.g. because its `CopilotTool`
+  /// A call to a tool that isn't registered, e.g. because its `CopilotKitTool`
   /// was unmounted. Backend tool calls never get it: the runtime sends their
   /// results within the run.
   unavailable('Tool is not available.'),

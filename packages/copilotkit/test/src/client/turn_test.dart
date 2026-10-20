@@ -7,7 +7,7 @@ import 'package:test/test.dart';
 void main() {
   group(Turn, () {
     test('starts with its agent, a live signal and no run', () {
-      final agent = CopilotAgent(agentId: 'default');
+      final agent = CopilotKitAgent(agentId: 'default');
       final turn = Turn(agent);
 
       expect(turn.agent, same(agent));

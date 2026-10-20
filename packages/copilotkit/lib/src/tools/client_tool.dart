@@ -87,13 +87,13 @@ class const FrontendTool<T>({
 /// arguments of type [T].
 ///
 /// Register it with `CopilotKitClient.registerTool`, or with
-/// `CopilotHumanInTheLoop` in Flutter. When the agent calls it, the call is
+/// `CopilotKitHumanInTheLoop` in Flutter. When the agent calls it, the call is
 /// marked as awaiting a response (`ToolCallView.awaitingResponse`) and the
 /// turn waits until the app answers with `CopilotKitClient.respondToToolCall`,
 /// whenever the user decides. That answer is appended as the tool message,
 /// and the agent continues in the same turn, unless [followUp] is `false`.
 ///
-/// The agent stays running while it waits: `CopilotAgentState.isRunning` is
+/// The agent stays running while it waits: `CopilotKitAgentState.isRunning` is
 /// true for the whole turn. Stopping the agent, or unregistering the tool
 /// while a call waits, answers the call as cancelled.
 class const HumanInTheLoopTool<T>({

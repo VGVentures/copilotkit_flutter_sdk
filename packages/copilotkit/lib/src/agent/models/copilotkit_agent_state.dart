@@ -5,9 +5,9 @@ import 'package:equatable/equatable.dart';
 
 /// Immutable view of an agent at one point in time.
 ///
-/// A `CopilotAgent` replaces its state with a new one every time it
+/// A `CopilotKitAgent` replaces its state with a new one every time it
 /// changes.
-class const CopilotAgentState({
+class const CopilotKitAgentState({
   /// Id of the agent on the runtime, e.g. `default`.
   required final String agentId,
 
@@ -22,8 +22,8 @@ class const CopilotAgentState({
   /// the app set one.
   ///
   /// Sent as `RunAgentInput.state` on every run. Change it from the app with
-  /// `CopilotAgent.setSharedState` and `CopilotAgent.patchSharedState`; the
-  /// agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events. Debug
+  /// `CopilotKitAgent.setSharedState` and `CopilotKitAgent.patchSharedState`;
+  /// the agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events. Debug
   /// builds of `ag_ui` assert that it is a JSON object (a `Map`) or `null`
   /// when a run is sent.
   final SharedState? sharedState,
@@ -79,14 +79,14 @@ class const CopilotAgentState({
   /// [sharedState] and [error] are getters so a caller can set a value
   /// (`error: () => e`), clear it (`error: () => null`) or leave it alone by
   /// not passing it.
-  CopilotAgentState copyWith({
+  CopilotKitAgentState copyWith({
     List<Message>? messages,
     SharedState? Function()? sharedState,
     bool? isRunning,
     List<ToolCallView>? toolCalls,
     Object? Function()? error,
   }) {
-    return CopilotAgentState(
+    return CopilotKitAgentState(
       agentId: agentId,
       threadId: threadId,
       messages: messages ?? this.messages,

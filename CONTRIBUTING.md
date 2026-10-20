@@ -11,7 +11,7 @@ The SDK has two packages, layered from the network up:
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
   client      CopilotKitClient: agents, tools, context and runs
-  agent       CopilotAgent: one conversation, its state and stream
+  agent       CopilotKitAgent: one conversation, its state and stream
 packages/copilotkit_flutter   Flutter
   widgets     CopilotKit, CopilotAgentScope, AgentStateBuilder, CopilotTool,
               CopilotHumanInTheLoop, CopilotContext, CopilotChatProvider
@@ -32,14 +32,17 @@ lib/src/<feature>/
   <feature>.dart   barrel: exports what other features and the package use
   models/          immutable value types
   <name>.dart      logic classes: services, state holders, mappers
+  mappers/         a mapper and the mappers it's composed of, when it has several
+  extensions/      extensions used by several files
   bloc/            blocs (copilotkit_flutter only)
   widgets/         widgets (copilotkit_flutter only)
 ```
 
 A feature only has the folders it needs. Code shared by several features is a
 feature of its own, e.g. `json/`. No files sit directly in `lib/src/`, and
-there is no `support/`, `utils/`, `helpers/` or `extensions/` folder. Widgets
-and blocs sit in their folders, never at the root of a feature.
+there is no `support/`, `utils/` or `helpers/` folder, and no top-level
+`extensions/` folder: extensions sit in the feature of the type they extend.
+Widgets and blocs sit in their folders, never at the root of a feature.
 
 Inside a feature, dependencies point one way: `widgets` → `bloc` → logic →
 `models`. A model imports only other models, never I/O, streams or state
@@ -79,31 +82,44 @@ which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
 which runs the tool calls between runs with a `ToolCallExecutor`.
 
 ```dart
-// Good: the reducer gets its JSON helpers injected
-class const AgentEventReducer({
+// Good: the mapper gets its JSON helpers injected
+class const AgentEventMapper({
   final PartialJsonParser _parser = const PartialJsonParser(),
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
   this;
 
-  CopilotAgentState reduce(CopilotAgentState state, BaseEvent event) => ...;
+  CopilotKitAgentState call(CopilotKitAgentState state, BaseEvent event) => ...;
 }
 ```
 
-Nothing is declared at the top level except types, and that includes private
-declarations. There are no extensions and no static helpers.
+Nothing is declared at the top level except types and extensions, and that
+includes private declarations. There are no top-level functions or variables
+and no static helpers.
 
 - A function used by one class becomes a private method on it.
 - A function reused across files becomes a method of a class that is injected
   where it's needed.
+- A pure conversion of a value, with no collaborators, I/O or state, may be an
+  extension method or getter on that value's type instead, e.g. reading the
+  role of an `ag_ui` `Message`. An extension used by one file is private to
+  it. One used by several files is public, in the `extensions/` folder of the
+  feature that owns the extended type, one per file. Like any other type, the
+  feature barrel exports it when another feature uses it, and the package
+  barrel hides it unless it's part of the public API.
 - A constant becomes a static field, or an enum when it is one of a set.
 - The only static methods are `of` / `maybeOf` lookups on inherited widgets.
+
+An extension never holds logic that needs a collaborator or that tests would
+want to replace: that stays in an injected class.
 
 ```dart
 // Bad
 const _cancelledResult = 'Tool call cancelled.';
 String _randomId() => ...;
-extension RunAgentInputX on RunAgentInput { ... }
+extension RunAgentInputX on RunAgentInput {
+  RunAgentInput withContext(AgentContextStore store) => ...;
+}
 static Object? apply(Object? document, List<Map<String, Object?>> ops) => ...;
 
 // Good
@@ -120,12 +136,16 @@ class const JsonPatcher() {
 
   Object? apply(Object? document, List<JsonPatchOperation> operations) => ...;
 }
+
+extension on Message {
+  TextMessageRole? get textRole => switch (this) { ... };
+}
 ```
 
 ## State holders
 
 State that changes over time lives in a state holder: a plain class that keeps
-an immutable state and replaces it on every change. `CopilotAgent` is the
+an immutable state and replaces it on every change. `CopilotKitAgent` is the
 model:
 
 - `state` is the current value, up to date as soon as a change is made.
@@ -227,12 +247,12 @@ set or clear the value without a sentinel.
 
 ```dart
 // Bad
-CopilotAgentState copyWith({Object? error = _unset}) =>
-    CopilotAgentState(error: identical(error, _unset) ? this.error : error);
+CopilotKitAgentState copyWith({Object? error = _unset}) =>
+    CopilotKitAgentState(error: identical(error, _unset) ? this.error : error);
 
 // Good
-CopilotAgentState copyWith({Object? Function()? error}) =>
-    CopilotAgentState(error: error == null ? this.error : error());
+CopilotKitAgentState copyWith({Object? Function()? error}) =>
+    CopilotKitAgentState(error: error == null ? this.error : error());
 
 state.copyWith();                         // keep
 state.copyWith(error: () => exception);   // set
@@ -246,9 +266,9 @@ counters.
 
 ## One public type per file
 
-Each file declares one public type (class, enum or extension type) and is
-named after it in `snake_case`. Private helper types may live in the file
-that uses them.
+Each file declares one public type (class, enum, extension or extension type)
+and is named after it in `snake_case`. Private helper types and extensions may
+live in the file that uses them.
 
 There are two exceptions:
 

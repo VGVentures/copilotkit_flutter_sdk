@@ -8,9 +8,9 @@ import 'package:uuid/uuid.dart';
 
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
-class _MockCopilotAgent extends Mock implements CopilotAgent;
+class _MockCopilotAgent extends Mock implements CopilotKitAgent;
 
-const _agentState = CopilotAgentState(agentId: 'default', threadId: 't');
+const _agentState = CopilotKitAgentState(agentId: 'default', threadId: 't');
 final _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
 const _call = ToolCallView(
   id: 'c1',
@@ -33,7 +33,7 @@ void main() {
   group(CopilotChatBloc, () {
     late _MockCopilotKitClient client;
     late _MockCopilotAgent agent;
-    late StreamController<CopilotAgentState> changes;
+    late StreamController<CopilotKitAgentState> changes;
 
     setUp(() {
       client = _MockCopilotKitClient();
@@ -42,7 +42,7 @@ void main() {
       when(() => client.runAgent(any(), message: any(named: 'message')))
           .thenAnswer((_) async {});
       when(() => client.stopAgent(any())).thenAnswer((_) async {});
-      changes = StreamController<CopilotAgentState>.broadcast();
+      changes = StreamController<CopilotKitAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);
       when(() => agent.stream).thenAnswer((_) => changes.stream);
     });

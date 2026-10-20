@@ -22,7 +22,7 @@ class const RunInputBuilder({
   /// [context] entries (each value JSON-encoded) and the forwarded
   /// [properties], if any.
   RunAgentInput build({
-    required CopilotAgentState agent,
+    required CopilotKitAgentState agent,
     required Iterable<ClientTool<Object?>> tools,
     required Iterable<AgentContextEntry> context,
     JsonEncodable? properties,

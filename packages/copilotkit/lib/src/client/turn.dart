@@ -11,7 +11,7 @@ import 'package:copilotkit/src/tools/tools.dart';
 /// mutable: a documented exception to the immutability rule.
 class Turn(
   /// The agent the turn runs.
-  final CopilotAgent agent,
+  final CopilotKitAgent agent,
 ) {
   /// Creates a turn of [agent].
   this;

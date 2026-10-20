@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// Read the agent below with [CopilotAgentScope.of], or watch parts of its
 /// state with `AgentStateBuilder`. A tool card can reach the agent this way,
-/// and a form can edit the shared state with `CopilotAgent.setSharedState`.
+/// and a form can edit the shared state with `CopilotKitAgent.setSharedState`.
 ///
 /// The client owns the agent, so the scope never closes it: the agent lives
 /// until the client closes. Two scopes with the same [agentId] under the same
@@ -26,7 +26,7 @@ class const CopilotAgentScope({
   /// Returns the agent of the nearest [CopilotAgentScope] ancestor.
   ///
   /// Throws a [FlutterError] if there is none.
-  static CopilotAgent of(BuildContext context) {
+  static CopilotKitAgent of(BuildContext context) {
     final agent = maybeOf(context);
     if (agent == null) {
       throw FlutterError(
@@ -39,7 +39,7 @@ class const CopilotAgentScope({
 
   /// Returns the agent of the nearest [CopilotAgentScope] ancestor, or
   /// `null`.
-  static CopilotAgent? maybeOf(BuildContext context) =>
+  static CopilotKitAgent? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CopilotAgentScope>()?.agent;
 
   @override
@@ -52,7 +52,7 @@ class const CopilotAgentScope({
 }
 
 class const _CopilotAgentScope({
-  required final CopilotAgent agent,
+  required final CopilotKitAgent agent,
   required super.child,
 }) extends InheritedWidget {
   @override

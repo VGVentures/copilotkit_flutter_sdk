@@ -18,7 +18,7 @@ dart pub add copilotkit
 
 ## Shared state
 
-An agent's `CopilotAgentState.sharedState` is sent with every run as
+An agent's `CopilotKitAgentState.sharedState` is sent with every run as
 `RunAgentInput.state`, and the agent updates it with `STATE_SNAPSHOT` and
 `STATE_DELTA` events. The app edits it through the agent:
 
@@ -55,8 +55,8 @@ client.registerTool(HumanInTheLoopTool(
 
 When the agent calls a human-in-the-loop tool and its run has finished
 streaming, the call is marked with `ToolCallView.awaitingResponse` and listed
-in `CopilotAgentState.awaitingResponseIds`. The turn waits until the app calls
-`respondToToolCall` for the call, whenever the user decides; a `String`
+in `CopilotKitAgentState.awaitingResponseIds`. The turn waits until the app
+calls `respondToToolCall` for the call, whenever the user decides; a `String`
 result is sent as it is, anything else JSON-encoded. The answer becomes the
 tool message and the agent runs again, unless the tool sets `followUp: false`.
 

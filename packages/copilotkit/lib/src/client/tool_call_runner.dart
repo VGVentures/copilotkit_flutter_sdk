@@ -16,7 +16,7 @@ class ToolCallRunner({
   required final ToolRegistry _tools,
 
   /// Receives the errors of tool handlers and answers that can't be encoded.
-  required final CopilotErrorHandler _onError,
+  required final CopilotKitErrorHandler _onError,
 
   /// Produces the result of each call.
   final ToolCallExecutor _executor = const ToolCallExecutor(),
@@ -61,7 +61,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= _followsUp(tool);
+      followUp |= tool.followsUp;
     }
     return followUp;
   }
@@ -76,7 +76,7 @@ class ToolCallRunner({
   /// its tool is not a registered `HumanInTheLoopTool`. A [result] that
   /// can't be encoded goes to the error handler and leaves the call waiting.
   void respond(
-    Iterable<CopilotAgent> agents,
+    Iterable<CopilotKitAgent> agents,
     String toolCallId,
     Object? result,
   ) {
@@ -90,7 +90,7 @@ class ToolCallRunner({
 
   /// Answers the calls of the tool [toolName] in [agents] that wait for the
   /// user as cancelled: with the tool gone, nobody can answer them.
-  void cancelAwaiting(Iterable<CopilotAgent> agents, String toolName) {
+  void cancelAwaiting(Iterable<CopilotKitAgent> agents, String toolName) {
     for (final agent in agents) {
       for (final call in agent.state.toolCalls) {
         if (call.name == toolName && call.awaitingResponse) {
@@ -104,7 +104,7 @@ class ToolCallRunner({
   /// [where], if set) the message of [result], so the conversation stays
   /// valid for the next run.
   void closeOpen(
-    CopilotAgent agent,
+    CopilotKitAgent agent,
     FallbackToolResult result, {
     bool Function(ToolCallView call)? where,
   }) {
@@ -122,7 +122,7 @@ class ToolCallRunner({
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
   List<(ToolCallView, ClientTool<Object?>)> _pendingToolCalls(
-    CopilotAgent agent,
+    CopilotKitAgent agent,
   ) => [
     for (final call in agent.state.toolCalls)
       if ((call.status, _tools[call.name]) case (
@@ -137,7 +137,7 @@ class ToolCallRunner({
   /// Calls whose arguments don't match their tool's parameters are left out:
   /// they get the invalid arguments result without waiting.
   void _markAwaitingResponse(
-    CopilotAgent agent,
+    CopilotKitAgent agent,
     List<(ToolCallView, ClientTool<Object?>)> pending,
   ) {
     for (final (call, tool) in pending) {
@@ -147,17 +147,11 @@ class ToolCallRunner({
     }
   }
 
-  /// Whether the agent runs again after [tool] produced its result.
-  bool _followsUp(ClientTool<Object?> tool) => switch (tool) {
-    FrontendTool() => true,
-    HumanInTheLoopTool(:final followUp) => followUp,
-  };
-
   /// Whether [toolCallId] is a call of a registered `HumanInTheLoopTool`
   /// in one of [agents] with complete arguments, no result and no answer
   /// yet.
   bool _isUnansweredHumanCall(
-    Iterable<CopilotAgent> agents,
+    Iterable<CopilotKitAgent> agents,
     String toolCallId,
   ) =>
       !_responses.isAnswered(toolCallId) &&
@@ -171,7 +165,11 @@ class ToolCallRunner({
       );
 
   /// A closed agent ignores the result.
-  void _addToolResult(CopilotAgent agent, ToolCallView call, String content) {
+  void _addToolResult(
+    CopilotKitAgent agent,
+    ToolCallView call,
+    String content,
+  ) {
     agent.apply(
       ToolCallResultEvent(
         messageId: _uuid.v4(),
@@ -183,4 +181,12 @@ class ToolCallRunner({
     // and is ignored.
     _responses.remove(call.id);
   }
+}
+
+extension on ClientTool<Object?> {
+  /// Whether the agent runs again after this tool produced its result.
+  bool get followsUp => switch (this) {
+    FrontendTool() => true,
+    HumanInTheLoopTool(:final followUp) => followUp,
+  };
 }

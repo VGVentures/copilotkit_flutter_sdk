@@ -15,7 +15,7 @@ void main() {
     late ToolRegistry tools;
     late List<Object> errors;
     late ToolCallRunner toolCalls;
-    late CopilotAgent agent;
+    late CopilotKitAgent agent;
     late Turn turn;
 
     setUp(() {
@@ -25,7 +25,7 @@ void main() {
         tools: tools,
         onError: (error, _) => errors.add(error),
       );
-      agent = CopilotAgent(agentId: 'default');
+      agent = CopilotKitAgent(agentId: 'default');
       turn = Turn(agent);
     });
 

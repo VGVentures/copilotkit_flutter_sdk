@@ -10,7 +10,7 @@ class const JsonPatcher() {
   /// [document] is never mutated. Throws a [FormatException] when a pointer
   /// is malformed, a path doesn't exist, or a [JsonPatchTest] fails.
   Object? apply(Object? document, List<JsonPatchOperation> operations) {
-    var result = _deepCopy(document);
+    var result = document.deepCopy();
     for (final operation in operations) {
       result = _apply(result, operation);
     }
@@ -20,41 +20,29 @@ class const JsonPatcher() {
   Object? _apply(Object? document, JsonPatchOperation operation) {
     switch (operation) {
       case JsonPatchAdd(:final path, :final value):
-        return _add(document, _pointer(path), _deepCopy(value));
+        return _add(document, path.pointerTokens, value.deepCopy());
       case JsonPatchRemove(:final path):
-        _remove(document, _pointer(path));
+        _remove(document, path.pointerTokens);
         return document;
       case JsonPatchReplace(:final path, :final value):
-        final tokens = _pointer(path);
-        if (tokens.isEmpty) return _deepCopy(value);
+        final tokens = path.pointerTokens;
+        if (tokens.isEmpty) return value.deepCopy();
         _remove(document, tokens);
-        return _add(document, tokens, _deepCopy(value));
+        return _add(document, tokens, value.deepCopy());
       case JsonPatchMove(:final from, :final path):
-        final fromTokens = _pointer(from);
+        final fromTokens = from.pointerTokens;
         final value = _get(document, fromTokens);
         _remove(document, fromTokens);
-        return _add(document, _pointer(path), value);
+        return _add(document, path.pointerTokens, value);
       case JsonPatchCopy(:final from, :final path):
-        final value = _deepCopy(_get(document, _pointer(from)));
-        return _add(document, _pointer(path), value);
+        final value = _get(document, from.pointerTokens).deepCopy();
+        return _add(document, path.pointerTokens, value);
       case JsonPatchTest(:final path, :final value):
-        if (!_deepEquals(_get(document, _pointer(path)), value)) {
+        if (!_get(document, path.pointerTokens).deepEquals(value)) {
           throw FormatException('JSON Patch test failed at $path');
         }
         return document;
     }
-  }
-
-  /// Parses the RFC 6901 [pointer] into reference tokens.
-  List<String> _pointer(String pointer) {
-    if (pointer.isEmpty) return const [];
-    if (!pointer.startsWith('/')) {
-      throw FormatException('Invalid JSON Pointer: $pointer');
-    }
-    return [
-      for (final token in pointer.substring(1).split('/'))
-        token.replaceAll('~1', '/').replaceAll('~0', '~'),
-    ];
   }
 
   Object? _get(Object? document, List<String> path) {
@@ -119,29 +107,48 @@ class const JsonPatcher() {
     }
     return index;
   }
+}
 
-  Object? _deepCopy(Object? value) => switch (value) {
-    Map<String, Object?>() => {
-      for (final entry in value.entries) entry.key: _deepCopy(entry.value),
+extension on String {
+  /// This RFC 6901 JSON Pointer parsed into reference tokens.
+  List<String> get pointerTokens {
+    if (isEmpty) return const [];
+    if (!startsWith('/')) {
+      throw FormatException('Invalid JSON Pointer: $this');
+    }
+    return [
+      for (final token in substring(1).split('/'))
+        token.replaceAll('~1', '/').replaceAll('~0', '~'),
+    ];
+  }
+}
+
+extension on Object? {
+  /// A copy of this JSON value that shares no map or list with it.
+  Object? deepCopy() => switch (this) {
+    final Map<String, Object?> map => {
+      for (final entry in map.entries) entry.key: entry.value.deepCopy(),
     },
-    List<Object?>() => [for (final item in value) _deepCopy(item)],
-    _ => value,
+    final List<Object?> list => [for (final item in list) item.deepCopy()],
+    final value => value,
   };
 
-  bool _deepEquals(Object? a, Object? b) {
-    if (a is Map<String, Object?> && b is Map<String, Object?>) {
-      return a.length == b.length &&
-          a.entries.every(
-            (e) => b.containsKey(e.key) && _deepEquals(e.value, b[e.key]),
+  /// Whether this JSON value and [other] hold the same data.
+  bool deepEquals(Object? other) {
+    final value = this;
+    if (value is Map<String, Object?> && other is Map<String, Object?>) {
+      return value.length == other.length &&
+          value.entries.every(
+            (e) => other.containsKey(e.key) && e.value.deepEquals(other[e.key]),
           );
     }
-    if (a is List<Object?> && b is List<Object?>) {
-      if (a.length != b.length) return false;
-      for (var i = 0; i < a.length; i++) {
-        if (!_deepEquals(a[i], b[i])) return false;
+    if (value is List<Object?> && other is List<Object?>) {
+      if (value.length != other.length) return false;
+      for (var i = 0; i < value.length; i++) {
+        if (!value[i].deepEquals(other[i])) return false;
       }
       return true;
     }
-    return a == b;
+    return value == other;
   }
 }

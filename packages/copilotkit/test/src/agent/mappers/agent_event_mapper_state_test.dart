@@ -1,15 +1,15 @@
 import 'package:ag_ui/ag_ui.dart';
-import 'package:copilotkit/src/agent/agent_event_reducer.dart';
-import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/mappers/agent_event_mapper.dart';
+import 'package:copilotkit/src/agent/models/copilotkit_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:test/test.dart';
 
-import '../../helpers/agent.dart';
+import '../../../helpers/agent.dart';
 
 void main() {
-  group('$AgentEventReducer reduces state', () {
+  group('$AgentEventMapper maps state', () {
     test('StateSnapshot replaces the state', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         StateSnapshotEvent(snapshot: {'count': 1}),
         StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
@@ -22,7 +22,7 @@ void main() {
     });
 
     test('StateDelta applies a JSON Patch to the state', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           StateDeltaEvent(
             delta: [
@@ -49,7 +49,7 @@ void main() {
     });
 
     test('StateDelta applies to an empty object when there is no state', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         StateDeltaEvent(
           delta: [
             {'op': 'add', 'path': '/count', 'value': 1},
@@ -68,7 +68,7 @@ void main() {
     );
 
     test('StateDelta does not mutate the previous state', () {
-      reduce(const [
+      mapEvents(const [
         StateDeltaEvent(
           delta: [
             {'op': 'add', 'path': '/items/-', 'value': 'b'},
@@ -84,7 +84,7 @@ void main() {
     });
 
     test('a StateDelta that does not apply leaves the state unchanged', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           StateDeltaEvent(
             delta: [
@@ -96,7 +96,7 @@ void main() {
           sharedState: () => const SharedState({'count': 1}),
         ),
       );
-      expect(result.states, const <CopilotAgentState>[]);
+      expect(result.states, const <CopilotKitAgentState>[]);
     });
 
     final fresh = [
@@ -105,7 +105,7 @@ void main() {
     ];
 
     test('MessagesSnapshot replaces the messages', () {
-      final result = reduce(
+      final result = mapEvents(
         [MessagesSnapshotEvent(messages: fresh)],
         from: agentState.copyWith(
           messages: [UserMessage(id: 'u0', content: 'Old')],

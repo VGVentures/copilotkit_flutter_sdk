@@ -117,7 +117,7 @@ The repository is a Dart pub workspace with three packages.
 
 | Path | What it is |
 | --- | --- |
-| `packages/copilotkit` | Pure Dart core: `CopilotKitClient` (agents, frontend and human-in-the-loop tools, context and runs), `CopilotAgent` (one conversation, with its `CopilotAgentState` as `state` and `stream`), and the AG-UI transport. No Flutter or bloc dependency. |
+| `packages/copilotkit` | Pure Dart core: `CopilotKitClient` (agents, frontend and human-in-the-loop tools, context and runs), `CopilotKitAgent` (one conversation, with its `CopilotKitAgentState` as `state` and `stream`), and the AG-UI transport. No Flutter or bloc dependency. |
 | `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `CopilotHumanInTheLoop`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, `CopilotChatProvider` and `CopilotChatBloc`. Re-exports the core. |
 | `example` | Demo app, plus the local runtime in `example/tool/`. |
 
