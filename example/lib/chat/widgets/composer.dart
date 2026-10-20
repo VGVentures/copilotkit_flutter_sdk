@@ -19,9 +19,10 @@ class _ComposerState extends State<Composer> {
 
   void _send() {
     final bloc = context.read<CopilotChatBloc>();
-    final text = _controller.text.trim();
-    if (text.isEmpty || bloc.state.isRunning) return;
-    bloc.add(ChatMessageSent(text));
+    // Keeps the text while the agent runs, since the client would drop it.
+    // Blank text is ignored by the bloc.
+    if (bloc.state.isRunning) return;
+    bloc.add(ChatMessageSent(_controller.text));
     _controller.clear();
   }
 

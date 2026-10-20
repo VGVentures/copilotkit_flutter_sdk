@@ -100,7 +100,7 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
   await client.close();
 }
 
-/// Placeholder tool from `example/lib/demo/weather_demo.dart`.
+/// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
