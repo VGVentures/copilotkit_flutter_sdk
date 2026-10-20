@@ -47,9 +47,22 @@ snapshot (a loaded history) render through `ToolCallWidget` like live ones.
 `CopilotHumanInTheLoop` registers a `HumanInTheLoopTool` while it is mounted
 and renders its calls with their arguments decoded by the tool's `decode`.
 `respond` is `null` until the call waits for the user, so a card can only
-answer when it is time:
+answer when it is time.
+
+A tool's `parameters` is an [`ack`](https://pub.dev/packages/ack) schema.
+Neither `copilotkit_flutter` nor `copilotkit` re-exports `ack`, so add it to
+your app with `flutter pub add ack` and import it:
 
 ```dart
+import 'package:ack/ack.dart';
+
+final confirmAction = HumanInTheLoopTool(
+  name: 'confirmAction',
+  description: 'Ask the user to confirm an action before doing it.',
+  parameters: Ack.object({'action': Ack.string()}),
+  decode: ConfirmAction.fromJson,
+);
+
 CopilotHumanInTheLoop(
   tool: confirmAction,
   builder: (context, call, args, respond) => Column(
