@@ -1,6 +1,7 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:test/test.dart';
 
@@ -35,7 +36,7 @@ void main() {
         expect(result.states, [
           agentState.copyWith(
             isRunning: true,
-            error: () => const RunErrorEvent(message: 'Bad key', code: 'AUTH'),
+            error: () => const RunError(message: 'Bad key', code: 'AUTH'),
           ),
         ]);
       });
@@ -286,7 +287,7 @@ void main() {
         expect(result.state.messages, isEmpty);
         expect(
           result.state.error,
-          isA<RunErrorEvent>().having(
+          isA<RunError>().having(
             (error) => error.message,
             'message',
             contains('gemini-2.5-flash'),

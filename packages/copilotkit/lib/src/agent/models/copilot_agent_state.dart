@@ -1,4 +1,5 @@
 import 'package:ag_ui/ag_ui.dart';
+import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:equatable/equatable.dart';
@@ -46,7 +47,7 @@ class const CopilotAgentState({
   /// Error that ended the most recent run, or `null`. Cleared when a new run
   /// starts.
   ///
-  /// A [RunErrorEvent] when the runtime reported the error; otherwise the
+  /// A [RunError] when the runtime reported the error; otherwise the
   /// transport or client error.
   final Object? error,
 }) extends Equatable {
