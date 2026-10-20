@@ -21,7 +21,13 @@ export 'package:ag_ui/ag_ui.dart'
         UserMessage;
 
 export 'src/agent/agent.dart';
-export 'src/client/client.dart';
-export 'src/context/context.dart';
-export 'src/tools/tools.dart' hide ToolSchema;
+export 'src/client/client.dart' hide AgentRunner, RunInputBuilder;
+export 'src/context/context.dart' hide AgentContextStore;
+export 'src/tools/tools.dart'
+    hide
+        FallbackToolResult,
+        ToolCallExecutor,
+        ToolCallOutcome,
+        ToolRegistry,
+        ToolSchema;
 export 'src/transport/transport.dart' show AgentTransport;
