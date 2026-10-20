@@ -20,7 +20,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:ack/ack.dart';
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:json_utils/json_utils.dart';
@@ -58,14 +58,14 @@ Future<void> main(List<String> arguments) async {
     print('GET $url/info -> ${info.statusCode}');
     print(info.body);
 
-    final client = AgUiClient(
-      config: AgUiClientConfig(baseUrl: url),
+    final client = ag_ui.AgUiClient(
+      config: ag_ui.AgUiClientConfig(baseUrl: url),
       httpClient: httpClient,
     );
-    final input = SimpleRunAgentInput(
+    final input = ag_ui.SimpleRunAgentInput(
       threadId: 'thread-${DateTime.now().millisecondsSinceEpoch}',
       runId: 'run-${DateTime.now().millisecondsSinceEpoch}',
-      messages: [UserMessage(id: 'user-1', content: message)],
+      messages: [ag_ui.UserMessage(id: 'user-1', content: message)],
     );
 
     print('POST $url/agent/$agent/run');
@@ -84,11 +84,12 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
   );
   final agent = client.agent(agentId);
   final subscription = agent.stream.listen((state) {
-    final last = state.messages.lastOrNull;
-    print(
-      'running: ${state.isRunning} | ${last?.role.value}: '
-      '${last?.content}',
-    );
+    final text = switch (state.messages.lastOrNull) {
+      UserMessage(:final content) => 'user: $content',
+      AssistantMessage(:final content) => 'assistant: $content',
+      final last => '${last?.runtimeType}',
+    };
+    print('running: ${state.isRunning} | $text');
   });
   await client.runAgent(
     agentId,
@@ -102,7 +103,7 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
 }
 
 /// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
-final _showWeather = Tool(
+final _showWeather = ag_ui.Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
   parameters: const JsonSchemaNormalizer().normalize(
@@ -125,11 +126,11 @@ Future<void> _record({
       (await httpClient.get(Uri.parse('$url/info'))).body,
     ) as Map<String, Object?>;
     final stamp = DateTime.now().millisecondsSinceEpoch;
-    final input = RunAgentInput(
+    final input = ag_ui.RunAgentInput(
       threadId: 'thread-$stamp',
       runId: 'run-$stamp',
       state: state,
-      messages: [UserMessage(id: 'user-1', content: message)],
+      messages: [ag_ui.UserMessage(id: 'user-1', content: message)],
       tools: [if (withTool) _showWeather],
       context: const [],
     );

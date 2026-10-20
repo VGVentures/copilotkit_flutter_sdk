@@ -120,6 +120,21 @@ final class const AssistantMessage({
   /// Creates a message from the assistant.
   this;
 
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// [content] is a getter so a caller can set it (`content: () => text`),
+  /// clear it (`content: () => null`) or leave it alone by not passing it.
+  AssistantMessage copyWith({
+    String? Function()? content,
+    List<ToolCall>? toolCalls,
+  }) => AssistantMessage(
+    id: id,
+    content: content == null ? this.content : content(),
+    toolCalls: toolCalls ?? this.toolCalls,
+    name: name,
+    encryptedValue: encryptedValue,
+  );
+
   @override
   @internal
   ag_ui.Message toAgUi() => ag_ui.AssistantMessage(

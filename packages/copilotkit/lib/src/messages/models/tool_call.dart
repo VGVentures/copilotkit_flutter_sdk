@@ -30,6 +30,14 @@ class const ToolCall({
     encryptedValue: call.encryptedValue,
   );
 
+  /// Returns a copy with [arguments] replaced.
+  ToolCall copyWith({String? arguments}) => ToolCall(
+    id: id,
+    name: name,
+    arguments: arguments ?? this.arguments,
+    encryptedValue: encryptedValue,
+  );
+
   /// This call as an AG-UI function call.
   @internal
   ag_ui.ToolCall toAgUi() => ag_ui.ToolCall(

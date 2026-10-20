@@ -1,6 +1,6 @@
-import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
+import 'package:copilotkit/src/messages/models/message.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:equatable/equatable.dart';
 

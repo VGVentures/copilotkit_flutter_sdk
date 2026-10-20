@@ -74,6 +74,35 @@ void main() {
           ),
         );
       });
+      group('copyWith', () {
+        const message = AssistantMessage(
+          id: 'm1',
+          content: 'Sure',
+          toolCalls: [ToolCall(id: 'c1', name: 'show', arguments: '{}')],
+          name: 'bot',
+          encryptedValue: 'secret',
+        );
+
+        test('keeps every field when nothing is passed', () {
+          expect(message.copyWith(), message);
+        });
+
+        test('replaces the given fields', () {
+          expect(
+            message.copyWith(content: () => 'Done', toolCalls: const []),
+            const AssistantMessage(
+              id: 'm1',
+              content: 'Done',
+              name: 'bot',
+              encryptedValue: 'secret',
+            ),
+          );
+        });
+
+        test('can clear the content', () {
+          expect(message.copyWith(content: () => null).content, isNull);
+        });
+      });
     });
 
     group(SystemMessage, () {

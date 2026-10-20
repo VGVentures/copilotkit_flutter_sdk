@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   const agentState = CopilotAgentState(agentId: 'default', threadId: 't');
-  final user = UserMessage(id: 'u1', content: 'Weather in Lima?');
+  const user = UserMessage(id: 'u1', content: 'Weather in Lima?');
   const assistant = AssistantMessage(id: 'a1', content: 'Let me check');
   const call = ToolCallView(
     id: 'c1',
@@ -15,7 +15,7 @@ void main() {
   group(ChatRowMapper, () {
     const mapper = ChatRowMapper();
 
-    test('hides tool, system and empty messages', () {
+    test('hides tool, system, unsupported and empty messages', () {
       final rows = mapper.rowsFor(
         agentState.copyWith(
           messages: [
@@ -24,27 +24,29 @@ void main() {
             const AssistantMessage(id: 'empty', content: ''),
             const AssistantMessage(id: 'none'),
             const ToolMessage(id: 't', content: 'ok', toolCallId: 'c'),
-            UserMessage(id: 'blank', content: ''),
+            const DeveloperMessage(id: 'd', content: 'Debug'),
+            const UnsupportedMessage(
+              id: 'r',
+              data: {'id': 'r', 'role': 'reasoning', 'content': 'Hmm'},
+            ),
+            const UserMessage(id: 'blank', content: ''),
             assistant,
           ],
         ),
       );
 
-      expect(rows, [ChatMessageRow(user), const ChatMessageRow(assistant)]);
+      expect(rows, [
+        const ChatMessageRow(user),
+        const ChatMessageRow(assistant),
+      ]);
     });
 
     test('shows tool calls after their message, even without text', () {
       const callOnly = AssistantMessage(
         id: 'a2',
         toolCalls: [
-          ToolCall(
-            id: 'c1',
-            function: FunctionCall(name: 'showWeather', arguments: '{}'),
-          ),
-          ToolCall(
-            id: 'unknown',
-            function: FunctionCall(name: 'other', arguments: '{}'),
-          ),
+          ToolCall(id: 'c1', name: 'showWeather', arguments: '{}'),
+          ToolCall(id: 'unknown', name: 'other', arguments: '{}'),
         ],
       );
 

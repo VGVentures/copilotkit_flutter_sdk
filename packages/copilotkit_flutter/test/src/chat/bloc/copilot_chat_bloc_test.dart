@@ -11,7 +11,7 @@ class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 class _MockCopilotAgent extends Mock implements CopilotAgent;
 
 const _agentState = CopilotAgentState(agentId: 'default', threadId: 't');
-final _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
+const _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
 const _call = ToolCallView(
   id: 'c1',
   name: 'showWeather',
@@ -21,12 +21,7 @@ const _call = ToolCallView(
 const _assistantWithCall = AssistantMessage(
   id: 'a1',
   content: 'Let me check',
-  toolCalls: [
-    ToolCall(
-      id: 'c1',
-      function: FunctionCall(name: 'showWeather', arguments: '{}'),
-    ),
-  ],
+  toolCalls: [ToolCall(id: 'c1', name: 'showWeather', arguments: '{}')],
 );
 
 void main() {
@@ -69,7 +64,7 @@ void main() {
       build: buildBloc,
       verify: (bloc) => expect(
         bloc.state,
-        CopilotChatState(
+        const CopilotChatState(
           rows: [ChatMessageRow(_user)],
           isRunning: true,
           error: 'boom',
@@ -101,20 +96,20 @@ void main() {
           );
       },
       expect: () => [
-        CopilotChatState(rows: [ChatMessageRow(_user)], isRunning: true),
-        CopilotChatState(
+        const CopilotChatState(rows: [ChatMessageRow(_user)], isRunning: true),
+        const CopilotChatState(
           rows: [
             ChatMessageRow(_user),
-            const ChatMessageRow(_assistantWithCall),
-            const ChatToolCallRow(_call),
+            ChatMessageRow(_assistantWithCall),
+            ChatToolCallRow(_call),
           ],
           isRunning: true,
         ),
-        CopilotChatState(
+        const CopilotChatState(
           rows: [
             ChatMessageRow(_user),
-            const ChatMessageRow(_assistantWithCall),
-            const ChatToolCallRow(_call),
+            ChatMessageRow(_assistantWithCall),
+            ChatToolCallRow(_call),
           ],
           error: 'boom',
         ),
@@ -130,7 +125,7 @@ void main() {
         bloc.add(const ChatSubscriptionRequested());
       },
       expect: () => [
-        CopilotChatState(rows: [ChatMessageRow(_user)]),
+        const CopilotChatState(rows: [ChatMessageRow(_user)]),
       ],
     );
 
@@ -159,7 +154,7 @@ void main() {
       verify: (_) {
         final message = sentMessages().single;
         expect(message.content, 'Hi there');
-        expect(Uuid.isValidUUID(fromString: message.id!), isTrue);
+        expect(Uuid.isValidUUID(fromString: message.id), isTrue);
       },
     );
 

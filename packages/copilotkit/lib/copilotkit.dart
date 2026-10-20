@@ -4,19 +4,7 @@
 /// tools and context in sync. Has no Flutter dependency.
 library;
 
-export 'package:ag_ui/ag_ui.dart'
-    show
-        AssistantMessage,
-        BaseEvent,
-        DeveloperMessage,
-        EventType,
-        FunctionCall,
-        Message,
-        RunAgentInput,
-        SystemMessage,
-        ToolCall,
-        ToolMessage,
-        UserMessage;
+export 'package:ag_ui/ag_ui.dart' show BaseEvent, EventType, RunAgentInput;
 
 export 'src/agent/agent.dart';
 export 'src/client/client.dart'
@@ -29,6 +17,7 @@ export 'src/client/client.dart'
         ToolCallRunner,
         Turn;
 export 'src/context/context.dart' hide AgentContextStore;
+export 'src/messages/messages.dart';
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,

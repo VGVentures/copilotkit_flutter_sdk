@@ -59,7 +59,10 @@ Future<void> main() async {
   // Completes once the whole turn ends, tool calls included.
   await client.runAgent(
     'default',
-    message: UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
+    message: const UserMessage(
+      id: 'user-1',
+      content: "What's the weather in Lima?",
+    ),
   );
 
   await subscription.cancel();

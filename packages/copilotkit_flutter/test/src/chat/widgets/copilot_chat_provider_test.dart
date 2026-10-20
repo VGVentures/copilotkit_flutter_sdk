@@ -60,11 +60,7 @@ void main() {
 
       expect(
         bloc.state.rows.single,
-        isA<ChatMessageRow>().having(
-          (row) => row.message.content,
-          'content',
-          'Hi from default',
-        ),
+        const ChatMessageRow(UserMessage(id: 'u1', content: 'Hi from default')),
       );
       verify(() => client.agent('default')).called(greaterThan(0));
     });

@@ -1,8 +1,9 @@
 import 'package:ack/ack.dart';
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -12,12 +13,12 @@ class _MockUuid extends Mock implements Uuid;
 
 void main() {
   group(RunInputBuilder, () {
-    final user = UserMessage(id: 'u1', content: 'Hi');
-    final agent = CopilotAgentState(
+    const user = UserMessage(id: 'u1', content: 'Hi');
+    const agent = CopilotAgentState(
       agentId: 'default',
       threadId: 'thread-1',
       messages: [user],
-      sharedState: const SharedState({'count': 1}),
+      sharedState: SharedState({'count': 1}),
     );
     final tool = FrontendTool(
       name: 'showWeather',
@@ -31,6 +32,46 @@ void main() {
       description: 'Current user',
       value: const {'name': 'Ada'},
     );
+
+    test('sends the messages as AG-UI messages, unchanged', () {
+      final reasoning = const ag_ui.ReasoningMessage(
+        id: 'r1',
+        content: 'Thinking',
+        encryptedValue: 'secret',
+      ).toJson();
+      final input = const RunInputBuilder().build(
+        agent: agent.copyWith(
+          messages: [
+            user,
+            const AssistantMessage(
+              id: 'a1',
+              toolCalls: [
+                ToolCall(id: 'c1', name: 'showWeather', arguments: '{}'),
+              ],
+            ),
+            UnsupportedMessage(id: 'r1', data: reasoning),
+          ],
+        ),
+        tools: const [],
+        context: const [],
+      );
+
+      expect(input.messages.map((message) => message.toJson()), [
+        {'id': 'u1', 'role': 'user', 'content': 'Hi'},
+        {
+          'id': 'a1',
+          'role': 'assistant',
+          'toolCalls': [
+            {
+              'id': 'c1',
+              'type': 'function',
+              'function': {'name': 'showWeather', 'arguments': '{}'},
+            },
+          ],
+        },
+        reasoning,
+      ]);
+    });
 
     test('builds the input from the agent, tools, context and properties', () {
       final uuid = _MockUuid();
@@ -46,7 +87,7 @@ void main() {
       expect(input.threadId, 'thread-1');
       expect(input.runId, 'run-1');
       expect(input.state, {'count': 1});
-      expect(input.messages, [user]);
+      expect(input.messages.map(Message.fromAgUi), [user]);
       expect(input.tools.single.name, 'showWeather');
       expect(input.tools.single.description, 'Show the weather');
       expect(input.tools.single.parameters, {
@@ -118,7 +159,7 @@ void main() {
 
     test('generates a new run id for every run by default', () {
       const builder = RunInputBuilder();
-      RunAgentInput build() =>
+      ag_ui.RunAgentInput build() =>
           builder.build(agent: agent, tools: const [], context: const []);
 
       expect(build().runId, isNot(build().runId));
