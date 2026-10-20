@@ -9,6 +9,7 @@ import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
+import 'package:meta/meta.dart';
 
 /// Connects an app to a Copilot Runtime.
 ///
@@ -23,7 +24,7 @@ class CopilotKitClient({
   final HeadersBuilder? _headers,
   final Map<String, Object?>? _properties,
   final CopilotErrorHandler? _onError,
-  AgentTransport? transport,
+  @visibleForTesting AgentTransport? transport,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -32,8 +33,8 @@ class CopilotKitClient({
   /// `properties` are sent with every run as `RunAgentInput.forwardedProps`,
   /// e.g. a model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
-  /// they are logged. [transport] defaults to an `ag_ui`-backed transport
-  /// for [runtimeUrl].
+  /// they are logged. [transport] replaces the AG-UI transport to
+  /// [runtimeUrl] in tests.
   this;
 
   final AgentTransport _transport =

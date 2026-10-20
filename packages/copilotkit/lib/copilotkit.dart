@@ -4,8 +4,6 @@
 /// tools and context in sync. Has no Flutter dependency.
 library;
 
-export 'package:ag_ui/ag_ui.dart' show BaseEvent, EventType, RunAgentInput;
-
 export 'src/agent/agent.dart';
 export 'src/client/client.dart'
     hide
@@ -25,4 +23,3 @@ export 'src/tools/tools.dart'
         ToolCallOutcome,
         ToolRegistry,
         ToolResponses;
-export 'src/transport/transport.dart' show AgentTransport;

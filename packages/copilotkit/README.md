@@ -16,6 +16,34 @@ Install via `dart pub add`:
 dart pub add copilotkit
 ```
 
+## Messages
+
+The conversation is `CopilotAgentState.messages`, a list of `Message`s:
+`UserMessage`, `AssistantMessage` (text, tool calls or both),
+`SystemMessage`, `DeveloperMessage` and `ToolMessage`. They're
+`copilotkit` models: the SDK talks to the runtime over AG-UI, but doesn't
+expose `ag_ui` types, so apps don't depend on `ag_ui`. A message the SDK
+doesn't model, like reasoning, is kept as an `UnsupportedMessage` and sent
+back to the runtime unchanged.
+
+```dart
+await client.runAgent(
+  'default',
+  message: UserMessage(id: const Uuid().v4(), content: 'Hi'),
+);
+
+for (final message in client.agent('default').state.messages) {
+  switch (message) {
+    case UserMessage(:final content):
+      print('user: $content');
+    case AssistantMessage(:final content, :final toolCalls):
+      print('assistant: ${content ?? ''} (${toolCalls.length} tool calls)');
+    case _:
+      break;
+  }
+}
+```
+
 ## Shared state
 
 An agent's `CopilotAgentState.sharedState` is sent with every run as

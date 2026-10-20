@@ -1,3 +1,4 @@
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 
@@ -22,7 +23,7 @@ class ClientHarness {
   final List<Object> errors = [];
 
   /// Event streams for the next runs, consumed in order.
-  final List<Stream<BaseEvent>> runs = [];
+  final List<Stream<ag_ui.BaseEvent>> runs = [];
 
   /// The client under test.
   late final CopilotKitClient client = CopilotKitClient(
