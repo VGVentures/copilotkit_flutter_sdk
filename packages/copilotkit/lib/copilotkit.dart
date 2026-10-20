@@ -23,7 +23,18 @@ export 'package:ag_ui/ag_ui.dart'
 export 'src/agent/agent.dart';
 export 'src/client/client.dart' hide AgentRunner, RunInputBuilder;
 export 'src/context/context.dart' hide AgentContextStore;
-export 'src/json/json.dart' show JsonDecoder, JsonEncodable, JsonObject;
+export 'src/json/json.dart'
+    show
+        JsonDecoder,
+        JsonEncodable,
+        JsonObject,
+        JsonPatchAdd,
+        JsonPatchCopy,
+        JsonPatchMove,
+        JsonPatchOperation,
+        JsonPatchRemove,
+        JsonPatchReplace,
+        JsonPatchTest;
 export 'src/tools/tools.dart'
     hide FallbackToolResult, ToolCallExecutor, ToolCallOutcome, ToolRegistry;
 export 'src/transport/transport.dart' show AgentTransport;

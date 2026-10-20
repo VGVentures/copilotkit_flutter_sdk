@@ -80,6 +80,9 @@ class const AgentEventReducer({
 
   /// A delta that doesn't apply (e.g. it was computed against a state this
   /// client never saw) is dropped; the next snapshot resyncs the state.
+  ///
+  /// Before any state exists the delta applies to an empty object, as in the
+  /// AG-UI client, instead of being dropped.
   CopilotAgentState _applyStateDelta(
     CopilotAgentState snapshot,
     StateDeltaEvent event,
@@ -88,7 +91,10 @@ class const AgentEventReducer({
       final operations = event.delta.map(JsonPatchOperation.fromJson).toList();
       return snapshot.copyWith(
         sharedState: () => SharedState(
-          _patcher.apply(snapshot.sharedState?.toJson(), operations),
+          _patcher.apply(
+            snapshot.sharedState?.toJson() ?? const <String, Object?>{},
+            operations,
+          ),
         ),
       );
     } on FormatException {

@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
@@ -24,6 +25,128 @@ void main() {
       final agent = buildAgent()..addMessage(user);
 
       expect(agent.state, agentState.copyWith(messages: [user]));
+    });
+
+    group('setMessages', () {
+      const assistant = AssistantMessage(
+        id: 'a1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(name: 'showWeather', arguments: '{}'),
+          ),
+        ],
+      );
+
+      test('replaces the messages', () {
+        final agent = buildAgent()
+          ..addMessage(user)
+          ..setMessages(const []);
+
+        expect(agent.state, agentState);
+      });
+
+      test('drops the tool calls no message refers to', () {
+        final agent = buildAgent()
+          ..addMessage(user)
+          ..apply(
+            const ToolCallStartEvent(
+              toolCallId: 'c1',
+              toolCallName: 'showWeather',
+              parentMessageId: 'a1',
+            ),
+          )
+          ..apply(
+            const ToolCallStartEvent(
+              toolCallId: 'c2',
+              toolCallName: 'showWeather',
+              parentMessageId: 'a2',
+            ),
+          )
+          ..setMessages(const [assistant]);
+
+        expect(agent.state.messages, const [assistant]);
+        expect(agent.state.toolCalls.map((view) => view.id), ['c1']);
+      });
+    });
+
+    group('setSharedState', () {
+      test('replaces the shared state', () {
+        final agent = buildAgent()
+          ..setSharedState(const SharedState({'old': true}))
+          ..setSharedState(const SharedState({'count': 1}));
+
+        expect(
+          agent.state,
+          agentState.copyWith(
+            sharedState: () => const SharedState({'count': 1}),
+          ),
+        );
+      });
+
+      test('clears the shared state with null', () {
+        final agent = buildAgent()
+          ..setSharedState(const SharedState({'old': true}))
+          ..setSharedState(null);
+
+        expect(agent.state, agentState);
+      });
+
+      test('an equal state emits nothing', () async {
+        final agent = buildAgent()
+          ..setSharedState(const SharedState({'count': 1}));
+        final states = agent.stream.toList();
+
+        agent.setSharedState(const SharedState({'count': 1}));
+        await agent.close();
+
+        expect(await states, isEmpty);
+      });
+    });
+
+    group('patchSharedState', () {
+      test('applies the operations to the shared state', () {
+        final agent = buildAgent()
+          ..setSharedState(
+            const SharedState({
+              'count': 1,
+              'items': ['a'],
+            }),
+          )
+          ..patchSharedState(const [
+            JsonPatchReplace(path: '/count', value: 2),
+            JsonPatchAdd(path: '/items/-', value: 'b'),
+          ]);
+
+        expect(
+          agent.state.sharedState,
+          const SharedState({
+            'count': 2,
+            'items': ['a', 'b'],
+          }),
+        );
+      });
+
+      test('patches a missing state as an empty object', () {
+        final agent = buildAgent()
+          ..patchSharedState(const [JsonPatchAdd(path: '/count', value: 1)]);
+
+        expect(agent.state.sharedState, const SharedState({'count': 1}));
+      });
+
+      test('keeps the state and throws when an operation fails', () {
+        final agent = buildAgent()
+          ..setSharedState(const SharedState({'count': 1}));
+
+        expect(
+          () => agent.patchSharedState(const [
+            JsonPatchReplace(path: '/count', value: 2),
+            JsonPatchRemove(path: '/missing'),
+          ]),
+          throwsFormatException,
+        );
+        expect(agent.state.sharedState, const SharedState({'count': 1}));
+      });
     });
 
     test('startTurn sets isRunning and clears the last error', () {

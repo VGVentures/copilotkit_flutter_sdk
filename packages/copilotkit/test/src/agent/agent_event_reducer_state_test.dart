@@ -48,6 +48,19 @@ void main() {
       ]);
     });
 
+    test('StateDelta applies to an empty object when there is no state', () {
+      final result = reduce(const [
+        StateDeltaEvent(
+          delta: [
+            {'op': 'add', 'path': '/count', 'value': 1},
+          ],
+        ),
+      ]);
+      expect(result.states, [
+        agentState.copyWith(sharedState: () => const SharedState({'count': 1})),
+      ]);
+    });
+
     final before = agentState.copyWith(
       sharedState: () => const SharedState({
         'items': ['a'],
