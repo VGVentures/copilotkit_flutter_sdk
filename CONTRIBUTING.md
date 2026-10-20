@@ -60,10 +60,10 @@ Between features, dependencies form a fixed graph with no cycles:
 | --- | --- | --- |
 | `copilotkit` | `json` | — |
 | | `transport` | `json` |
-| | `agent` | `json`, `tools` |
+| | `agent` | `json`, `tools`, `json_utils` |
 | | `tools` | `json` |
 | | `context` | `json` |
-| | `client` | `json`, `transport`, `agent`, `tools`, `context` |
+| | `client` | `json`, `transport`, `agent`, `tools`, `context`, `json_utils` |
 | `copilotkit_flutter` | `client` | the core |
 | | `agent`, `tools`, `context` | `client`, the core |
 | | `chat` | `client`, `tools`, the core |
@@ -74,6 +74,10 @@ import another feature's model directly. The package barrel
 (`lib/copilotkit.dart`) exports only feature barrels, and uses `show` / `hide`
 to keep internal types private. A new feature, or a new edge between
 features, is a design change: add it to this table in the same pull request.
+
+`json_utils` is imported only by `copilotkit`, under `lib/src/` and `tool/`,
+through `package:json_utils/json_utils.dart`. `copilotkit` never exports it:
+its features convert to and from `Map<String, Object?>` at the call site.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
@@ -113,7 +117,7 @@ declarations. There are no extensions and no static helpers.
 const _cancelledResult = 'Tool call cancelled.';
 String _randomId() => ...;
 extension RunAgentInputX on RunAgentInput { ... }
-static Object? apply(Object? document, List<Map<String, Object?>> ops) => ...;
+static Map<String, Object?> apply(Map<String, Object?> document, ...) => ...;
 
 // Good
 enum FallbackToolResult {
@@ -127,7 +131,10 @@ enum FallbackToolResult {
 class const JsonPatcher() {
   this;
 
-  Object? apply(Object? document, List<JsonPatchOperation> operations) => ...;
+  Map<String, Object?> apply(
+    Map<String, Object?> document,
+    List<Map<String, Object?>> operations,
+  ) => ...;
 }
 ```
 

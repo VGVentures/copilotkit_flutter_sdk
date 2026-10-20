@@ -30,6 +30,9 @@ sealed class JsonPatchOperation extends Equatable {
       final op => throw FormatException('Unknown JSON Patch op: $op'),
     };
   }
+
+  /// Returns this operation as an RFC 6902 operation object.
+  Map<String, Object?> toJson();
 }
 
 /// Adds [value] at [path]: sets an object member, or inserts into an array
@@ -45,6 +48,9 @@ final class const JsonPatchAdd({
   this;
 
   @override
+  Map<String, Object?> toJson() => {'op': 'add', 'path': path, 'value': value};
+
+  @override
   List<Object?> get props => [path, value];
 }
 
@@ -55,6 +61,9 @@ final class const JsonPatchRemove({
 }) extends JsonPatchOperation {
   /// Creates an operation that removes the value at [path].
   this;
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'remove', 'path': path};
 
   @override
   List<Object?> get props => [path];
@@ -72,6 +81,13 @@ final class const JsonPatchReplace({
   this;
 
   @override
+  Map<String, Object?> toJson() => {
+    'op': 'replace',
+    'path': path,
+    'value': value,
+  };
+
+  @override
   List<Object?> get props => [path, value];
 }
 
@@ -85,6 +101,9 @@ final class const JsonPatchMove({
 }) extends JsonPatchOperation {
   /// Creates an operation that moves the value at [from] to [path].
   this;
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'move', 'from': from, 'path': path};
 
   @override
   List<Object?> get props => [from, path];
@@ -102,6 +121,9 @@ final class const JsonPatchCopy({
   this;
 
   @override
+  Map<String, Object?> toJson() => {'op': 'copy', 'from': from, 'path': path};
+
+  @override
   List<Object?> get props => [from, path];
 }
 
@@ -115,6 +137,9 @@ final class const JsonPatchTest({
 }) extends JsonPatchOperation {
   /// Creates an operation that checks the value at [path] equals [value].
   this;
+
+  @override
+  Map<String, Object?> toJson() => {'op': 'test', 'path': path, 'value': value};
 
   @override
   List<Object?> get props => [path, value];

@@ -52,13 +52,45 @@ void main() {
       expect(input.messages, [user]);
       expect(input.tools.single.name, 'showWeather');
       expect(input.tools.single.description, 'Show the weather');
-      expect(
-        input.tools.single.parameters,
-        const JsonSchemaEncoder().encode(tool.parameters),
-      );
+      expect(input.tools.single.parameters, {
+        'type': 'object',
+        'properties': {
+          'city': {'type': 'string'},
+        },
+        'required': ['city'],
+        'additionalProperties': false,
+      });
       expect(input.context.single.description, 'Current user');
       expect(input.context.single.value, '{"name":"Ada"}');
       expect(input.forwardedProps, {'locale': 'en'});
+    });
+
+    test('adds properties to empty object parameters', () {
+      final input = const RunInputBuilder().build(
+        agent: agent,
+        tools: [
+          FrontendTool(
+            name: 'refresh',
+            description: 'Refresh the screen',
+            parameters: Ack.object({'options': Ack.object({})}),
+            decode: JsonObject.new,
+            handler: (_, {required signal}) async => 'ok',
+          ),
+        ],
+        context: const [],
+      );
+
+      const empty = {
+        'type': 'object',
+        'additionalProperties': false,
+        'properties': <String, Object?>{},
+      };
+      expect(input.tools.single.parameters, {
+        'type': 'object',
+        'properties': {'options': empty},
+        'required': ['options'],
+        'additionalProperties': false,
+      });
     });
 
     test('keeps the context order and JSON-encodes each value', () {

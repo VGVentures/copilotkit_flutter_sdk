@@ -3,6 +3,7 @@ import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
+import 'package:json_utils/json_utils.dart';
 
 /// Applies AG-UI events to a [CopilotAgentState].
 class const AgentEventReducer({
@@ -124,7 +125,7 @@ class const AgentEventReducer({
           id: call.id,
           name: call.function.name,
           status: ToolCallStatus.executing,
-          args: _parser.parse(call.function.arguments),
+          args: JsonObject(_parser.parse(call.function.arguments)),
         );
     return switch (results[call.id]) {
       final result? => view.copyWith(
@@ -140,25 +141,34 @@ class const AgentEventReducer({
   /// client never saw) is dropped; the next snapshot resyncs the state.
   ///
   /// Before any state exists the delta applies to an empty object, as in the
-  /// AG-UI client, instead of being dropped.
+  /// AG-UI client, instead of being dropped. A state that isn't a JSON
+  /// object can't be patched, so the delta is dropped too.
   CopilotAgentState _applyStateDelta(
     CopilotAgentState snapshot,
     StateDeltaEvent event,
   ) {
     try {
-      final operations = event.delta.map(JsonPatchOperation.fromJson).toList();
       return snapshot.copyWith(
         sharedState: () => SharedState(
-          _patcher.apply(
-            snapshot.sharedState?.toJson() ?? const <String, Object?>{},
-            operations,
-          ),
+          _patcher.apply(_documentOf(snapshot.sharedState), event.delta),
         ),
       );
     } on FormatException {
       return snapshot;
     }
   }
+
+  /// The JSON object [state] holds, or an empty one when there is none.
+  ///
+  /// Throws a [FormatException] when [state] isn't a JSON object.
+  Map<String, Object?> _documentOf(SharedState? state) =>
+      switch (state?.toJson()) {
+        null => const {},
+        final Map<String, Object?> document => document,
+        final value => throw FormatException(
+          'Shared state is not a JSON object: $value',
+        ),
+      };
 
   CopilotAgentState _startToolCall(
     CopilotAgentState snapshot,
@@ -221,7 +231,7 @@ class const AgentEventReducer({
     final updatedCall = call.copyWith(
       function: call.function.copyWith(arguments: arguments),
     );
-    final args = _parser.parse(arguments);
+    final args = JsonObject(_parser.parse(arguments));
     return _updateToolCall(
       snapshot.copyWith(
         messages: _replaceToolCall(snapshot.messages, call, updatedCall),

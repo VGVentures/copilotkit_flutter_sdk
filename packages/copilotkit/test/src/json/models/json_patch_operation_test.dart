@@ -70,6 +70,53 @@ void main() {
       });
     });
 
+    test('toJson round-trips through fromJson for every op', () {
+      const operations = [
+        JsonPatchAdd(path: '/a', value: 1),
+        JsonPatchRemove(path: '/a'),
+        JsonPatchReplace(path: '/a', value: 2),
+        JsonPatchMove(from: '/a', path: '/b'),
+        JsonPatchCopy(from: '/a', path: '/b'),
+        JsonPatchTest(path: '/a', value: [1]),
+      ];
+
+      for (final operation in operations) {
+        expect(JsonPatchOperation.fromJson(operation.toJson()), operation);
+      }
+    });
+
+    test('toJson produces RFC 6902 operation objects', () {
+      expect(const JsonPatchAdd(path: '/a', value: 1).toJson(), {
+        'op': 'add',
+        'path': '/a',
+        'value': 1,
+      });
+      expect(const JsonPatchRemove(path: '/a').toJson(), {
+        'op': 'remove',
+        'path': '/a',
+      });
+      expect(const JsonPatchReplace(path: '/a', value: null).toJson(), {
+        'op': 'replace',
+        'path': '/a',
+        'value': null,
+      });
+      expect(const JsonPatchMove(from: '/a', path: '/b').toJson(), {
+        'op': 'move',
+        'from': '/a',
+        'path': '/b',
+      });
+      expect(const JsonPatchCopy(from: '/a', path: '/b').toJson(), {
+        'op': 'copy',
+        'from': '/a',
+        'path': '/b',
+      });
+      expect(const JsonPatchTest(path: '/a', value: 1).toJson(), {
+        'op': 'test',
+        'path': '/a',
+        'value': 1,
+      });
+    });
+
     test('supports value equality', () {
       expect(
         const JsonPatchAdd(path: '/a', value: 1),

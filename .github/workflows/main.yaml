@@ -37,9 +37,11 @@ jobs:
               - pubspec.lock
             copilotkit:
               - *shared
+              - packages/json_utils/**
               - packages/copilotkit/**
             copilotkit_flutter:
               - *shared
+              - packages/json_utils/**
               - packages/copilotkit/**
               - packages/copilotkit_flutter/**
             example:
