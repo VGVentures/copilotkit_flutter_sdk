@@ -5,15 +5,15 @@
 ## Context
 
 A human-in-the-loop (HITL) tool is a tool call whose result is a user's
-decision. The turn loop of `AgentRunner` (stream a run, produce the results of
-the tool calls, run again) must wait for that decision, which can come at any
+decision. The turn loop of `AgentRunner` (stream a run, let `ToolCallRunner`
+produce the results of the tool calls, run again) must wait for that decision, which can come at any
 time and from any widget, and must never wait forever: a stop or a close
 always ends the turn.
 
 Two things arrive from different places and must meet:
 
-- the turn, inside `AgentRunner.run`, which reaches the call after its run
-  finished streaming and then waits;
+- the turn, inside `ToolCallRunner.runPending`, which reaches the call after
+  its run finished streaming and then waits;
 - the answer, through `CopilotKitClient.respondToToolCall`, possibly before
   the turn reaches the call (the call is complete at `TOOL_CALL_END`, and the
   run may stream on for a while) and possibly twice.
@@ -24,10 +24,10 @@ compared by value, so it cannot carry a `Completer`, and the turn's
 
 ## Decision
 
-`AgentRunner` owns a `ToolResponses`: one `Completer<String>` per tool call
-id. Like `ToolRegistry` and `AgentRunner`, it tracks things that come and go,
-so it is a documented mutable class. Nothing outside the runner reads or
-writes it.
+`ToolCallRunner` owns a `ToolResponses`: one `Completer<String>` per tool
+call id. Like `ToolRegistry` and `AgentRunner`, it tracks things that come and
+go, so it is a documented mutable class. Nothing outside `ToolCallRunner`
+reads or writes it.
 
 Rules for the store:
 
@@ -68,6 +68,6 @@ once the turn waits for the call, and `CopilotAgentState.isRunning` stays
 
 ## Consequences
 
-- One more mutable class, `ToolResponses`, private to the runner.
+- One more mutable class, `ToolResponses`, private to `ToolCallRunner`.
 - Stop, close and unregister each end a wait without an answer, and tests
   cover each; a hung turn is a bug in this record's rules.

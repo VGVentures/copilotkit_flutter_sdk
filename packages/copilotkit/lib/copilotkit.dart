@@ -21,7 +21,15 @@ export 'package:ag_ui/ag_ui.dart'
         UserMessage;
 
 export 'src/agent/agent.dart';
-export 'src/client/client.dart' hide AgentRunner, RunInputBuilder;
+export 'src/client/client.dart'
+    hide
+        ActiveRun,
+        AgentRunner,
+        RunInputBuilder,
+        RunResult,
+        RunStreamer,
+        ToolCallRunner,
+        Turn;
 export 'src/context/context.dart' hide AgentContextStore;
 export 'src/json/json.dart'
     show

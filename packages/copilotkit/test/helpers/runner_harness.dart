@@ -1,13 +1,13 @@
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/client/agent_runner.dart';
+import 'package:copilotkit/src/client/client.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'mock_agent_transport.dart';
 
-/// An [AgentRunner] on a mocked transport, with its own tools, context and
-/// agent.
+/// An [AgentRunner], with its [RunStreamer] and [ToolCallRunner], on a
+/// mocked transport, with its own tools, context and agent.
 ///
 /// Each run streams the next entry of [runs]; stops always succeed.
 class RunnerHarness {
@@ -24,13 +24,21 @@ class RunnerHarness {
       ..stubRun(() => runs.removeAt(0))
       ..stubStop();
     when(transport.close).thenAnswer((_) async {});
-    runner = AgentRunner(
+    final report = onError ?? (error, _) => errors.add(error);
+    streamer = RunStreamer(
       transport: transport,
       tools: tools,
       context: context,
-      onError: onError ?? (error, _) => errors.add(error),
+      onError: report,
       headers: headers,
       properties: properties,
+    );
+    toolCalls = ToolCallRunner(tools: tools, onError: report);
+    runner = AgentRunner(
+      transport: transport,
+      onError: report,
+      streamer: streamer,
+      toolCalls: toolCalls,
     );
   }
 
@@ -51,6 +59,12 @@ class RunnerHarness {
 
   /// The agent the tests run.
   final CopilotAgent agent = CopilotAgent(agentId: 'default');
+
+  /// Streams the runs of [runner].
+  late final RunStreamer streamer;
+
+  /// Runs the tool calls of [runner].
+  late final ToolCallRunner toolCalls;
 
   /// The runner under test.
   late final AgentRunner runner;
