@@ -30,17 +30,17 @@ class TestCopilotKitBloc({
   }
 
   /// Opens and returns the agent [agentId].
-  Future<CopilotAgentBloc> openAgent(String agentId) async {
+  Future<CopilotAgent> openAgent(String agentId) async {
     await handled(AgentOpened(agentId));
     return state.agents[agentId]!;
   }
 
   /// Runs [agent] and returns once the whole turn has ended.
-  Future<void> runAgent(CopilotAgentBloc agent, {Message? message}) =>
+  Future<void> runAgent(CopilotAgent agent, {Message? message}) =>
       handled(AgentRunRequested(agent.state.agentId, message: message));
 
   /// Stops [agent] and returns once the stop has been handled.
-  Future<void> stopAgent(CopilotAgentBloc agent) =>
+  Future<void> stopAgent(CopilotAgent agent) =>
       handled(AgentStopRequested(agent.state.agentId));
 
   /// Registers [tool].

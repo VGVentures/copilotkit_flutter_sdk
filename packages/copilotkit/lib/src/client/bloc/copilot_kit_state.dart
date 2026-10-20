@@ -5,7 +5,7 @@ part of 'copilot_kit_bloc.dart';
 /// progress.
 class const CopilotKitState({
   /// Open agents by agent id; see `AgentOpened`.
-  final Map<String, CopilotAgentBloc> agents = const {},
+  final Map<String, CopilotAgent> agents = const {},
 
   /// Registered tools by name; see `ToolRegistered`.
   final Map<String, FrontendTool> tools = const {},
@@ -24,7 +24,7 @@ class const CopilotKitState({
 
   /// Returns a copy with the given fields replaced.
   CopilotKitState copyWith({
-    Map<String, CopilotAgentBloc>? agents,
+    Map<String, CopilotAgent>? agents,
     Map<String, FrontendTool>? tools,
     List<AgentContextEntry>? context,
     Map<String, TurnState>? turns,

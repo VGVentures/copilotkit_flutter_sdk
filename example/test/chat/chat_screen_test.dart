@@ -13,7 +13,7 @@ class _MockCopilotChatBloc extends MockBloc<CopilotChatEvent, CopilotChatState>
 
 class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
 
-class _MockCopilotAgentBloc extends Mock implements CopilotAgentBloc;
+class _MockCopilotAgent extends Mock implements CopilotAgent;
 
 void main() {
   setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
@@ -21,7 +21,7 @@ void main() {
   group(ChatPage, () {
     testWidgets('provides a chat bloc for the default agent', (tester) async {
       final client = _MockCopilotKitBloc();
-      final agent = _MockCopilotAgentBloc();
+      final agent = _MockCopilotAgent();
       when(() => client.state)
           .thenReturn(CopilotKitState(agents: {ChatPage.agentId: agent}));
       when(() => client.stream).thenAnswer((_) => const Stream.empty());

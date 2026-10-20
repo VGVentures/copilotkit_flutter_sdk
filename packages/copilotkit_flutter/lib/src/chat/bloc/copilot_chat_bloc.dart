@@ -8,14 +8,14 @@ import 'package:uuid/uuid.dart';
 part 'copilot_chat_event.dart';
 part 'copilot_chat_state.dart';
 
-/// Drives a chat UI from a [CopilotAgentBloc].
+/// Drives a chat UI from a [CopilotAgent].
 ///
 /// Mirrors the agent's state into [CopilotChatState] once
 /// [ChatSubscriptionRequested] is added, and turns [ChatMessageSent] and
 /// [ChatStopRequested] into [CopilotKitBloc] events.
 class CopilotChatBloc({
   required final CopilotKitBloc _client,
-  required final CopilotAgentBloc _agent,
+  required final CopilotAgent _agent,
 }) extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// Creates a bloc that drives a chat UI from [_agent], an agent opened on
   /// [_client].

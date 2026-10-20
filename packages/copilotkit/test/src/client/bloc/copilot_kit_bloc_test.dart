@@ -162,7 +162,7 @@ void main() {
     });
 
     group('$AgentRunRequested', () {
-      late CopilotAgentBloc agent;
+      late CopilotAgent agent;
       final message = UserMessage(id: 'u1', content: 'Hi');
 
       setUp(() async => agent = await client.openAgent('default'));
@@ -172,7 +172,7 @@ void main() {
         setUp: () => stubRun(const Stream.empty()),
         build: () => client,
         act: (_) async {
-          agent.add(AgentMessageAdded(message));
+          agent.addMessage(message);
           await client.runAgent(agent);
         },
         verify: (_) {
@@ -503,7 +503,7 @@ void main() {
     });
 
     group('close', () {
-      late CopilotAgentBloc agent;
+      late CopilotAgent agent;
       late Future<void> changesDone;
 
       blocTest<CopilotKitBloc, CopilotKitState>(

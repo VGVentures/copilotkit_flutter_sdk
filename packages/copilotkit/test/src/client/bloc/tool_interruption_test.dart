@@ -15,7 +15,7 @@ void main() {
   group('frontend tools', () {
     late ToolLoopHarness harness;
     late TestCopilotKitBloc client;
-    late CopilotAgentBloc agent;
+    late CopilotAgent agent;
     late List<Stream<BaseEvent>> runs;
     late MockAgentTransport transport;
 

@@ -17,7 +17,7 @@ void main() {
     late MockAgentTransport transport;
     late List<Object> errors;
     late TestCopilotKitBloc client;
-    late CopilotAgentBloc agent;
+    late CopilotAgent agent;
     late StreamController<BaseEvent> events;
     late bool cancelled;
     late Future<void> run;
@@ -294,7 +294,7 @@ void main() {
     );
 
     late StreamController<BaseEvent> otherEvents;
-    late CopilotAgentBloc other;
+    late CopilotAgent other;
 
     blocTest<CopilotKitBloc, CopilotKitState>(
       'stops one agent while another keeps running',

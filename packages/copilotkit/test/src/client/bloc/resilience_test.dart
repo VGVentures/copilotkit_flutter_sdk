@@ -15,7 +15,7 @@ void main() {
     late MockAgentTransport transport;
     late List<Object> errors;
     late TestCopilotKitBloc client;
-    late CopilotAgentBloc agent;
+    late CopilotAgent agent;
 
     setUp(() async {
       transport = MockAgentTransport();

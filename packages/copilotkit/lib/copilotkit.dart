@@ -20,13 +20,7 @@ export 'package:ag_ui/ag_ui.dart'
         ToolMessage,
         UserMessage;
 
-export 'src/agent/agent.dart'
-    hide
-        AgentEventReceived,
-        AgentRunFailed,
-        AgentSettleRequested,
-        AgentTurnEnded,
-        AgentTurnStarted;
+export 'src/agent/agent.dart';
 export 'src/client/client.dart';
 export 'src/context/context.dart';
 export 'src/tools/tools.dart' hide ToolSchema;
