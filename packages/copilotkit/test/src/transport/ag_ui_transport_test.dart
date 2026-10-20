@@ -25,6 +25,7 @@ List<int> _event(Map<String, Object?> json) =>
 final _input = RunAgentInput(
   threadId: 'thread-1',
   runId: 'run-1',
+  parentRunId: 'run-0',
   state: const {'count': 1},
   messages: [UserMessage(id: 'u1', content: 'Hi')],
   tools: const [],
@@ -91,6 +92,7 @@ void main() {
       final body = jsonDecode(request.body) as Map<String, Object?>;
       expect(body['threadId'], 'thread-1');
       expect(body['runId'], 'run-1');
+      expect(body['parentRunId'], 'run-0');
       expect(body['state'], {'count': 1});
       expect(body['messages'], [
         {'id': 'u1', 'role': 'user', 'content': 'Hi'},

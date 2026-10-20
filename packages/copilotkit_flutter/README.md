@@ -26,15 +26,16 @@ hand. The client owns the agent: the scope never closes it.
 ```dart
 CopilotAgentScope(
   agentId: 'ops',
-  child: AgentStateBuilder<Object?>(
+  child: AgentStateBuilder<SharedState?>(
     selector: (state) => state.sharedState,
-    builder: (context, shared) => Text('$shared'),
+    builder: (context, shared) => Text('${shared?.toJson()}'),
   ),
 )
 
-// Below the scope, e.g. in a tool card or a button (`read` comes from
-// package:flutter_bloc):
-context.read<CopilotAgentBloc>().add(const AgentStateSet({'theme': 'dark'}));
+// Below the scope, e.g. in a tool card or a button:
+CopilotAgentScope.of(context).setSharedState(
+  const SharedState({'theme': 'dark'}),
+);
 ```
 
 The agent's conversation is rebuilt when the runtime sends a
@@ -44,15 +45,16 @@ snapshot (a loaded history) render through `ToolCallWidget` like live ones.
 ## Asking the user
 
 `CopilotHumanInTheLoop` registers a `HumanInTheLoopTool` while it is mounted
-and renders its calls. `respond` is `null` until the call waits for the user,
-so a card can only answer when it is time:
+and renders its calls with their arguments decoded by the tool's `decode`.
+`respond` is `null` until the call waits for the user, so a card can only
+answer when it is time:
 
 ```dart
 CopilotHumanInTheLoop(
   tool: confirmAction,
-  builder: (context, call, respond) => Column(
+  builder: (context, call, args, respond) => Column(
     children: [
-      Text('${call.args['action']}'),
+      Text('${args?.action}'),
       if (respond != null) ...[
         FilledButton(
           onPressed: () => respond({'decision': 'approve'}),

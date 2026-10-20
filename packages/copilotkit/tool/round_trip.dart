@@ -1,4 +1,4 @@
-// Dev-only probe for the Copilot Runtime v2 contract (task A1).
+// Dev-only probe for the Copilot Runtime v2 contract.
 //
 // Usage:
 //   fvm dart run tool/round_trip.dart \
@@ -8,7 +8,7 @@
 //
 // Prints the runtime info document, then every AG-UI event of one run
 // from RUN_STARTED to RUN_FINISHED (or RUN_ERROR). With --via-client, runs
-// through CopilotKitBloc instead and prints the streamed reply.
+// through CopilotKitClient instead and prints the streamed reply.
 //
 // With --record, writes the raw SSE data payloads of one run to a JSONL file
 // (one event per line, after a `{"fixture": {...}}` header line), bypassing
@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/tools/tool_schema.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:http/http.dart' as http;
 
 Future<void> main(List<String> arguments) async {
@@ -77,11 +77,11 @@ Future<void> main(List<String> arguments) async {
 }
 
 Future<void> _viaClient(Uri url, String agentId, String message) async {
-  final client = CopilotKitBloc(
+  final client = CopilotKitClient(
     runtimeUrl: url,
     onError: (error, stackTrace) => print('onError: $error'),
-  )..add(AgentOpened(agentId));
-  final agent = (await client.stream.first).agents[agentId]!;
+  );
+  final agent = client.agent(agentId);
   final subscription = agent.stream.listen((state) {
     final last = state.messages.lastOrNull;
     print(
@@ -89,13 +89,10 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
       '${last?.content}',
     );
   });
-  client.add(
-    AgentRunRequested(
-      agentId,
-      message: UserMessage(id: 'user-1', content: message),
-    ),
+  await client.runAgent(
+    agentId,
+    message: UserMessage(id: 'user-1', content: message),
   );
-  await agent.stream.firstWhere((state) => !state.isRunning);
   await subscription.cancel();
   print(
     'done | running: ${agent.state.isRunning} | error: ${agent.state.error}',
@@ -103,13 +100,13 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
   await client.close();
 }
 
-/// Placeholder tool from `example/lib/demo/weather_demo.dart`.
+/// Placeholder tool from `example/lib/demo/widgets/weather_demo.dart`.
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: ToolSchema(
+  parameters: const JsonSchemaEncoder().encode(
     Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
-  ).toJson(),
+  ),
 );
 
 Future<void> _record({

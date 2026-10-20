@@ -15,38 +15,17 @@ final class const CopilotChatState({
   /// Creates the state of a chat.
   this;
 
-  /// Builds the state shown for [agentState].
-  ///
-  /// User and assistant messages with text become [ChatMessageRow]s; each
-  /// tool call on an assistant message follows it as a [ChatToolCallRow].
-  /// Tool results, system and developer messages are not shown.
-  factory fromAgentState(CopilotAgentState agentState) {
-    final calls = {for (final call in agentState.toolCalls) call.id: call};
-    return CopilotChatState(
-      rows: [
-        for (final message in agentState.messages) ..._rowsFor(message, calls),
-      ],
-      isRunning: agentState.isRunning,
-      error: agentState.error,
-    );
-  }
+  /// Builds the state shown for [agentState], with its rows mapped by
+  /// [rows].
+  factory fromAgentState(
+    CopilotAgentState agentState, {
+    ChatRowMapper rows = const ChatRowMapper(),
+  }) => CopilotChatState(
+    rows: rows.rowsFor(agentState),
+    isRunning: agentState.isRunning,
+    error: agentState.error,
+  );
 
   @override
   List<Object?> get props => [rows, isRunning, error];
-
-  /// The rows shown for [message]: its text, then each of its tool calls
-  /// found in [calls].
-  static List<ChatRow> _rowsFor(
-    Message message,
-    Map<String, ToolCallView> calls,
-  ) => [
-    if (_hasText(message)) ChatMessageRow(message),
-    if (message is AssistantMessage)
-      for (final toolCall in message.toolCalls ?? const <ToolCall>[])
-        if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
-  ];
-
-  static bool _hasText(Message message) =>
-      (message is UserMessage || message is AssistantMessage) &&
-      (message.content ?? '').isNotEmpty;
 }

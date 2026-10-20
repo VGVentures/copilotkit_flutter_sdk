@@ -1,10 +1,16 @@
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
+/// Arguments of the weather tool in these tests.
+class const _WeatherArgs(final String city) {
+  factory fromJson(Map<String, Object?> json) =>
+      _WeatherArgs(json['city']! as String);
+}
+
 void main() {
   group(ClientTool, () {
     test('is exhaustively matched over its kinds', () {
-      String kind(ClientTool tool) => switch (tool) {
+      String kind(ClientTool<Object?> tool) => switch (tool) {
         FrontendTool() => 'frontend',
         HumanInTheLoopTool() => 'human',
       };
@@ -15,7 +21,8 @@ void main() {
             name: 'a',
             description: 'A',
             parameters: Ack.object({}),
-            handler: (args, {required signal}) async => '',
+            decode: JsonObject.new,
+            handler: (_, {required signal}) async => '',
           ),
         ),
         'frontend',
@@ -26,6 +33,7 @@ void main() {
             name: 'b',
             description: 'B',
             parameters: Ack.object({}),
+            decode: JsonObject.new,
           ),
         ),
         'human',
@@ -34,37 +42,61 @@ void main() {
   });
 
   group(FrontendTool, () {
-    test('exposes its fields and runs its handler', () async {
-      final parameters = Ack.object({'city': Ack.string()});
-      final tool = FrontendTool(
-        name: 'showWeather',
-        description: 'Show the weather for a city',
-        parameters: parameters,
-        handler: (args, {required signal}) async => 'sunny in ${args['city']}',
+    final parameters = Ack.object({'city': Ack.string()});
+
+    Future<String> handler(
+      _WeatherArgs args, {
+      required CancellationSignal signal,
+    }) async => 'sunny in ${args.city}';
+
+    FrontendTool<_WeatherArgs> tool({String name = 'showWeather'}) =>
+        FrontendTool(
+          name: name,
+          description: 'Show the weather for a city',
+          parameters: parameters,
+          decode: _WeatherArgs.fromJson,
+          handler: handler,
+        );
+
+    test('exposes its fields', () {
+      final weather = tool();
+
+      expect(weather.name, 'showWeather');
+      expect(weather.description, 'Show the weather for a city');
+      expect(weather.parameters, same(parameters));
+      expect(weather.decode, _WeatherArgs.fromJson);
+      expect(weather.handler, handler);
+    });
+
+    test('run decodes the args and runs the handler', () async {
+      final result = await tool().run(
+        const JsonObject({'city': 'Lima'}),
+        signal: CancellationSignal(),
       );
 
-      expect(tool.name, 'showWeather');
-      expect(tool.description, 'Show the weather for a city');
-      expect(tool.parameters, same(parameters));
+      expect(result, 'sunny in Lima');
+    });
+
+    test('run works through a tool of any argument type', () async {
+      // The registry holds tools as ClientTool<Object?>.
+      final ClientTool<Object?> anyTool = tool();
+
+      final result = await (anyTool as FrontendTool<Object?>).run(
+        const JsonObject({'city': 'Lima'}),
+        signal: CancellationSignal(),
+      );
+
+      expect(result, 'sunny in Lima');
+    });
+
+    test('run throws what the decoder throws', () {
       expect(
-        await tool.handler({'city': 'Lima'}, signal: CancellationSignal()),
-        'sunny in Lima',
+        () => tool().run(const JsonObject(), signal: CancellationSignal()),
+        throwsA(isA<TypeError>()),
       );
     });
 
     test('supports value equality', () {
-      final parameters = Ack.object({'city': Ack.string()});
-      Future<String> handler(
-        Map<String, Object?> args, {
-        required CancellationSignal signal,
-      }) async => 'sunny';
-      FrontendTool tool({String name = 'showWeather'}) => FrontendTool(
-        name: name,
-        description: 'Show the weather',
-        parameters: parameters,
-        handler: handler,
-      );
-
       expect(tool(), tool());
       expect(tool(), isNot(tool(name: 'other')));
     });
@@ -72,26 +104,30 @@ void main() {
 
   group(HumanInTheLoopTool, () {
     final parameters = Ack.object({'action': Ack.string()});
-    HumanInTheLoopTool tool({String name = 'confirmAction', bool? followUp}) =>
-        followUp == null
-        ? HumanInTheLoopTool(
-            name: name,
-            description: 'Ask the user to confirm an action',
-            parameters: parameters,
-          )
-        : HumanInTheLoopTool(
-            name: name,
-            description: 'Ask the user to confirm an action',
-            parameters: parameters,
-            followUp: followUp,
-          );
+
+    HumanInTheLoopTool<JsonObject> tool({
+      String name = 'confirmAction',
+      bool followUp = true,
+    }) => HumanInTheLoopTool(
+      name: name,
+      description: 'Ask the user to confirm an action',
+      parameters: parameters,
+      decode: JsonObject.new,
+      followUp: followUp,
+    );
 
     test('exposes its fields and follows up by default', () {
-      final confirm = tool();
+      final confirm = HumanInTheLoopTool(
+        name: 'confirmAction',
+        description: 'Ask the user to confirm an action',
+        parameters: parameters,
+        decode: JsonObject.new,
+      );
 
       expect(confirm.name, 'confirmAction');
       expect(confirm.description, 'Ask the user to confirm an action');
       expect(confirm.parameters, same(parameters));
+      expect(confirm.decode, JsonObject.new);
       expect(confirm.followUp, isTrue);
       expect(tool(followUp: false).followUp, isFalse);
     });

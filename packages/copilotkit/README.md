@@ -20,55 +20,52 @@ dart pub add copilotkit
 
 An agent's `CopilotAgentState.sharedState` is sent with every run as
 `RunAgentInput.state`, and the agent updates it with `STATE_SNAPSHOT` and
-`STATE_DELTA` events. The app edits it by adding events to the agent:
+`STATE_DELTA` events. The app edits it through the agent:
 
 ```dart
-agent
-  ..add(const AgentStateSet({'theme': 'dark'}))
-  ..add(const AgentStatePatched([
-    {'op': 'add', 'path': '/units', 'value': 'metric'},
-  ]))
-  ..add(const AgentMessagesSet([])); // e.g. to reset the conversation
+client.agent('default')
+  ..setSharedState(const SharedState({'theme': 'dark'}))
+  ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')])
+  ..setMessages([]); // e.g. to reset the conversation
 
-client.add(const AgentRunRequested('default')); // sends the edits above
+await client.runAgent('default'); // sends the edits above
 ```
 
-The agent applies events in order and a run reads the agent after every event
-added before it, so an edit followed by a run in the same tick is sent with
-that run. A snapshot from the runtime replaces a local edit, like in the
-AG-UI client. `AgentStatePatched` takes RFC 6902 operations; when one does not
-apply the state stays as it was and the error goes to
-`BlocObserver.onError`.
+Edits apply right away, so the next run sends them. A snapshot from the
+runtime replaces a local edit, like in the AG-UI client. `patchSharedState`
+takes RFC 6902 operations; when one does not apply the state stays as it was
+and a `FormatException` is thrown.
 
 ## Tools
 
-Register a `ClientTool` with `ToolRegistered`; the client sends every
+Register a `ClientTool` with `client.registerTool`; the client sends every
 registered tool to the agent on each run. There are two kinds:
 
 - `FrontendTool` runs a handler in the app and sends its result back.
 - `HumanInTheLoopTool` has no handler: the result is the user's answer.
 
 ```dart
-client.add(ToolRegistered(HumanInTheLoopTool(
+client.registerTool(HumanInTheLoopTool(
   name: 'confirmAction',
   description: 'Ask the user to confirm an action before doing it.',
   parameters: Ack.object({'action': Ack.string()}),
-)));
+  decode: JsonObject.new,
+));
 ```
 
 When the agent calls a human-in-the-loop tool and its run has finished
 streaming, the call is marked with `ToolCallView.awaitingResponse` and listed
-in `CopilotAgentState.awaitingResponseIds`. The turn waits until the app adds
-`ToolCallResponded` for the call, whenever the user decides; a `String`
+in `CopilotAgentState.awaitingResponseIds`. The turn waits until the app calls
+`respondToToolCall` for the call, whenever the user decides; a `String`
 result is sent as it is, anything else JSON-encoded. The answer becomes the
 tool message and the agent runs again, unless the tool sets `followUp: false`.
 
 ```dart
-client.add(ToolCallResponded(call.id, {'decision': 'approve'}));
+client.respondToToolCall(call.id, {'decision': 'approve'});
 ```
 
 The agent's `isRunning` stays `true` while a call waits, because the turn is
-still open (the client ignores another run request until it ends); use
+still open (`runAgent` does nothing until it ends); use
 `awaitingResponseIds` to tell the agent waits for the user. Stopping the agent
 answers the call as cancelled, so a stop always ends the turn. So does
 unregistering the tool while a call waits. Several calls can wait together

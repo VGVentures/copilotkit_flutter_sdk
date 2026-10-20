@@ -23,15 +23,5 @@ void main() {
       expect(const WeatherArgs(city: 'Lima').toJson(), {'city': 'Lima'});
       expect(const WeatherArgs().toJson(), isEmpty);
     });
-
-    group('tryParse', () {
-      test('decodes valid args', () {
-        expect(WeatherArgs.tryParse({'city': 'Lima'})?.city, 'Lima');
-      });
-
-      test('returns null for invalid args', () {
-        expect(WeatherArgs.tryParse({'city': 42}), isNull);
-      });
-    });
   });
 }
