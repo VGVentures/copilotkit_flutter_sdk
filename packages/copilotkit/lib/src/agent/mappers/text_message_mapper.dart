@@ -9,7 +9,8 @@ class const TextMessageMapper() {
   /// Creates a text message mapper.
   this;
 
-  /// [snapshot] with an empty message [messageId] from [role] appended.
+  /// Returns [snapshot] with an empty message [messageId] from [role]
+  /// appended.
   CopilotKitAgentState start(
     CopilotKitAgentState snapshot,
     String messageId,

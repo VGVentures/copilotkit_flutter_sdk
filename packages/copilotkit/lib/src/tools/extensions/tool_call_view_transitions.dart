@@ -5,18 +5,20 @@ import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 ///
 /// Each returns this view itself when the change doesn't apply.
 extension ToolCallViewTransitions on ToolCallView {
-  /// This view marked executing if its arguments were still streaming in.
+  /// Returns this view marked executing if its arguments were still
+  /// streaming in.
   ToolCallView finishArgs() => status == ToolCallStatus.inProgress
       ? copyWith(status: ToolCallStatus.executing)
       : this;
 
-  /// This view marked as waiting for the user's answer, if it's executing.
+  /// Returns this view marked as waiting for the user's answer, if it's
+  /// executing.
   ToolCallView awaitResponse() => status == ToolCallStatus.executing
       ? copyWith(awaitingResponse: true)
       : this;
 
-  /// This view marked complete with [result], and no longer awaiting a
-  /// response.
+  /// Returns this view marked complete with [result], and no longer awaiting
+  /// a response.
   ToolCallView complete(String result) => copyWith(
     status: ToolCallStatus.complete,
     result: () => result,

@@ -1,8 +1,11 @@
+/// @docImport 'package:copilotkit/src/client/copilotkit_client.dart';
+library;
+
 import 'package:ag_ui/ag_ui.dart';
 
 /// Moves AG-UI runs between the client and a Copilot Runtime.
 ///
-/// `CopilotKitClient` uses an `ag_ui`-backed implementation by default.
+/// [CopilotKitClient] uses an `ag_ui`-backed implementation by default.
 /// Implement or mock it to run the client without a network.
 abstract interface class AgentTransport {
   /// Starts a run of [agentId] with [input] and streams its events.
@@ -25,6 +28,8 @@ abstract interface class AgentTransport {
     Map<String, String> headers = const {},
   });
 
-  /// Releases the transport's resources. It can't be used afterwards.
+  /// Releases the transport's resources.
+  ///
+  /// The transport can't be used afterwards.
   Future<void> close();
 }

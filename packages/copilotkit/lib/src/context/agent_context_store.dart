@@ -11,19 +11,25 @@ class AgentContextStore() {
 
   final _entries = <AgentContextEntry>[];
 
-  /// The entries, oldest first. A read-only copy.
+  /// The entries, oldest first.
+  ///
+  /// A read-only copy.
   List<AgentContextEntry> get entries => List.unmodifiable(_entries);
 
   /// Adds [entry].
   void add(AgentContextEntry entry) => _entries.add(entry);
 
-  /// Replaces the value of the entry [id]. Does nothing if there is none.
+  /// Replaces the value of the entry [id].
+  ///
+  /// Does nothing if there is none.
   void update(String id, JsonEncodable value) {
     final index = _entries.indexWhere((entry) => entry.id == id);
     if (index == -1) return;
     _entries[index] = _entries[index].copyWith(value: value);
   }
 
-  /// Removes the entry [id]. Does nothing if there is none.
+  /// Removes the entry [id].
+  ///
+  /// Does nothing if there is none.
   void remove(String id) => _entries.removeWhere((entry) => entry.id == id);
 }

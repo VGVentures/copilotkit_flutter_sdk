@@ -13,10 +13,12 @@ class CancellationSignal() {
   /// Whether [cancel] has been called.
   bool get isCancelled => _cancelled.isCompleted;
 
-  /// Completes when [cancel] is called.
+  /// A future that completes when [cancel] is called.
   Future<void> get whenCancelled => _cancelled.future;
 
-  /// Cancels the signal. Calling it again has no effect.
+  /// Cancels the signal.
+  ///
+  /// Calling it again has no effect.
   void cancel() {
     if (!isCancelled) _cancelled.complete();
   }

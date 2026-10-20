@@ -3,8 +3,8 @@ import 'package:copilotkit/src/tools/tools.dart';
 
 /// Edits the tool calls of a [CopilotKitAgentState].
 extension CopilotKitAgentStateToolCalls on CopilotKitAgentState {
-  /// This state with the view of call [toolCallId] replaced by [update]'s
-  /// result.
+  /// Returns this state with the view of call [toolCallId] replaced by
+  /// [update]'s result.
   ///
   /// Returns this state itself when there's no such call or [update] doesn't
   /// change it.

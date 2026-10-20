@@ -30,7 +30,7 @@ class CopilotKitClient({
   /// `https://host/api/copilotkit`.
   ///
   /// `headers` builds the headers sent with each run, e.g. for auth.
-  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`;
+  /// `properties` are sent with every run as [RunAgentInput.forwardedProps];
   /// their `toJson` must return a JSON object.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] defaults to an `ag_ui`-backed transport
@@ -60,10 +60,14 @@ class CopilotKitClient({
     toolCalls: ToolCallRunner(tools: _tools, onError: _report),
   );
 
-  /// The open agents, by agent id. A read-only view.
+  /// The open agents, by agent id.
+  ///
+  /// A read-only view.
   Map<String, CopilotKitAgent> get agents => UnmodifiableMapView(_agents);
 
-  /// The registered client tools, by name. A read-only view.
+  /// The registered client tools, by name.
+  ///
+  /// A read-only view.
   Map<String, ClientTool<Object?>> get tools => _tools.tools;
 
   /// The context entries shared with the agent, oldest first.
@@ -73,8 +77,9 @@ class CopilotKitClient({
   CopilotKitAgent agent(String agentId) =>
       _agents.putIfAbsent(agentId, () => CopilotKitAgent(agentId: agentId));
 
-  /// Registers [tool]; every run sends it to the agent. Calls to a
-  /// [FrontendTool] run its handler on the device, and calls to a
+  /// Registers [tool]; every run sends it to the agent.
+  ///
+  /// Calls to a [FrontendTool] run its handler on the device, and calls to a
   /// [HumanInTheLoopTool] wait for [respondToToolCall]. Replaces a tool with
   /// the same name.
   void registerTool(ClientTool<Object?> tool) => _tools.register(tool);
@@ -96,7 +101,7 @@ class CopilotKitClient({
   /// Answers the call [toolCallId] of a [HumanInTheLoopTool] with [result],
   /// and the turn that waits for it continues with it as the tool result.
   ///
-  /// A `String` [result] is sent to the agent as it is; any other value is
+  /// A [String] [result] is sent to the agent as it is; any other value is
   /// JSON-encoded (an app model with `toJson` works), and a value that can't
   /// be encoded goes to `onError` and leaves the call waiting.
   ///
@@ -123,7 +128,7 @@ class CopilotKitClient({
   /// appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to `onError`
-  /// and to `CopilotKitAgentState.error`. Does nothing while the agent is
+  /// and to [CopilotKitAgentState.error]. Does nothing while the agent is
   /// already running, so the message is dropped too.
   Future<void> runAgent(String agentId, {Message? message}) =>
       _runner.run(agent(agentId), message: message);

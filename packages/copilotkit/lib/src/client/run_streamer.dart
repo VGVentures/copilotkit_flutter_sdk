@@ -37,7 +37,7 @@ class const RunStreamer({
   /// Builds the headers of each run, e.g. for auth.
   final HeadersBuilder? _headers,
 
-  /// Sent with every run as `RunAgentInput.forwardedProps`.
+  /// Sent with every run as [RunAgentInput.forwardedProps].
   final JsonEncodable? _properties,
 
   /// Builds the input of each run.
@@ -48,7 +48,7 @@ class const RunStreamer({
 
   /// Streams one run of the agent of [turn] and returns how it ended.
   ///
-  /// While the run streams, `Turn.run` holds it so a stop can cancel it; it
+  /// While the run streams, [Turn.run] holds it so a stop can cancel it; it
   /// is cleared once the run ends. Never throws: a failure is recorded on
   /// the agent and goes to the error handler.
   Future<RunResult> stream(Turn turn) async {

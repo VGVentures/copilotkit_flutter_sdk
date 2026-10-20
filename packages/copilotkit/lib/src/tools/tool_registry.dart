@@ -12,7 +12,9 @@ class ToolRegistry() {
 
   final _tools = <String, ClientTool<Object?>>{};
 
-  /// The registered tools, by name. A read-only view.
+  /// The registered tools, by name.
+  ///
+  /// A read-only view.
   Map<String, ClientTool<Object?>> get tools => UnmodifiableMapView(_tools);
 
   /// The tool registered as [name], or `null`.

@@ -143,8 +143,9 @@ class AgUiTransport({
     }
   }
 
-  /// Ends the runs in flight (their streams complete). The transport can't be
-  /// used afterwards.
+  /// Ends the runs in flight, so their streams complete.
+  ///
+  /// The transport can't be used afterwards.
   @override
   Future<void> close() async {
     _closed = true;

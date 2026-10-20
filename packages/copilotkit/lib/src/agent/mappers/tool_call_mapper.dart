@@ -19,9 +19,11 @@ class const ToolCallMapper({
   /// Creates a tool call mapper.
   this;
 
-  /// [snapshot] with [messages] as its conversation, and its tool calls
-  /// rebuilt from them, so calls that only exist in [messages] (a loaded
-  /// history, a resync) render like live ones.
+  /// Returns [snapshot] with [messages] as its conversation, and its tool
+  /// calls rebuilt from them.
+  ///
+  /// Calls that only exist in [messages] (a loaded history, a resync) render
+  /// like live ones.
   CopilotKitAgentState replaceMessages(
     CopilotKitAgentState snapshot,
     List<Message> messages,
@@ -30,8 +32,9 @@ class const ToolCallMapper({
     toolCalls: _toolCallsOf(messages, snapshot.toolCalls),
   );
 
-  /// [snapshot] with call [toolCallId] added to message [parentMessageId],
-  /// or to a new assistant message when there's no such message.
+  /// Returns [snapshot] with call [toolCallId] added to message
+  /// [parentMessageId], or to a new assistant message when there's no such
+  /// message.
   ///
   /// A call that already exists is ignored.
   CopilotKitAgentState start(
@@ -81,8 +84,8 @@ class const ToolCallMapper({
         .updateToolCall(toolCallId, (view) => view.copyWith(args: args));
   }
 
-  /// [snapshot] with call [toolCallId] executing, as its arguments are
-  /// complete.
+  /// Returns [snapshot] with call [toolCallId] executing, as its arguments
+  /// are complete.
   CopilotKitAgentState end(CopilotKitAgentState snapshot, String toolCallId) =>
       snapshot.updateToolCall(toolCallId, (view) => view.finishArgs());
 
@@ -105,8 +108,8 @@ class const ToolCallMapper({
     return delta == null ? next : appendArgs(next, id, delta);
   }
 
-  /// [snapshot] with the tool message [messageId] holding [content] appended,
-  /// and call [toolCallId] complete with [content] as its result.
+  /// Returns [snapshot] with the tool message [messageId] holding [content]
+  /// appended, and call [toolCallId] complete with [content] as its result.
   ///
   /// A tool message that already exists is ignored.
   CopilotKitAgentState complete(
@@ -132,7 +135,8 @@ class const ToolCallMapper({
         .updateToolCall(toolCallId, (view) => view.complete(content));
   }
 
-  /// [snapshot] with every call still streaming its arguments executing.
+  /// Returns [snapshot] with every call still streaming its arguments
+  /// executing.
   ///
   /// Calls streamed as chunks have no End event; once the run finishes their
   /// arguments are complete.

@@ -1,3 +1,7 @@
+/// @docImport 'package:copilotkit/src/client/copilotkit_client.dart';
+/// @docImport 'package:copilotkit/src/tools/client_tool.dart';
+library;
+
 import 'package:copilotkit/src/json/models/json_object.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:equatable/equatable.dart';
@@ -22,8 +26,8 @@ class const ToolCallView({
   final String? result,
 
   /// Whether the call waits for the user: the agent called a
-  /// `HumanInTheLoopTool` and the app has yet to answer with
-  /// `CopilotKitClient.respondToToolCall`. Only set while [status] is
+  /// [HumanInTheLoopTool] and the app has yet to answer with
+  /// [CopilotKitClient.respondToToolCall]. Only set while [status] is
   /// [ToolCallStatus.executing].
   final bool awaitingResponse = false,
 }) extends Equatable {
@@ -32,7 +36,7 @@ class const ToolCallView({
 
   /// Returns a copy with the given fields replaced.
   ///
-  /// [result] is a getter so a caller can set it (`result: () => text`),
+  /// [result] is a callback so a caller can set it (`result: () => text`),
   /// clear it (`result: () => null`) or leave it alone by not passing it.
   ToolCallView copyWith({
     ToolCallStatus? status,

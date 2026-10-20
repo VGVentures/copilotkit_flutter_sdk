@@ -13,7 +13,7 @@ class const AgentEventMapper({
   /// Applies tool call events.
   final ToolCallMapper _toolCalls = const ToolCallMapper(),
 
-  /// Applies `StateDelta` patches to the shared state.
+  /// Applies [StateDeltaEvent] patches to the shared state.
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
   /// Creates a mapper.

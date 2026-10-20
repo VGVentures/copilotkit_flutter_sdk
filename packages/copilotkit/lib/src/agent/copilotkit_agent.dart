@@ -1,3 +1,6 @@
+/// @docImport 'package:copilotkit/src/client/copilotkit_client.dart';
+library;
+
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
@@ -14,7 +17,7 @@ import 'package:uuid/uuid.dart';
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
 /// [state], and adds the new state to [stream] every time it changes.
-/// Open one with `CopilotKitClient.agent`.
+/// Open one with [CopilotKitClient.agent].
 ///
 /// It changes over time, so unlike the value types it is mutable: [state] is
 /// replaced, never modified.
@@ -26,7 +29,7 @@ class CopilotKitAgent({
 }) {
   /// Creates the agent [agentId].
   ///
-  /// Internal: only `CopilotKitClient.agent` creates agents, so the client
+  /// Internal: only [CopilotKitClient.agent] creates agents, so the client
   /// tracks every agent it runs. A random [threadId] is generated when none
   /// is given. The mapper applies AG-UI events to the state, and the
   /// patcher applies the app's edits to the shared state.
@@ -40,19 +43,24 @@ class CopilotKitAgent({
 
   final _states = StreamController<CopilotKitAgentState>.broadcast();
 
-  /// The agent as of now. Up to date as soon as a change is made.
+  /// The agent as of now.
+  ///
+  /// Up to date as soon as a change is made.
   CopilotKitAgentState get state => _state;
 
-  /// Every new [state], from the moment of listening. Read [state] first for
-  /// the current one: the stream doesn't replay it.
+  /// Every new [state], from the moment of listening.
+  ///
+  /// Read [state] first for the current one: the stream doesn't replay it.
   Stream<CopilotKitAgentState> get stream => _states.stream;
 
-  /// Whether [close] has been called. A closed agent ignores every change.
+  /// Whether [close] has been called.
+  ///
+  /// A closed agent ignores every change.
   bool get isClosed => _states.isClosed;
 
   /// Appends [message] to the conversation, without starting a run.
   ///
-  /// Run the agent with `CopilotKitClient.runAgent`, which can also add a
+  /// Run the agent with [CopilotKitClient.runAgent], which can also add a
   /// message.
   void addMessage(Message message) {
     _update(_state.copyWith(messages: [..._state.messages, message]));
@@ -62,7 +70,7 @@ class CopilotKitAgent({
   ///
   /// Use it to reset a conversation (`setMessages([])`) or to restore a saved
   /// one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
-  /// `CopilotKitAgentState.toolCalls` from [messages]: a call a message holds
+  /// [CopilotKitAgentState.toolCalls] from [messages]: a call a message holds
   /// keeps the view the agent already has, or becomes executing, or complete
   /// when a tool message answers it; calls no message holds anymore are
   /// dropped. Allowed while the agent is running; the events that stream in
@@ -72,7 +80,7 @@ class CopilotKitAgent({
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///
-  /// The next run sends [state] as `RunAgentInput.state`. A `STATE_SNAPSHOT`
+  /// The next run sends [state] as [RunAgentInput.state]. A `STATE_SNAPSHOT`
   /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
   /// a local edit made during a run can be overwritten by the agent.
   void setSharedState(SharedState? state) {
@@ -97,7 +105,7 @@ class CopilotKitAgent({
   void apply(BaseEvent event) => _update(_mapper(_state, event));
 
   /// Marks the executing tool call [toolCallId] as waiting for the user's
-  /// answer (`ToolCallView.awaitingResponse`), until it gets its result.
+  /// answer ([ToolCallView.awaitingResponse]), until it gets its result.
   @internal
   void awaitResponse(String toolCallId) {
     _update(_state.updateToolCall(toolCallId, (call) => call.awaitResponse()));
@@ -113,12 +121,15 @@ class CopilotKitAgent({
   @internal
   void endTurn() => _update(_state.copyWith(isRunning: false));
 
-  /// Records [error], which ended the current run. A [RunErrorEvent] is
-  /// recorded by [apply] instead.
+  /// Records [error], which ended the current run.
+  ///
+  /// A [RunErrorEvent] is recorded by [apply] instead.
   @internal
   void fail(Object error) => _update(_state.copyWith(error: () => error));
 
-  /// Stops [stream]. Changes after this are ignored.
+  /// Stops [stream].
+  ///
+  /// Changes after this are ignored.
   Future<void> close() => _states.close();
 
   void _update(CopilotKitAgentState next) {

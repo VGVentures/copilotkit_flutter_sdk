@@ -35,7 +35,7 @@ sealed class JsonPatchOperation extends Equatable {
 /// Adds [value] at [path]: sets an object member, or inserts into an array
 /// (`-` appends).
 final class const JsonPatchAdd({
-  /// Where to add the value.
+  /// The JSON Pointer to add the value at.
   required final String path,
 
   /// The JSON value to add.
@@ -50,7 +50,7 @@ final class const JsonPatchAdd({
 
 /// Removes the value at [path].
 final class const JsonPatchRemove({
-  /// Where the value to remove is.
+  /// The JSON Pointer of the value to remove.
   required final String path,
 }) extends JsonPatchOperation {
   /// Creates an operation that removes the value at [path].
@@ -62,7 +62,7 @@ final class const JsonPatchRemove({
 
 /// Replaces the value at [path] with [value].
 final class const JsonPatchReplace({
-  /// Where the value to replace is.
+  /// The JSON Pointer of the value to replace.
   required final String path,
 
   /// The JSON value to put there.
@@ -77,10 +77,10 @@ final class const JsonPatchReplace({
 
 /// Moves the value at [from] to [path].
 final class const JsonPatchMove({
-  /// Where the value to move is.
+  /// The JSON Pointer of the value to move.
   required final String from,
 
-  /// Where to move it.
+  /// The JSON Pointer to move the value to.
   required final String path,
 }) extends JsonPatchOperation {
   /// Creates an operation that moves the value at [from] to [path].
@@ -92,10 +92,10 @@ final class const JsonPatchMove({
 
 /// Copies the value at [from] to [path].
 final class const JsonPatchCopy({
-  /// Where the value to copy is.
+  /// The JSON Pointer of the value to copy.
   required final String from,
 
-  /// Where to copy it.
+  /// The JSON Pointer to copy the value to.
   required final String path,
 }) extends JsonPatchOperation {
   /// Creates an operation that copies the value at [from] to [path].
@@ -107,7 +107,7 @@ final class const JsonPatchCopy({
 
 /// Checks that the value at [path] equals [value]; the patch fails if not.
 final class const JsonPatchTest({
-  /// Where the value to check is.
+  /// The JSON Pointer of the value to check.
   required final String path,
 
   /// The JSON value it must equal.

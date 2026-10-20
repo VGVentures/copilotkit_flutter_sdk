@@ -5,7 +5,9 @@ class const ToolCallOutcome({
   /// The result text sent to the agent.
   required final String result,
 
-  /// The error the handler threw, or `null`. The agent only gets a generic
+  /// The error the handler threw, or `null`.
+  ///
+  /// The agent only gets a generic
   /// [result]; report the error to the app instead.
   final Object? error,
 

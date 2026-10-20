@@ -8,7 +8,7 @@ import 'package:equatable/equatable.dart';
 class const SharedState(final Object? _value)
     extends Equatable
     implements JsonEncodable {
-  /// Creates shared state holding the JSON [_value].
+  /// Creates shared state holding a JSON value.
   this;
 
   /// Decodes the state with [decoder].

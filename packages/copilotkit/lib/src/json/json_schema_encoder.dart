@@ -1,3 +1,6 @@
+/// @docImport 'package:ag_ui/ag_ui.dart';
+library;
+
 import 'package:ack/ack.dart';
 
 /// Encodes the parameter schemas of frontend tools as JSON Schema.
@@ -5,7 +8,7 @@ class const JsonSchemaEncoder() {
   /// Creates an encoder.
   this;
 
-  /// Encodes [schema] as the JSON Schema sent in `RunAgentInput.tools`.
+  /// Encodes [schema] as the JSON Schema sent in [RunAgentInput.tools].
   ///
   /// Ack omits `properties` on empty objects, at any depth, and some
   /// providers reject object schemas without it, so every object schema gets

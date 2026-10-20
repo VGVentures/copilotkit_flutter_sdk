@@ -18,7 +18,7 @@ class const RunInputBuilder({
   /// Creates a builder.
   this;
 
-  /// The input for a new run of [agent], with the client [tools], the
+  /// Returns the input for a new run of [agent], with the client [tools], the
   /// [context] entries (each value JSON-encoded) and the forwarded
   /// [properties], if any.
   RunAgentInput build({

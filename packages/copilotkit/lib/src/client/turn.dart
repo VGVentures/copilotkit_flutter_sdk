@@ -1,3 +1,6 @@
+/// @docImport 'package:copilotkit/src/client/copilotkit_client.dart';
+library;
+
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
@@ -5,7 +8,7 @@ import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 
 /// The turn in flight of one agent: the runs and tool calls between
-/// `CopilotKitClient.runAgent` and the moment the agent stops calling tools.
+/// [CopilotKitClient.runAgent] and the moment the agent stops calling tools.
 ///
 /// The run being streamed comes and goes during the turn, so this is
 /// mutable: a documented exception to the immutability rule.
@@ -16,7 +19,7 @@ class Turn(
   /// Creates a turn of [agent].
   this;
 
-  /// Cancelled when the turn is stopped or the runner is closed.
+  /// The signal cancelled when the turn is stopped or the runner is closed.
   final CancellationSignal signal = CancellationSignal();
 
   /// The run being streamed, or `null` between runs.

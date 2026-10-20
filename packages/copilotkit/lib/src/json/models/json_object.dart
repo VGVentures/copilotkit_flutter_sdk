@@ -22,7 +22,9 @@ class const JsonObject([final Map<String, Object?> _fields = const {}])
     _ => throw FormatException('Expected a JSON object, got $json'),
   };
 
-  /// Decodes this object with [decoder]. Throws what [decoder] throws.
+  /// Decodes this object with [decoder].
+  ///
+  /// Throws what [decoder] throws.
   T decode<T>(JsonDecoder<T> decoder) => decoder(_fields);
 
   /// Decodes this object with [decoder], or returns `null` when [decoder]

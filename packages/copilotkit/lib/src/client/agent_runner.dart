@@ -40,7 +40,7 @@ class AgentRunner({
   /// Runs a turn of [agent], after appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to the error
-  /// handler and to `CopilotKitAgentState.error`. Does nothing while [agent] is
+  /// handler and to [CopilotKitAgentState.error]. Does nothing while [agent] is
   /// already in a turn.
   Future<void> run(CopilotKitAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;
@@ -63,12 +63,12 @@ class AgentRunner({
   }
 
   /// Answers the human-in-the-loop call [toolCallId] of an agent in a turn
-  /// with [result]; see `ToolCallRunner.respond`.
+  /// with [result]; see [ToolCallRunner.respond].
   void respond(String toolCallId, Object? result) =>
       _toolCalls.respond(_agentsInTurn, toolCallId, result);
 
   /// Answers the calls of the tool [toolName] that wait for the user as
-  /// cancelled; see `ToolCallRunner.cancelAwaiting`.
+  /// cancelled; see [ToolCallRunner.cancelAwaiting].
   void cancelAwaiting(String toolName) =>
       _toolCalls.cancelAwaiting(_agentsInTurn, toolName);
 
