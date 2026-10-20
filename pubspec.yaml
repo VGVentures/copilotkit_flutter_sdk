@@ -7,4 +7,5 @@ environment:
 workspace:
   - packages/copilotkit
   - packages/copilotkit_flutter
+  - packages/json_utils
   - example

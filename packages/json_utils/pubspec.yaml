@@ -1,0 +1,16 @@
+name: json_utils
+description: Partial JSON parsing, JSON Patch and JSON Schema helpers over plain maps.
+version: 0.1.0+1
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  collection: ^1.19.1
+
+dev_dependencies:
+  test: ^1.31.0
+  very_good_analysis: ^11.0.0

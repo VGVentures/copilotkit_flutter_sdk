@@ -20,6 +20,7 @@ jobs:
       copilotkit: ${{ steps.filter.outputs.copilotkit }}
       copilotkit_flutter: ${{ steps.filter.outputs.copilotkit_flutter }}
       example: ${{ steps.filter.outputs.example }}
+      json_utils: ${{ steps.filter.outputs.json_utils }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@v7
@@ -45,6 +46,9 @@ jobs:
               - *shared
               - packages/**
               - example/**
+            json_utils:
+              - *shared
+              - packages/json_utils/**
 
   copilotkit:
     needs: changes
@@ -74,6 +78,15 @@ jobs:
       flutter_version_file: .fvmrc
       min_coverage: 100
       coverage_excludes: '**/*.g.dart'
+
+  json_utils:
+    needs: changes
+    if: ${{ needs.changes.outputs.json_utils == 'true' }}
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
+    with:
+      working_directory: packages/json_utils
+      flutter_version_file: .fvmrc
+      min_coverage: 100
 
   web:
     needs: changes
