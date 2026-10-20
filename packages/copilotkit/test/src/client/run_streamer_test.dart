@@ -47,7 +47,7 @@ void main() {
       useHarness(
         RunnerHarness(
           headers: () async => {'Authorization': 'Bearer token'},
-          properties: const JsonObject({'userId': '42'}),
+          properties: const {'userId': '42'},
         ),
       );
       harness.tools.register(weatherTool((_, {required signal}) async => ''));

@@ -17,7 +17,7 @@ class RunnerHarness {
   /// [errors] unless [onError] is given.
   new({
     HeadersBuilder? headers,
-    JsonEncodable? properties,
+    Map<String, Object?>? properties,
     CopilotErrorHandler? onError,
   }) {
     transport

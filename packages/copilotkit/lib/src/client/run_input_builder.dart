@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
-import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 import 'package:uuid/uuid.dart';
@@ -26,7 +25,7 @@ class const RunInputBuilder({
     required CopilotAgentState agent,
     required Iterable<ClientTool<Object?>> tools,
     required Iterable<AgentContextEntry> context,
-    JsonEncodable? properties,
+    Map<String, Object?>? properties,
   }) => RunAgentInput(
     threadId: agent.threadId,
     runId: _uuid.v4(),
@@ -48,6 +47,6 @@ class const RunInputBuilder({
       for (final entry in context)
         Context(description: entry.description, value: jsonEncode(entry.value)),
     ],
-    forwardedProps: properties?.toJson(),
+    forwardedProps: properties,
   );
 }
