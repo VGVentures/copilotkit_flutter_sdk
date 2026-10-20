@@ -21,6 +21,30 @@ void main() {
       ]);
     });
 
+    test('a null StateSnapshot clears the state', () {
+      final result = reduce(
+        const [StateSnapshotEvent(snapshot: null)],
+        from: agentState.copyWith(
+          sharedState: () => const SharedState({'count': 1}),
+        ),
+      );
+      expect(result.states, [agentState]);
+    });
+
+    test('a StateSnapshot that is not an object leaves the state '
+        'unchanged', () {
+      final result = reduce(
+        const [
+          StateSnapshotEvent(snapshot: ['a']),
+          StateSnapshotEvent(snapshot: 'text'),
+        ],
+        from: agentState.copyWith(
+          sharedState: () => const SharedState({'count': 1}),
+        ),
+      );
+      expect(result.states, const <CopilotAgentState>[]);
+    });
+
     test('StateDelta applies a JSON Patch to the state', () {
       final result = reduce(
         const [
@@ -95,20 +119,6 @@ void main() {
         from: agentState.copyWith(
           sharedState: () => const SharedState({'count': 1}),
         ),
-      );
-      expect(result.states, const <CopilotAgentState>[]);
-    });
-
-    test('a StateDelta on a state that is not an object is dropped', () {
-      final result = reduce(
-        const [
-          StateDeltaEvent(
-            delta: [
-              {'op': 'add', 'path': '/-', 'value': 'b'},
-            ],
-          ),
-        ],
-        from: agentState.copyWith(sharedState: () => const SharedState(['a'])),
       );
       expect(result.states, const <CopilotAgentState>[]);
     });

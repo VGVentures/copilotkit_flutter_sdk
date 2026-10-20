@@ -31,7 +31,6 @@ export 'src/client/client.dart'
         ToolCallRunner,
         Turn;
 export 'src/context/context.dart' hide AgentContextStore;
-export 'src/json/json.dart' show JsonDecoder, JsonEncodable, JsonObject;
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
