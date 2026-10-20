@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:copilotkit/copilotkit.dart';
 
 Future<void> main() async {
-  final client = CopilotKitBloc(
+  final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
     properties: {'userId': '42'},
@@ -30,13 +30,10 @@ Future<void> main() async {
   );
 
   client
-    ..add(ToolRegistered(showWeather))
-    ..add(ContextAdded(user))
-    ..add(const AgentOpened('default'));
-  final agent = await client.stream
-      .map((state) => state.agents['default'])
-      .firstWhere((agent) => agent != null);
-  final subscription = agent!.stream.listen((state) {
+    ..registerTool(showWeather)
+    ..addContext(user);
+  final agent = client.agent('default');
+  final subscription = agent.stream.listen((state) {
     for (final call in state.toolCalls) {
       final view = switch (call.status) {
         ToolCallStatus.inProgress => 'loading…',
@@ -51,20 +48,15 @@ Future<void> main() async {
     );
   });
 
-  client.add(
-    AgentRunRequested(
-      'default',
-      message: UserMessage(
-        id: 'user-1',
-        content: "What's the weather in Lima?",
-      ),
-    ),
+  // Completes once the whole turn ends, tool calls included.
+  await client.runAgent(
+    'default',
+    message: UserMessage(id: 'user-1', content: "What's the weather in Lima?"),
   );
-  await agent.stream.firstWhere((state) => !state.isRunning);
 
   await subscription.cancel();
   client
-    ..add(ContextRemoved(user.id))
-    ..add(ToolUnregistered(showWeather));
+    ..removeContext(user.id)
+    ..unregisterTool(showWeather);
   await client.close();
 }

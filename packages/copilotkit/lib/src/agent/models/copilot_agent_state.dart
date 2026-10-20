@@ -20,9 +20,9 @@ class const CopilotAgentState({
   /// Shared agent state (any JSON value), or `null` if the agent sent none.
   final Object? sharedState,
 
-  /// Whether the agent is working: from `AgentRunRequested` until the whole
-  /// turn ends, including frontend tool handlers and the runs that follow
-  /// them.
+  /// Whether the agent is working: from `CopilotKitClient.runAgent` until
+  /// the whole turn ends, including frontend tool handlers and the runs that
+  /// follow them.
   final bool isRunning = false,
 
   /// Tool calls made by the agent, in call order.

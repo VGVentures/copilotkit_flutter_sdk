@@ -4,45 +4,22 @@ import 'package:example/chat/message_list.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-/// Chat with the runtime's `default` agent.
-///
-/// Opens the agent on the nearest `CopilotKit` client and builds the chat
-/// once the client's state holds it.
-class const ChatPage({super.key}) extends StatefulWidget {
+/// Chat with the runtime's `default` agent on the nearest `CopilotKit`
+/// client.
+class const ChatPage({super.key}) extends StatelessWidget {
   /// Id of the agent this page chats with.
   static const agentId = 'default';
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
-}
-
-class _ChatPageState extends State<ChatPage> {
-  CopilotKitBloc? _client;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final client = CopilotKit.of(context);
-    if (!identical(client, _client)) {
-      _client = client..add(const AgentOpened(ChatPage.agentId));
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final client = _client!;
-    return BlocSelector<CopilotKitBloc, CopilotKitState, CopilotAgent?>(
-      bloc: client,
-      selector: (state) => state.agents[ChatPage.agentId],
-      builder: (context, agent) {
-        if (agent == null) return const SizedBox.shrink();
-        return BlocProvider(
-          create: (_) =>
-              CopilotChatBloc(client: client, agent: agent)
-                ..add(const ChatSubscriptionRequested()),
-          child: const ChatView(),
-        );
-      },
+    final client = CopilotKit.of(context);
+    return BlocProvider(
+      // A new bloc for a new client.
+      key: ValueKey(client),
+      create: (_) =>
+          CopilotChatBloc(client: client, agentId: agentId)
+            ..add(const ChatSubscriptionRequested()),
+      child: const ChatView(),
     );
   }
 }

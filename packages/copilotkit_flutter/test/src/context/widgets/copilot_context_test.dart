@@ -1,26 +1,19 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
+import '../../../helpers/recording_client.dart';
 
 void main() {
-  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
-
   group(CopilotContext, () {
-    late _MockCopilotKitBloc client;
+    late RecordingClient client;
 
-    /// The events added to [mock], in order.
-    List<CopilotKitEvent> eventsOf(_MockCopilotKitBloc mock) =>
-        verify(() => mock.add(captureAny())).captured.cast<CopilotKitEvent>();
-
-    setUp(() => client = _MockCopilotKitBloc());
+    setUp(() => client = RecordingClient());
 
     Widget build(
       Object? value, {
       String description = 'Current user',
-      CopilotKitBloc? withClient,
+      CopilotKitClient? withClient,
     }) {
       return CopilotKit.value(
         client: withClient ?? client,
@@ -35,9 +28,10 @@ void main() {
     testWidgets('adds the entry on mount', (tester) async {
       await tester.pumpWidget(build({'name': 'Ada'}));
 
-      final added = eventsOf(client).single as ContextAdded;
-      expect(added.entry.description, 'Current user');
-      expect(added.entry.value, {'name': 'Ada'});
+      final added = client.addedEntries.single;
+      expect(added.description, 'Current user');
+      expect(added.value, {'name': 'Ada'});
+      expect(client.calls, hasLength(1));
     });
 
     testWidgets('updates the entry when the value changes', (tester) async {
@@ -45,11 +39,13 @@ void main() {
 
       await tester.pumpWidget(build({'name': 'Grace'}));
 
-      final events = eventsOf(client);
-      final added = events.first as ContextAdded;
-      expect(events, [
-        added,
-        ContextUpdated(added.entry.id, const {'name': 'Grace'}),
+      final added = client.addedEntries.single;
+      expect(client.calls, [
+        ClientCall('addContext', [added]),
+        ClientCall('updateContext', [
+          added.id,
+          const {'name': 'Grace'},
+        ]),
       ]);
     });
 
@@ -60,25 +56,29 @@ void main() {
 
       await tester.pumpWidget(build(1, description: 'Unread'));
 
-      final events = eventsOf(client);
-      final added = events.first as ContextAdded;
-      expect(events[1], ContextRemoved(added.entry.id));
-      expect((events[2] as ContextAdded).entry.description, 'Unread');
-      expect(events, hasLength(3));
+      final [added, replacement] = client.addedEntries;
+      expect(client.calls, [
+        ClientCall('addContext', [added]),
+        ClientCall('removeContext', [added.id]),
+        ClientCall('addContext', [replacement]),
+      ]);
+      expect(replacement.description, 'Unread');
     });
 
     testWidgets('moves the entry when the client changes', (tester) async {
-      final other = _MockCopilotKitBloc();
+      final other = RecordingClient();
       await tester.pumpWidget(build(1));
 
       await tester.pumpWidget(build(1, withClient: other));
 
-      final events = eventsOf(client);
-      final added = events.first as ContextAdded;
-      expect(events, [added, ContextRemoved(added.entry.id)]);
-      final moved = eventsOf(other).single as ContextAdded;
-      expect(moved.entry.description, 'Current user');
-      expect(moved.entry.value, 1);
+      final added = client.addedEntries.single;
+      expect(client.calls, [
+        ClientCall('addContext', [added]),
+        ClientCall('removeContext', [added.id]),
+      ]);
+      final moved = other.addedEntries.single;
+      expect(moved.description, 'Current user');
+      expect(moved.value, 1);
     });
 
     testWidgets('removes the entry on dispose', (tester) async {
@@ -88,9 +88,11 @@ void main() {
         CopilotKit.value(client: client, child: const SizedBox()),
       );
 
-      final events = eventsOf(client);
-      final added = events.first as ContextAdded;
-      expect(events, [added, ContextRemoved(added.entry.id)]);
+      final added = client.addedEntries.single;
+      expect(client.calls, [
+        ClientCall('addContext', [added]),
+        ClientCall('removeContext', [added.id]),
+      ]);
     });
   });
 }

@@ -4,9 +4,9 @@ import 'package:flutter/widgets.dart';
 
 /// Shares [value] with the agent while this widget is mounted.
 ///
-/// Adds a context entry (`ContextAdded`) on the nearest `CopilotKit` client
-/// on mount, updates it (`ContextUpdated`) when [value] changes and removes
-/// it (`ContextRemoved`) on dispose. [value] must be JSON-encodable.
+/// Adds a context entry on the nearest `CopilotKit` client on mount,
+/// updates it when [value] changes and removes it on dispose. [value] must
+/// be JSON-encodable.
 class const CopilotContext({
   /// Tells the agent what [value] is.
   required final String description,
@@ -26,17 +26,17 @@ class const CopilotContext({
 }
 
 class _CopilotContextState extends State<CopilotContext> {
-  CopilotKitBloc? _client;
+  CopilotKitClient? _client;
 
   /// The entry added and the client it was added to, so only that entry is
   /// updated or removed.
-  (CopilotKitBloc, AgentContextEntry)? _entry;
+  (CopilotKitClient, AgentContextEntry)? _entry;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final client = CopilotKit.of(context);
-    if (!identical(client, _client)) {
+    if (client != _client) {
       _client = client;
       _add();
     }
@@ -48,7 +48,7 @@ class _CopilotContextState extends State<CopilotContext> {
     if (widget.description != oldWidget.description) {
       _add();
     } else if (widget.value != oldWidget.value) {
-      _client!.add(ContextUpdated(_entry!.$2.id, widget.value));
+      _client!.updateContext(_entry!.$2.id, widget.value);
     }
   }
 
@@ -58,13 +58,13 @@ class _CopilotContextState extends State<CopilotContext> {
       description: widget.description,
       value: widget.value,
     );
-    final client = _client!..add(ContextAdded(entry));
+    final client = _client!..addContext(entry);
     _entry = (client, entry);
   }
 
   void _remove() {
     if (_entry case (final client, final entry)) {
-      client.add(ContextRemoved(entry.id));
+      client.removeContext(entry.id);
     }
     _entry = null;
   }

@@ -53,13 +53,13 @@ methods besides the `Bloc` API. Every change goes through an event added with
 
 ```dart
 // Bad
-class CopilotKitBloc extends Bloc<CopilotKitEvent, CopilotKitState> {
-  final Uri runtimeUrl;
-  void run(String agentId) => ...;
+class CopilotChatBloc extends Bloc<CopilotChatEvent, CopilotChatState> {
+  final CopilotKitClient client;
+  void send(String text) => ...;
 }
 
-// Good: the configuration is private, runs are events
-client.add(AgentRunRequested(agentId));
+// Good: the client is private, sends are events
+bloc.add(const ChatMessageSent('Hi'));
 ```
 
 Blocs are tested with `blocTest` from `package:bloc_test`, never with a plain
@@ -272,4 +272,4 @@ every package, and spelling all block merges.
   fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit
   ```
 
-  Add `--via-client true` to run the same request through `CopilotKitBloc`.
+  Add `--via-client true` to run the same request through `CopilotKitClient`.

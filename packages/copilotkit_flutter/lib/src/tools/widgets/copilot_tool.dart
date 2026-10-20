@@ -5,8 +5,8 @@ import 'package:flutter/widgets.dart';
 
 /// Makes [tool] available to the agent while this widget is mounted.
 ///
-/// Adds `ToolRegistered` to the nearest `CopilotKit` client and
-/// `ToolUnregistered` on dispose. If [builder] is set, calls to the tool
+/// Registers it on the nearest `CopilotKit` client and unregisters it on
+/// dispose. If [builder] is set, calls to the tool
 /// render with it in [child] (see `ToolCallWidget`).
 class const CopilotTool({
   /// The tool to register.
@@ -27,17 +27,17 @@ class const CopilotTool({
 }
 
 class _CopilotToolState extends State<CopilotTool> {
-  CopilotKitBloc? _client;
+  CopilotKitClient? _client;
 
   /// The tool instance registered and the client it was registered on, so
   /// only that registration is undone.
-  (CopilotKitBloc, FrontendTool)? _registered;
+  (CopilotKitClient, FrontendTool)? _registered;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final client = CopilotKit.of(context);
-    if (!identical(client, _client)) {
+    if (client != _client) {
       _client = client;
       _register();
     }
@@ -46,18 +46,18 @@ class _CopilotToolState extends State<CopilotTool> {
   @override
   void didUpdateWidget(CopilotTool oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(widget.tool, oldWidget.tool)) _register();
+    if (widget.tool != oldWidget.tool) _register();
   }
 
   void _register() {
     _unregister();
-    final client = _client!..add(ToolRegistered(widget.tool));
+    final client = _client!..registerTool(widget.tool);
     _registered = (client, widget.tool);
   }
 
   void _unregister() {
     if (_registered case (final client, final tool)) {
-      client.add(ToolUnregistered(tool));
+      client.unregisterTool(tool);
     }
     _registered = null;
   }

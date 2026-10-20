@@ -7,10 +7,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:mocktail/mocktail.dart';
 
-class _MockCopilotKitBloc extends Mock implements CopilotKitBloc;
+class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
 void main() {
-  setUpAll(() => registerFallbackValue(const AgentOpened('fallback')));
+  setUpAll(() {
+    registerFallbackValue(
+      FrontendTool(
+        name: 'fallback',
+        description: '',
+        parameters: Ack.object({}),
+        handler: (_, {required signal}) async => '',
+      ),
+    );
+    registerFallbackValue(AgentContextEntry(description: ''));
+  });
 
   group('lookUpWeather', () {
     test('returns a deterministic forecast for the city', () async {
@@ -200,7 +210,7 @@ void main() {
 
   group(WeatherDemo, () {
     testWidgets('registers the tool and the user context', (tester) async {
-      final client = _MockCopilotKitBloc();
+      final client = _MockCopilotKitClient();
 
       await tester.pumpWidget(
         CopilotKit.value(
@@ -211,11 +221,14 @@ void main() {
         ),
       );
 
-      final events = verify(() => client.add(captureAny())).captured;
-      final tool = events.whereType<ToolRegistered>().single.tool;
+      final tool =
+          verify(() => client.registerTool(captureAny())).captured.single
+              as FrontendTool;
       expect(tool.name, 'showWeather');
       expect(tool.parameters.toJsonSchema()['required'], ['city']);
-      final entry = events.whereType<ContextAdded>().single.entry;
+      final entry =
+          verify(() => client.addContext(captureAny())).captured.single
+              as AgentContextEntry;
       expect(entry.description, 'Current user');
       expect(entry.value, demoUser);
       expect(find.text('Checking Lima…'), findsOneWidget);

@@ -3,8 +3,8 @@ import 'package:uuid/uuid.dart';
 
 /// A piece of app data shared with the agent.
 ///
-/// Add it with `ContextAdded`; every run sends all entries in
-/// `CopilotKitState.context` as `RunAgentInput.context`, with [value]
+/// Add it with `CopilotKitClient.addContext`; every run sends all entries in
+/// `CopilotKitClient.context` as `RunAgentInput.context`, with [value]
 /// JSON-encoded. Keep the [id] to update or remove the entry later.
 // The default id is generated, so the constructor can't be const.
 // ignore: prefer_const_constructors_in_immutables
@@ -19,7 +19,8 @@ class AgentContextEntry({
   /// Creates an entry; a random [id] is generated when none is given.
   this;
 
-  /// Identifies the entry in `ContextUpdated` and `ContextRemoved`.
+  /// Identifies the entry in `CopilotKitClient.updateContext` and
+  /// `CopilotKitClient.removeContext`.
   final String id = id ?? const Uuid().v4();
 
   /// Returns a copy with [value] replaced.
