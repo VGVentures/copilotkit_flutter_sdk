@@ -3,6 +3,7 @@
 
 import 'dart:convert';
 
+import 'package:ack/ack.dart';
 import 'package:copilotkit/copilotkit.dart';
 
 Future<void> main() async {

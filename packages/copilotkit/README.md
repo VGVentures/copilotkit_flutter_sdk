@@ -44,7 +44,13 @@ registered tool to the agent on each run. There are two kinds:
 - `FrontendTool` runs a handler in the app and sends its result back.
 - `HumanInTheLoopTool` has no handler: the result is the user's answer.
 
+A tool's `parameters` is an [`ack`](https://pub.dev/packages/ack) schema.
+`copilotkit` doesn't re-export `ack`, so add it to your app with
+`dart pub add ack` and import it:
+
 ```dart
+import 'package:ack/ack.dart';
+
 client.registerTool(HumanInTheLoopTool(
   name: 'confirmAction',
   description: 'Ask the user to confirm an action before doing it.',

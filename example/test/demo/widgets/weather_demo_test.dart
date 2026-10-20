@@ -1,3 +1,4 @@
+import 'package:ack/ack.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/demo_user.dart';
 import 'package:example/demo/widgets/weather_demo.dart';
