@@ -113,7 +113,7 @@ curl -N -X POST http://localhost:8200/api/copilotkit/agent/default/run \
 ## Manual test checklist
 
 Use this checklist to check the app end to end against a running runtime. The
-demo in `lib/demo/weather_demo.dart` registers a `showWeather` frontend tool
+demo in `lib/demo/widgets/weather_demo.dart` registers a `showWeather` frontend tool
 and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
 
 <!-- prettier-ignore -->

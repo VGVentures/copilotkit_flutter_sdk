@@ -20,25 +20,21 @@ dart pub add copilotkit
 
 An agent's `CopilotAgentState.sharedState` is sent with every run as
 `RunAgentInput.state`, and the agent updates it with `STATE_SNAPSHOT` and
-`STATE_DELTA` events. The app edits it by adding events to the agent:
+`STATE_DELTA` events. The app edits it through the agent:
 
 ```dart
-agent
-  ..add(const AgentStateSet({'theme': 'dark'}))
-  ..add(const AgentStatePatched([
-    {'op': 'add', 'path': '/units', 'value': 'metric'},
-  ]))
-  ..add(const AgentMessagesSet([])); // e.g. to reset the conversation
+client.agent('default')
+  ..setSharedState(const SharedState({'theme': 'dark'}))
+  ..patchSharedState(const [JsonPatchAdd(path: '/units', value: 'metric')])
+  ..setMessages([]); // e.g. to reset the conversation
 
-client.add(const AgentRunRequested('default')); // sends the edits above
+await client.runAgent('default'); // sends the edits above
 ```
 
-The agent applies events in order and a run reads the agent after every event
-added before it, so an edit followed by a run in the same tick is sent with
-that run. A snapshot from the runtime replaces a local edit, like in the
-AG-UI client. `AgentStatePatched` takes RFC 6902 operations; when one does not
-apply the state stays as it was and the error goes to
-`BlocObserver.onError`.
+Edits apply right away, so the next run sends them. A snapshot from the
+runtime replaces a local edit, like in the AG-UI client. `patchSharedState`
+takes RFC 6902 operations; when one does not apply the state stays as it was
+and a `FormatException` is thrown.
 
 ---
 

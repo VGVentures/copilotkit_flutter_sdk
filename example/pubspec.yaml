@@ -12,6 +12,7 @@ resolution: workspace
 dependencies:
   copilotkit: ^0.1.0
   copilotkit_flutter: ^0.1.0
+  equatable: ^3.0.0
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1

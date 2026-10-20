@@ -77,7 +77,7 @@ the model, see [`example/README.md`](example/README.md).
 
 The example app ships with placeholder demo content so you can check the full
 flow before the real demo scenario exists. It lives in
-`example/lib/demo/weather_demo.dart` and will be replaced.
+`example/lib/demo/widgets/weather_demo.dart` and will be replaced.
 
 <!-- prettier-ignore -->
 > [!NOTE]
@@ -106,8 +106,8 @@ The repository is a Dart pub workspace with three packages.
 
 | Path | What it is |
 | --- | --- |
-| `packages/copilotkit` | Pure Dart core: `CopilotKitBloc` (driven by `CopilotKitEvent`s), `CopilotAgentBloc` (a bloc of `CopilotAgentState`), frontend tools, context, and the AG-UI transport. No Flutter dependency. |
-| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, and `CopilotChatBloc`. Re-exports the core. |
+| `packages/copilotkit` | Pure Dart core: `CopilotKitClient` (agents, frontend tools, context and runs), `CopilotAgent` (one conversation, with its `CopilotAgentState` as `state` and `stream`), and the AG-UI transport. No Flutter or bloc dependency. |
+| `packages/copilotkit_flutter` | Flutter layer: `CopilotKit`, `CopilotAgentScope`, `AgentStateBuilder`, `CopilotTool`, `ToolRenderer`, `ToolCallWidget`, `CopilotContext`, `CopilotChatProvider` and `CopilotChatBloc`. Re-exports the core. |
 | `example` | Demo app, plus the local runtime in `example/tool/`. |
 
 ## Development
