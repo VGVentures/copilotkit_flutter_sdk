@@ -22,7 +22,7 @@ import 'package:copilotkit/src/transport/transport.dart';
 class CopilotKitClient({
   required Uri runtimeUrl,
   final HeadersBuilder? _headers,
-  final JsonEncodable? _properties,
+  final Map<String, Object?>? _properties,
   final CopilotErrorHandler? _onError,
   AgentTransport? transport,
 }) {
@@ -30,8 +30,8 @@ class CopilotKitClient({
   /// `https://host/api/copilotkit`.
   ///
   /// `headers` builds the headers sent with each run, e.g. for auth.
-  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`;
-  /// their `toJson` must return a JSON object.
+  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`,
+  /// e.g. a model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] defaults to an `ag_ui`-backed transport
   /// for [runtimeUrl].

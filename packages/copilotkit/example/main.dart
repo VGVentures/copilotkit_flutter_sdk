@@ -9,7 +9,7 @@ Future<void> main() async {
   final client = CopilotKitClient(
     runtimeUrl: Uri.parse('http://localhost:8200/api/copilotkit'),
     headers: () async => {'Authorization': 'Bearer <token>'},
-    properties: const JsonObject({'userId': '42'}),
+    properties: const {'userId': '42'},
     onError: (error, stackTrace) => print('CopilotKit error: $error'),
   );
 

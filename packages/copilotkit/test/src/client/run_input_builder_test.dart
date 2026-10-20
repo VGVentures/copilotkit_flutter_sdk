@@ -43,7 +43,7 @@ void main() {
         agent: agent,
         tools: [tool],
         context: [entry],
-        properties: const JsonObject({'locale': 'en'}),
+        properties: const {'locale': 'en'},
       );
 
       expect(input.threadId, 'thread-1');

@@ -27,7 +27,7 @@ void main() {
       client = CopilotKitClient(
         runtimeUrl: runtimeUrl,
         headers: () async => {'Authorization': 'Bearer token'},
-        properties: const JsonObject({'userId': '42'}),
+        properties: const {'userId': '42'},
         onError: (error, stackTrace) => errors.add((error, stackTrace)),
         transport: transport,
       );

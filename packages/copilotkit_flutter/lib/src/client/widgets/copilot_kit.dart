@@ -33,7 +33,7 @@ class CopilotKit extends StatefulWidget {
   final CopilotKitClient? _client;
   final Uri? _runtimeUrl;
   final HeadersBuilder? _headers;
-  final JsonEncodable? _properties;
+  final Map<String, Object?>? _properties;
   final CopilotErrorHandler? _onError;
 
   /// The subtree that can read the client.
