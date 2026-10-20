@@ -1,8 +1,6 @@
-// PLACEHOLDER DEMO CONTENT.
-//
-// A stand-in frontend tool and context so the full flow (generative UI and
-// a context-based answer) can be checked on device before the demo scenario
-// is chosen. Replace this file with the real scenario in task B10.
+// Placeholder demo content: a stand-in frontend tool and context so the
+// full flow (generative UI and a context-based answer) can be checked on a
+// device until the real demo scenario replaces it.
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/demo_user.dart';
 import 'package:example/demo/models/weather_args.dart';

@@ -1,13 +1,17 @@
 import 'package:ack/ack.dart';
 
-/// The parameter schema of a frontend tool, as sent to the agent.
-extension type const ToolSchema(ObjectSchema schema) {
+/// Encodes the parameter schemas of frontend tools as JSON Schema.
+class const JsonSchemaEncoder() {
+  /// Creates an encoder.
+  this;
+
   /// Encodes [schema] as the JSON Schema sent in `RunAgentInput.tools`.
   ///
   /// Ack omits `properties` on empty objects, at any depth, and some
   /// providers reject object schemas without it, so every object schema gets
   /// an empty `properties` map when it has none.
-  Map<String, Object?> toJson() => _withProperties(schema.toJsonSchema());
+  Map<String, Object?> encode(ObjectSchema schema) =>
+      _withProperties(schema.toJsonSchema());
 
   Map<String, Object?> _withProperties(Map<String, Object?> schema) => {
     for (final MapEntry(:key, :value) in schema.entries)

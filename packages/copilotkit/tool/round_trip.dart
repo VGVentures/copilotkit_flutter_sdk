@@ -1,4 +1,4 @@
-// Dev-only probe for the Copilot Runtime v2 contract (task A1).
+// Dev-only probe for the Copilot Runtime v2 contract.
 //
 // Usage:
 //   fvm dart run tool/round_trip.dart \
@@ -21,7 +21,7 @@ import 'dart:io';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/tools/tool_schema.dart';
+import 'package:copilotkit/src/json/json.dart';
 import 'package:http/http.dart' as http;
 
 Future<void> main(List<String> arguments) async {
@@ -104,9 +104,9 @@ Future<void> _viaClient(Uri url, String agentId, String message) async {
 final _showWeather = Tool(
   name: 'showWeather',
   description: 'Show the current weather for a city on the user screen.',
-  parameters: ToolSchema(
+  parameters: const JsonSchemaEncoder().encode(
     Ack.object({'city': Ack.string().describe('City name, e.g. Lima')}),
-  ).toJson(),
+  ),
 );
 
 Future<void> _record({

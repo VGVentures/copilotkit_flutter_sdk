@@ -25,10 +25,5 @@ export 'src/client/client.dart' hide AgentRunner, RunInputBuilder;
 export 'src/context/context.dart' hide AgentContextStore;
 export 'src/json/json.dart' show JsonDecoder, JsonEncodable, JsonObject;
 export 'src/tools/tools.dart'
-    hide
-        FallbackToolResult,
-        ToolCallExecutor,
-        ToolCallOutcome,
-        ToolRegistry,
-        ToolSchema;
+    hide FallbackToolResult, ToolCallExecutor, ToolCallOutcome, ToolRegistry;
 export 'src/transport/transport.dart' show AgentTransport;
