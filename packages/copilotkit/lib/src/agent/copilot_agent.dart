@@ -5,6 +5,7 @@ import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/json/json.dart';
+import 'package:copilotkit/src/tools/tools.dart';
 import 'package:meta/meta.dart';
 import 'package:uuid/uuid.dart';
 
@@ -93,6 +94,24 @@ class CopilotAgent({
   /// result).
   @internal
   void apply(BaseEvent event) => _update(_reducer.reduce(_state, event));
+
+  /// Marks the executing tool call [toolCallId] as waiting for the user's
+  /// answer (`ToolCallView.awaitingResponse`), until it gets its result.
+  @internal
+  void awaitResponse(String toolCallId) {
+    _update(
+      _state.copyWith(
+        toolCalls: [
+          for (final call in _state.toolCalls)
+            if (call.id == toolCallId &&
+                call.status == ToolCallStatus.executing)
+              call.copyWith(awaitingResponse: true)
+            else
+              call,
+        ],
+      ),
+    );
+  }
 
   /// Marks the agent running for a turn and clears the previous error.
   @internal

@@ -22,16 +22,19 @@ typedef CopilotErrorHandler = void Function(
 ///
 /// A turn starts with a run of the agent. When the agent calls frontend
 /// tools, their handlers run and the agent runs again with the results,
-/// until it answers without calling one. A turn ends when that happens, when
-/// a run fails, or when it is stopped.
+/// until it answers without calling one. When it calls a human-in-the-loop
+/// tool, the turn waits for the user's answer (see [respond]) and continues
+/// the same way, unless that tool sets `followUp` to `false`. A turn ends
+/// when that happens, when a run fails, or when it is stopped.
 ///
-/// It tracks the turn in flight for each agent, so it is mutable: a
-/// documented exception to the immutability rule.
+/// It tracks the turn in flight for each agent and the answers to
+/// human-in-the-loop calls, so it is mutable: a documented exception to the
+/// immutability rule.
 class AgentRunner({
   /// Sends runs and stop requests to the runtime.
   required final AgentTransport _transport,
 
-  /// The frontend tools sent with every run and run on the device.
+  /// The client tools sent with every run and carried out on the device.
   required final ToolRegistry _tools,
 
   /// The app data sent with every run.
@@ -49,7 +52,7 @@ class AgentRunner({
   /// Builds the input of each run.
   final RunInputBuilder _inputBuilder = const RunInputBuilder(),
 
-  /// Runs the frontend tool calls.
+  /// Produces the results of the client tool calls.
   final ToolCallExecutor _executor = const ToolCallExecutor(),
 
   /// Generates the ids of the tool results added locally.
@@ -60,6 +63,8 @@ class AgentRunner({
 
   final _turns = <String, _Turn>{};
 
+  final _responses = ToolResponses();
+
   /// Runs a turn of [agent], after appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to the error
@@ -68,7 +73,7 @@ class AgentRunner({
   Future<void> run(CopilotAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;
     if (_turns.containsKey(agentId)) return;
-    final turn = _Turn();
+    final turn = _Turn(agent);
     _turns[agentId] = turn;
     // Started first, so the agent's first new state is already running.
     agent.startTurn();
@@ -82,14 +87,23 @@ class AgentRunner({
           where: (call) => _tools[call.name] == null,
         );
         if (pending.isEmpty) return;
+        _markAwaitingResponse(agent, pending);
+        var followUp = false;
         for (final (call, tool) in pending) {
-          final outcome = await _executor.execute(tool, call, turn.signal);
+          final outcome = await _executor.execute(
+            tool,
+            call,
+            turn.signal,
+            responses: _responses,
+          );
           if (outcome.error case final error?) {
             _onError(error, outcome.stackTrace ?? StackTrace.current);
           }
           if (turn.signal.isCancelled) return;
           _addToolResult(agent, call, outcome.result);
+          followUp |= _followsUp(tool);
         }
+        if (!followUp) return;
       }
     } finally {
       // A stop or close already ended the turn otherwise, and a newer turn
@@ -97,6 +111,36 @@ class AgentRunner({
       if (!agent.isClosed && _turns[agentId] == turn) {
         _turns.remove(agentId);
         agent.endTurn();
+      }
+    }
+  }
+
+  /// Answers the human-in-the-loop call [toolCallId] with [result]: a
+  /// `String` as it is, anything else JSON-encoded.
+  ///
+  /// An answer that arrives before the turn waits for the call (its
+  /// arguments are complete but its run has not finished streaming) is kept
+  /// until it does. Ignored when the call is unknown, belongs to no running
+  /// turn, already has a result or was answered already, or when its tool is
+  /// not a registered `HumanInTheLoopTool`. A [result] that can't be encoded
+  /// goes to the error handler and leaves the call waiting.
+  void respond(String toolCallId, Object? result) {
+    if (!_isUnansweredHumanCall(toolCallId)) return;
+    try {
+      _responses.respond(toolCallId, result);
+    } on Object catch (error, stackTrace) {
+      _onError(error, stackTrace);
+    }
+  }
+
+  /// Answers the calls of the tool [toolName] that wait for the user as
+  /// cancelled: with the tool gone, nobody can answer them.
+  void cancelAwaiting(String toolName) {
+    for (final turn in _turns.values) {
+      for (final call in turn.agent.state.toolCalls) {
+        if (call.name == toolName && call.awaitingResponse) {
+          _responses.respond(call.id, FallbackToolResult.cancelled.message);
+        }
       }
     }
   }
@@ -138,6 +182,7 @@ class AgentRunner({
       turn.signal.cancel();
       await turn.run?.subscription.cancel();
     }
+    _responses.clear();
   }
 
   /// Streams one run of [agent] within [turn]. Returns whether it finished
@@ -213,7 +258,7 @@ class AgentRunner({
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
-  List<(ToolCallView, FrontendTool<Object?>)> _pendingToolCalls(
+  List<(ToolCallView, ClientTool<Object?>)> _pendingToolCalls(
     CopilotAgent agent,
   ) => [
     for (final call in agent.state.toolCalls)
@@ -223,6 +268,42 @@ class AgentRunner({
       ))
         (call, tool),
   ];
+
+  /// Marks the human-in-the-loop calls in [pending] as awaiting a response,
+  /// all at once, so the user can answer them in any order.
+  ///
+  /// Calls whose arguments don't match their tool's parameters are left out:
+  /// they get the invalid arguments result without waiting.
+  void _markAwaitingResponse(
+    CopilotAgent agent,
+    List<(ToolCallView, ClientTool<Object?>)> pending,
+  ) {
+    for (final (call, tool) in pending) {
+      if (tool is HumanInTheLoopTool && _executor.accepts(tool, call)) {
+        agent.awaitResponse(call.id);
+      }
+    }
+  }
+
+  /// Whether the agent runs again after [tool] produced its result.
+  bool _followsUp(ClientTool<Object?> tool) => switch (tool) {
+    FrontendTool() => true,
+    HumanInTheLoopTool(:final followUp) => followUp,
+  };
+
+  /// Whether [toolCallId] is a call of a registered `HumanInTheLoopTool`
+  /// with complete arguments and no result yet, in an agent that is running
+  /// a turn, and has no answer yet.
+  bool _isUnansweredHumanCall(String toolCallId) =>
+      !_responses.isAnswered(toolCallId) &&
+      _turns.values.any(
+        (turn) => turn.agent.state.toolCalls.any(
+          (call) =>
+              call.id == toolCallId &&
+              call.status == ToolCallStatus.executing &&
+              _tools[call.name] is HumanInTheLoopTool,
+        ),
+      );
 
   /// Gives every tool call without a result (and matching [where], if set)
   /// the message of [result], so the conversation stays valid for the next
@@ -249,6 +330,9 @@ class AgentRunner({
         content: content,
       ),
     );
+    // After the result is applied, so a late answer finds a complete call
+    // and is ignored.
+    _responses.remove(call.id);
   }
 
   void _fail(CopilotAgent agent, Object error, StackTrace stackTrace) {
@@ -258,7 +342,7 @@ class AgentRunner({
 }
 
 /// The turn in flight of one agent.
-class _Turn() {
+class _Turn(final CopilotAgent agent) {
   /// Cancelled when the turn is stopped or the runner is closed.
   final signal = CancellationSignal();
 

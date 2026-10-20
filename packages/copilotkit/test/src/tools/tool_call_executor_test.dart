@@ -43,6 +43,7 @@ void main() {
         tool,
         callWith({'city': 'Lima', 'days': 3}),
         signal,
+        responses: ToolResponses(),
       );
 
       expect(outcome, const ToolCallOutcome(result: 'sunny'));
@@ -58,6 +59,7 @@ void main() {
         tool,
         callWith({'city': 'Lima'}),
         signal,
+        responses: ToolResponses(),
       );
 
       expect(outcome.result, FallbackToolResult.handlerError.message);
@@ -78,10 +80,63 @@ void main() {
         tool,
         callWith({'city': 'Lima'}),
         signal,
+        responses: ToolResponses(),
       );
 
       expect(outcome.result, FallbackToolResult.handlerError.message);
       expect(outcome.error, isA<FormatException>());
+    });
+
+    group('for a human-in-the-loop tool', () {
+      final approval = HumanInTheLoopTool(
+        name: 'confirmAction',
+        description: 'Ask the user to confirm an action',
+        parameters: Ack.object({'action': Ack.string()}),
+        decode: JsonObject.new,
+      );
+      const call = ToolCallView(
+        id: 'c1',
+        name: 'confirmAction',
+        status: ToolCallStatus.executing,
+        args: JsonObject({'action': 'delete'}),
+      );
+
+      test('waits for the answer', () async {
+        final responses = ToolResponses();
+
+        final outcome = executor.execute(
+          approval,
+          call,
+          signal,
+          responses: responses,
+        );
+        responses.respond('c1', 'approved');
+
+        expect(await outcome, const ToolCallOutcome(result: 'approved'));
+      });
+
+      test('answers invalid args without waiting', () async {
+        final outcome = await executor.execute(
+          approval,
+          callWith({'city': 'Lima'}),
+          signal,
+          responses: ToolResponses(),
+        );
+
+        expect(outcome.result, contains("arguments don't match"));
+      });
+    });
+
+    group('accepts', () {
+      final tool = weatherTool((_, {required signal}) async => 'ok');
+
+      test('is true when the args match the parameters', () {
+        expect(executor.accepts(tool, callWith({'city': 'Lima'})), isTrue);
+      });
+
+      test('is false when they do not', () {
+        expect(executor.accepts(tool, callWith({'days': 3})), isFalse);
+      });
     });
 
     group('with invalid args', () {
@@ -96,8 +151,8 @@ void main() {
         });
       });
 
-      Future<ToolCallOutcome> outcomeFor(Map<String, Object?> args) =>
-          executor.execute(tool, callWith(args), signal);
+      Future<ToolCallOutcome> outcomeFor(Map<String, Object?> args) => executor
+          .execute(tool, callWith(args), signal, responses: ToolResponses());
 
       test('lists each problem by argument path, without running', () async {
         final outcome = await outcomeFor({'days': '3', 'extra': true});

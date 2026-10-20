@@ -15,6 +15,7 @@ void main() {
       expect(view.status, ToolCallStatus.inProgress);
       expect(view.args, const JsonObject());
       expect(view.result, isNull);
+      expect(view.awaitingResponse, isFalse);
     });
 
     test('holds args and result', () {
@@ -54,6 +55,7 @@ void main() {
         view,
         isNot(view.copyWith(args: const JsonObject({'city': 'Quito'}))),
       );
+      expect(view, isNot(view.copyWith(awaitingResponse: true)));
     });
 
     group('copyWith', () {
@@ -81,6 +83,17 @@ void main() {
         expect(copy.status, ToolCallStatus.complete);
         expect(copy.args, const JsonObject({'city': 'Quito'}));
         expect(copy.result, 'sunny');
+      });
+
+      test('can set and clear awaitingResponse', () {
+        final waiting = view.copyWith(awaitingResponse: true);
+
+        expect(waiting.awaitingResponse, isTrue);
+        expect(waiting.copyWith().awaitingResponse, isTrue);
+        expect(
+          waiting.copyWith(awaitingResponse: false).awaitingResponse,
+          isFalse,
+        );
       });
 
       test('can clear the result', () {

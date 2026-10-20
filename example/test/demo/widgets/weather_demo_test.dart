@@ -36,10 +36,10 @@ void main() {
         ),
       );
 
-      final tool =
-          verify(() => client.registerTool(captureAny())).captured.single
-              as FrontendTool<Object?>;
-      expect(tool.name, 'showWeather');
+      final tools = verify(() => client.registerTool(captureAny())).captured
+          .cast<ClientTool<Object?>>();
+      expect(tools.map((tool) => tool.name), ['confirmAction', 'showWeather']);
+      final tool = tools.last;
       expect(tool.parameters.toJsonSchema()['required'], ['city']);
       final entry =
           verify(() => client.addContext(captureAny())).captured.single

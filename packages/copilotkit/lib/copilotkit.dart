@@ -36,5 +36,10 @@ export 'src/json/json.dart'
         JsonPatchReplace,
         JsonPatchTest;
 export 'src/tools/tools.dart'
-    hide FallbackToolResult, ToolCallExecutor, ToolCallOutcome, ToolRegistry;
+    hide
+        FallbackToolResult,
+        ToolCallExecutor,
+        ToolCallOutcome,
+        ToolRegistry,
+        ToolResponses;
 export 'src/transport/transport.dart' show AgentTransport;

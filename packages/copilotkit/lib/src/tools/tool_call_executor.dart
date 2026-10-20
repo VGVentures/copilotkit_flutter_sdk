@@ -3,12 +3,13 @@ import 'dart:developer' as developer;
 import 'package:ack/ack.dart';
 import 'package:copilotkit/src/json/json.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
-import 'package:copilotkit/src/tools/frontend_tool.dart';
+import 'package:copilotkit/src/tools/client_tool.dart';
 import 'package:copilotkit/src/tools/models/fallback_tool_result.dart';
 import 'package:copilotkit/src/tools/models/tool_call_outcome.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
+import 'package:copilotkit/src/tools/tool_responses.dart';
 
-/// Runs the handler of a frontend tool for one call of the agent.
+/// Produces the result of a client tool for one call of the agent.
 class const ToolCallExecutor() {
   /// Creates an executor.
   this;
@@ -23,18 +24,25 @@ class const ToolCallExecutor() {
       "The tool didn't run: its arguments don't match its parameters. "
       'Fix them and call it again.';
 
-  /// Runs the handler of [tool] for [call] with the turn's [signal].
+  /// Whether the arguments of [call] match the parameters of [tool].
+  bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
+      tool.parameters.safeParse(call.args.toJson()) is Ok;
+
+  /// Produces the result of [call] for [tool] within the turn [signal]
+  /// belongs to: runs the handler of a [FrontendTool], or waits in
+  /// [responses] for the user to answer a [HumanInTheLoopTool].
   ///
-  /// Arguments that don't match `FrontendTool.parameters` never reach the
-  /// handler: the result lists the problems so the agent can fix them, and
+  /// Arguments that don't match `ClientTool.parameters` never reach the
+  /// tool: the result lists the problems so the agent can fix them, and
   /// they are logged rather than reported, since the agent is at fault. A
   /// decoder or handler that throws gives a generic result and the error,
   /// since the app is at fault. Never throws.
   Future<ToolCallOutcome> execute(
-    FrontendTool<Object?> tool,
+    ClientTool<Object?> tool,
     ToolCallView call,
-    CancellationSignal signal,
-  ) async {
+    CancellationSignal signal, {
+    required ToolResponses responses,
+  }) async {
     final JsonObject args;
     switch (tool.parameters.safeParse(call.args.toJson())) {
       case Ok(:final value):
@@ -49,6 +57,19 @@ class const ToolCallExecutor() {
         );
         return ToolCallOutcome(result: result);
     }
+    return switch (tool) {
+      FrontendTool() => await _run(tool, args, signal),
+      HumanInTheLoopTool() => ToolCallOutcome(
+        result: await responses.wait(call.id, signal),
+      ),
+    };
+  }
+
+  Future<ToolCallOutcome> _run(
+    FrontendTool<Object?> tool,
+    JsonObject args,
+    CancellationSignal signal,
+  ) async {
     try {
       return ToolCallOutcome(result: await tool.run(args, signal: signal));
     } on Object catch (error, stackTrace) {

@@ -24,12 +24,16 @@ class RecordingClient extends Fake implements CopilotKitClient {
   final List<ClientCall> calls = [];
 
   @override
-  void registerTool(FrontendTool<Object?> tool) =>
+  void registerTool(ClientTool<Object?> tool) =>
       calls.add(ClientCall('registerTool', [tool]));
 
   @override
-  void unregisterTool(FrontendTool<Object?> tool) =>
+  void unregisterTool(ClientTool<Object?> tool) =>
       calls.add(ClientCall('unregisterTool', [tool]));
+
+  @override
+  void respondToToolCall(String toolCallId, Object? result) =>
+      calls.add(ClientCall('respondToToolCall', [toolCallId, result]));
 
   @override
   void addContext(AgentContextEntry entry) =>

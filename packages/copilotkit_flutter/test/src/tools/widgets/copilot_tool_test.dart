@@ -16,9 +16,9 @@ void main() {
   group(CopilotTool, () {
     late RecordingClient client;
 
-    ClientCall registered(FrontendTool<Object?> tool) =>
+    ClientCall registered(ClientTool<Object?> tool) =>
         ClientCall('registerTool', [tool]);
-    ClientCall unregistered(FrontendTool<Object?> tool) =>
+    ClientCall unregistered(ClientTool<Object?> tool) =>
         ClientCall('unregisterTool', [tool]);
 
     setUp(() => client = RecordingClient());
@@ -64,11 +64,41 @@ void main() {
       await tester.pumpWidget(build(first));
       await tester.pumpWidget(build(second));
 
+      // The new tool first, so the client never lacks the tool in between.
       expect(client.calls, [
         registered(first),
-        unregistered(first),
         registered(second),
+        unregistered(first),
       ]);
+    });
+
+    testWidgets('keeps the registration when an equal tool replaces it', (
+      tester,
+    ) async {
+      Future<String> handler(
+        JsonObject args, {
+        required CancellationSignal signal,
+      }) async => 'ok';
+      FrontendTool<JsonObject> tool() => FrontendTool(
+        name: 'showWeather',
+        description: 'A tool',
+        parameters: Ack.object({}),
+        decode: JsonObject.new,
+        handler: handler,
+      );
+      final first = tool();
+      Widget build(FrontendTool<JsonObject> tool) => CopilotKit.value(
+        client: client,
+        child: CopilotTool(tool: tool, child: const SizedBox()),
+      );
+
+      await tester.pumpWidget(build(first));
+      await tester.pumpWidget(build(tool()));
+      await tester.pumpWidget(
+        CopilotKit.value(client: client, child: const SizedBox()),
+      );
+
+      expect(client.calls, [registered(first), unregistered(first)]);
     });
 
     testWidgets('moves the tool when the client changes', (tester) async {

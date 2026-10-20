@@ -38,18 +38,23 @@ void main() {
       expect(registry['showWeather'], same(second));
     });
 
-    test('unregisters only the instance that is registered', () {
+    test('unregisters only the tool that is registered', () {
       final first = tool('showWeather');
-      final second = tool('showWeather');
+      final second = FrontendTool<JsonObject>(
+        name: 'showWeather',
+        description: 'Another tool',
+        parameters: Ack.object({}),
+        decode: JsonObject.new,
+        handler: (_, {required signal}) async => 'ok',
+      );
       final registry = ToolRegistry()
         ..register(first)
-        ..register(second)
-        ..unregister(first);
+        ..register(second);
 
+      expect(registry.unregister(first), isFalse);
       expect(registry['showWeather'], same(second));
 
-      registry.unregister(second);
-
+      expect(registry.unregister(second), isTrue);
       expect(registry.tools, isEmpty);
     });
 

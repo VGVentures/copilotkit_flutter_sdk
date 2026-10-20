@@ -18,12 +18,12 @@ class const RunInputBuilder({
   /// Creates a builder.
   this;
 
-  /// The input for a new run of [agent], with the frontend [tools], the
+  /// The input for a new run of [agent], with the client [tools], the
   /// [context] entries (each value JSON-encoded) and the forwarded
   /// [properties], if any.
   RunAgentInput build({
     required CopilotAgentState agent,
-    required Iterable<FrontendTool<Object?>> tools,
+    required Iterable<ClientTool<Object?>> tools,
     required Iterable<AgentContextEntry> context,
     JsonEncodable? properties,
   }) => RunAgentInput(

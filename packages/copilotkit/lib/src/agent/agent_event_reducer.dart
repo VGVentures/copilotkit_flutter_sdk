@@ -130,6 +130,7 @@ class const AgentEventReducer({
       final result? => view.copyWith(
         status: ToolCallStatus.complete,
         result: () => result,
+        awaitingResponse: false,
       ),
       null => view,
     };
@@ -285,8 +286,11 @@ class const AgentEventReducer({
         ],
       ),
       toolCallId,
-      (view) =>
-          view.copyWith(status: ToolCallStatus.complete, result: () => content),
+      (view) => view.copyWith(
+        status: ToolCallStatus.complete,
+        result: () => content,
+        awaitingResponse: false,
+      ),
     );
   }
 

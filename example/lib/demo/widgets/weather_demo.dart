@@ -5,11 +5,13 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/demo_user.dart';
 import 'package:example/demo/models/weather_args.dart';
 import 'package:example/demo/weather_service.dart';
+import 'package:example/demo/widgets/approval_demo.dart';
 import 'package:example/demo/widgets/weather_card.dart';
 import 'package:flutter/material.dart';
 
-/// Placeholder demo: registers the `showWeather` tool and the current user
-/// context around [child].
+/// Placeholder demo: registers the `showWeather` tool, the `confirmAction`
+/// approval tool (see [ApprovalDemo]) and the current user context around
+/// [child].
 class const WeatherDemo({
   required final Widget child,
 
@@ -27,18 +29,20 @@ class const WeatherDemo({
     return CopilotContext(
       description: 'Current user',
       value: DemoUser.ada,
-      child: CopilotTool(
-        tool: FrontendTool(
-          name: 'showWeather',
-          description:
-              'Show the current weather for a city on the user '
-              'screen.',
-          parameters: _parameters,
-          decode: WeatherArgs.fromJson,
-          handler: _service.lookUp,
+      child: ApprovalDemo(
+        child: CopilotTool(
+          tool: FrontendTool(
+            name: 'showWeather',
+            description:
+                'Show the current weather for a city on the user '
+                'screen.',
+            parameters: _parameters,
+            decode: WeatherArgs.fromJson,
+            handler: _service.lookUp,
+          ),
+          builder: (context, call, args) => WeatherCard(call: call, args: args),
+          child: child,
         ),
-        builder: (context, call, args) => WeatherCard(call: call, args: args),
-        child: child,
       ),
     );
   }

@@ -159,6 +159,89 @@ void main() {
       });
     });
 
+    group('awaitResponse', () {
+      const start = ToolCallStartEvent(
+        toolCallId: 'c1',
+        toolCallName: 'confirmAction',
+        parentMessageId: 'a1',
+      );
+      const end = ToolCallEndEvent(toolCallId: 'c1');
+      const assistant = AssistantMessage(
+        id: 'a1',
+        toolCalls: [
+          ToolCall(
+            id: 'c1',
+            function: FunctionCall(name: 'confirmAction', arguments: '{}'),
+          ),
+        ],
+      );
+
+      CopilotAgent awaiting() => buildAgent()
+        ..apply(start)
+        ..apply(end)
+        ..awaitResponse('c1');
+
+      test('marks an executing call', () {
+        final agent = awaiting();
+
+        final view = agent.state.toolCalls.single;
+        expect(view.status, ToolCallStatus.executing);
+        expect(view.awaitingResponse, isTrue);
+        expect(agent.state.awaitingResponseIds, ['c1']);
+      });
+
+      test('ignores a call that is still streaming', () {
+        final agent = buildAgent()
+          ..apply(start)
+          ..awaitResponse('c1');
+
+        expect(agent.state.toolCalls.single.awaitingResponse, isFalse);
+      });
+
+      test('ignores an unknown call', () async {
+        final agent = buildAgent();
+        final states = agent.stream.toList();
+
+        agent.awaitResponse('missing');
+        await agent.close();
+
+        expect(await states, isEmpty);
+      });
+
+      test('a result completes the call and stops it from awaiting', () {
+        final agent = awaiting()
+          ..apply(
+            const ToolCallResultEvent(
+              messageId: 't1',
+              toolCallId: 'c1',
+              content: 'ok',
+            ),
+          );
+
+        final view = agent.state.toolCalls.single;
+        expect(view.status, ToolCallStatus.complete);
+        expect(view.awaitingResponse, isFalse);
+      });
+
+      test('a snapshot that holds the result stops the call from awaiting', () {
+        final agent = awaiting()
+          ..setMessages(const [
+            assistant,
+            ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
+          ]);
+
+        final view = agent.state.toolCalls.single;
+        expect(view.status, ToolCallStatus.complete);
+        expect(view.awaitingResponse, isFalse);
+      });
+
+      test('a snapshot without the result keeps the call awaiting', () {
+        final agent = awaiting()..setMessages(const [assistant]);
+
+        expect(agent.state.toolCalls.single.awaitingResponse, isTrue);
+      });
+    });
+
     test('startTurn sets isRunning and clears the last error', () {
       final agent = buildAgent()
         ..fail('boom')

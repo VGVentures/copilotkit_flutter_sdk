@@ -56,6 +56,40 @@ void main() {
       expect(snapshot(), isNot(snapshot(isRunning: true)));
     });
 
+    test('lists the tool calls that await a response, in call order', () {
+      const calls = [
+        ToolCallView(
+          id: 'c1',
+          name: 'confirm',
+          status: ToolCallStatus.executing,
+          awaitingResponse: true,
+        ),
+        ToolCallView(id: 'c2', name: 'other', status: ToolCallStatus.executing),
+        ToolCallView(
+          id: 'c3',
+          name: 'confirm',
+          status: ToolCallStatus.executing,
+          awaitingResponse: true,
+        ),
+      ];
+
+      expect(
+        const CopilotAgentState(
+          agentId: 'a',
+          threadId: 't',
+          toolCalls: calls,
+        ).awaitingResponseIds,
+        ['c1', 'c3'],
+      );
+      expect(
+        const CopilotAgentState(
+          agentId: 'a',
+          threadId: 't',
+        ).awaitingResponseIds,
+        isEmpty,
+      );
+    });
+
     group('copyWith', () {
       test('keeps every field when nothing is passed', () {
         final error = StateError('boom');

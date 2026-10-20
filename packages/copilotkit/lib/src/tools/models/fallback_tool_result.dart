@@ -1,6 +1,7 @@
 /// Results sent to the agent for tool calls that never ran to completion.
 enum FallbackToolResult {
-  /// A tool call cut short by a stop.
+  /// A tool call cut short by a stop, or a human-in-the-loop call whose tool
+  /// was unregistered while it waited for the user.
   cancelled('Tool call cancelled.'),
 
   /// A tool call left open by a failed run.

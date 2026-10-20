@@ -14,7 +14,7 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
   agent       CopilotAgent: one conversation, its state and stream
 packages/copilotkit_flutter   Flutter
   widgets     CopilotKit, CopilotAgentScope, AgentStateBuilder, CopilotTool,
-              CopilotContext, CopilotChatProvider
+              CopilotHumanInTheLoop, CopilotContext, CopilotChatProvider
   blocs       CopilotChatBloc: a thin adapter from an agent to a chat UI
 ```
 
@@ -143,9 +143,9 @@ agent.stream.listen((state) => ...);
 agent.addMessage(message);
 ```
 
-Classes that track things that come and go, like `ToolRegistry` or
-`AgentRunner`, are the other mutable classes. Each says so in its doc comment.
-Everything else is immutable.
+Classes that track things that come and go, like `ToolRegistry`,
+`ToolResponses` or `AgentRunner`, are the other mutable classes. Each says so
+in its doc comment. Everything else is immutable.
 
 ## Blocs
 

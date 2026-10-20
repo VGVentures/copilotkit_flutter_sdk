@@ -11,7 +11,7 @@ import 'package:copilotkit/src/transport/transport.dart';
 
 /// Connects an app to a Copilot Runtime.
 ///
-/// Owns the agents it opened, the registered frontend tools and the context
+/// Owns the agents it opened, the registered client tools and the context
 /// entries, and attaches the tools and context to every run.
 ///
 /// Agents, tools and context come and go while the app runs, so this is
@@ -56,8 +56,8 @@ class CopilotKitClient({
   /// The open agents, by agent id. A read-only view.
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
 
-  /// The registered frontend tools, by name. A read-only view.
-  Map<String, FrontendTool<Object?>> get tools => _tools.tools;
+  /// The registered client tools, by name. A read-only view.
+  Map<String, ClientTool<Object?>> get tools => _tools.tools;
 
   /// The context entries shared with the agent, oldest first.
   List<AgentContextEntry> get context => _context.entries;
@@ -66,13 +66,41 @@ class CopilotKitClient({
   CopilotAgent agent(String agentId) =>
       _agents.putIfAbsent(agentId, () => CopilotAgent(agentId: agentId));
 
-  /// Registers [tool]; every run sends it to the agent, and calls to it run
-  /// its handler on the device. Replaces a tool with the same name.
-  void registerTool(FrontendTool<Object?> tool) => _tools.register(tool);
+  /// Registers [tool]; every run sends it to the agent. Calls to a
+  /// [FrontendTool] run its handler on the device, and calls to a
+  /// [HumanInTheLoopTool] wait for [respondToToolCall]. Replaces a tool with
+  /// the same name.
+  void registerTool(ClientTool<Object?> tool) => _tools.register(tool);
 
   /// Unregisters [tool] if it is the tool registered under its name; a
   /// different tool registered later under the same name stays.
-  void unregisterTool(FrontendTool<Object?> tool) => _tools.unregister(tool);
+  ///
+  /// Calls of a [HumanInTheLoopTool] that wait for the user are answered as
+  /// cancelled: with the tool gone, nothing can answer them anymore. To swap
+  /// a tool for an updated one, register the new tool first (it replaces the
+  /// old one), then unregister the old one, which then does nothing, so no
+  /// call is cancelled.
+  void unregisterTool(ClientTool<Object?> tool) {
+    if (_tools.unregister(tool) && tool is HumanInTheLoopTool) {
+      _runner.cancelAwaiting(tool.name);
+    }
+  }
+
+  /// Answers the call [toolCallId] of a [HumanInTheLoopTool] with [result],
+  /// and the turn that waits for it continues with it as the tool result.
+  ///
+  /// A `String` [result] is sent to the agent as it is; any other value is
+  /// JSON-encoded (an app model with `toJson` works), and a value that can't
+  /// be encoded goes to `onError` and leaves the call waiting.
+  ///
+  /// Call it whenever the user decides. An answer that arrives before the
+  /// client starts waiting for the call (its arguments are complete but its
+  /// run has not finished streaming) is kept until it does. Does nothing when
+  /// the call is unknown, belongs to no running turn, already has a result
+  /// or was answered already, or when its tool is not a registered
+  /// [HumanInTheLoopTool].
+  void respondToToolCall(String toolCallId, Object? result) =>
+      _runner.respond(toolCallId, result);
 
   /// Adds [entry]; every run sends it to the agent.
   void addContext(AgentContextEntry entry) => _context.add(entry);
