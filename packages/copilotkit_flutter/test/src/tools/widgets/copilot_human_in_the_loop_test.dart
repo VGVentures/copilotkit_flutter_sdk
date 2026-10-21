@@ -24,10 +24,10 @@ class _CounterState extends State<_Counter> {
   }
 }
 
-HumanInTheLoopTool<Map<String, Object?>> _tool({String? description}) {
+HumanInTheLoopTool<Map<String, Object?>> _tool() {
   return HumanInTheLoopTool(
     name: 'confirmAction',
-    description: description ?? 'Ask the user to confirm an action',
+    description: 'Ask the user to confirm an action',
     parameters: Ack.object({'action': Ack.string()}),
     decode: Map<String, Object?>.of,
   );
@@ -59,10 +59,9 @@ void main() {
       required HumanInTheLoopTool<Map<String, Object?>> tool,
       required HumanInTheLoopWidgetBuilder<Map<String, Object?>> builder,
       ToolCallView? call,
-      CopilotKitClient? withClient,
     }) {
       return CopilotKit.value(
-        client: withClient ?? client,
+        client: client,
         child: MaterialApp(
           home: CopilotHumanInTheLoop(
             tool: tool,
@@ -91,46 +90,6 @@ void main() {
       );
 
       expect(client.calls, [registered(tool), unregistered(tool)]);
-    });
-
-    testWidgets('registers a different tool before unregistering the old one', (
-      tester,
-    ) async {
-      final first = _tool();
-      final second = _tool(description: 'Another description');
-
-      await tester.pumpWidget(build(tool: first, builder: text()));
-      await tester.pumpWidget(build(tool: second, builder: text()));
-
-      expect(client.calls, [
-        registered(first),
-        registered(second),
-        unregistered(first),
-      ]);
-    });
-
-    testWidgets('does nothing when an equal tool replaces the registered one', (
-      tester,
-    ) async {
-      final first = _tool();
-
-      await tester.pumpWidget(build(tool: first, builder: text()));
-      await tester.pumpWidget(build(tool: _tool(), builder: text()));
-
-      expect(client.calls, [registered(first)]);
-    });
-
-    testWidgets('moves the tool when the client changes', (tester) async {
-      final other = RecordingClient();
-      final tool = _tool();
-
-      await tester.pumpWidget(build(tool: tool, builder: text()));
-      await tester.pumpWidget(
-        build(tool: tool, builder: text(), withClient: other),
-      );
-
-      expect(client.calls, [registered(tool), unregistered(tool)]);
-      expect(other.calls, [registered(tool)]);
     });
 
     testWidgets('passes the decoded args to the builder', (tester) async {

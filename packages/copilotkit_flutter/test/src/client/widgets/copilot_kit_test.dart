@@ -18,7 +18,7 @@ void main() {
   final runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
 
   group(CopilotKit, () {
-    testWidgets('creates a client from its configuration', (tester) async {
+    testWidgets('creates a client', (tester) async {
       late CopilotKitClient client;
       Future<Map<String, String>> headers() async => {'a': 'b'};
       void onError(Object error, StackTrace stackTrace) {}
