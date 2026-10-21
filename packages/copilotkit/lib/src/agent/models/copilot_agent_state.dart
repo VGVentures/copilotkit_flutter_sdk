@@ -22,11 +22,9 @@ class const CopilotAgentState({
   /// State the agent shares with the app, or `null` if neither the agent nor
   /// the app set one.
   ///
-  /// Sent as `RunAgentInput.state` on every run. Change it from the app with
+  /// Sent as the run's state on every run. Change it from the app with
   /// `CopilotAgent.setSharedState` and `CopilotAgent.patchSharedState`; the
-  /// agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events. Debug
-  /// builds of `ag_ui` assert that it is a JSON object (a `Map`) or `null`
-  /// when a run is sent.
+  /// agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events.
   final SharedState? sharedState,
 
   /// Whether the agent is working: from `CopilotKitClient.runAgent` until

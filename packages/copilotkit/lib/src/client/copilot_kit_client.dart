@@ -30,8 +30,8 @@ class CopilotKitClient({
   /// `https://host/api/copilotkit`.
   ///
   /// `headers` builds the headers sent with each run, e.g. for auth.
-  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`,
-  /// e.g. a model's `toJson()`.
+  /// `properties` are sent with every run as its forwarded props, e.g. a
+  /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the AG-UI transport to
   /// [runtimeUrl] in tests.

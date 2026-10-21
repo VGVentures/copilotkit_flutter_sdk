@@ -73,7 +73,7 @@ class CopilotAgent({
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///
-  /// The next run sends [state] as `RunAgentInput.state`. A `STATE_SNAPSHOT`
+  /// The next run sends [state] as the run's state. A `STATE_SNAPSHOT`
   /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
   /// a local edit made during a run can be overwritten by the agent.
   void setSharedState(SharedState? state) {

@@ -46,8 +46,8 @@ for (final message in client.agent('default').state.messages) {
 
 ## Shared state
 
-An agent's `CopilotAgentState.sharedState` is sent with every run as
-`RunAgentInput.state`, and the agent updates it with `STATE_SNAPSHOT` and
+An agent's `CopilotAgentState.sharedState` is sent with every run as the
+run's state, and the agent updates it with `STATE_SNAPSHOT` and
 `STATE_DELTA` events. The app edits it through the agent:
 
 ```dart
