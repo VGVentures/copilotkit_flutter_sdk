@@ -408,6 +408,22 @@ void main() {
         expect(results(), {'c1': null});
       });
 
+      test('keeps the answers in the given store', () async {
+        final responses = ToolResponses();
+        toolCalls = ToolCallRunner(
+          tools: tools,
+          onError: (error, _) => errors.add(error),
+          responses: responses,
+        );
+        receive(approvalRun(threadId()));
+
+        respond('c1', 'early');
+
+        expect(responses.isAnswered('c1'), isTrue);
+        toolCalls.clear();
+        expect(responses.isAnswered('c1'), isFalse);
+      });
+
       test('clear forgets an answer that arrived early', () async {
         receive(approvalRun(threadId()));
         respond('c1', 'early');
