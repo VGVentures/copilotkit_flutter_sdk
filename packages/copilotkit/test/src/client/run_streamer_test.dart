@@ -327,8 +327,9 @@ void main() {
         ]);
 
         expect(await stream(), RunResult.failed);
-        expect(errors, [same(runError)]);
-        expect(agent.state.error, same(runError));
+        const error = RunError(message: 'Invalid API key', code: 'AUTH');
+        expect(errors, [error]);
+        expect(agent.state.error, error);
         expect(agent.state.messages.single.content, 'Par');
       });
 
@@ -347,10 +348,11 @@ void main() {
         queueRun(loadFixture('run_error').events);
 
         expect(await stream(), RunResult.failed);
-        expect(errors.single, isA<RunErrorEvent>());
+        expect(errors.single, isA<RunError>());
+        expect(errors.single, agent.state.error);
         expect(
           agent.state.error,
-          isA<RunErrorEvent>().having(
+          isA<RunError>().having(
             (error) => error.message,
             'message',
             contains('gemini-2.5-flash'),

@@ -126,8 +126,8 @@ class CopilotAgent({
   @internal
   void endTurn() => _update(_state.copyWith(isRunning: false));
 
-  /// Records [error], which ended the current run. A [RunErrorEvent] is
-  /// recorded by [apply] instead.
+  /// Records [error], which ended the current run. An error the
+  /// runtime reports is recorded by [apply] instead.
   @internal
   void fail(Object error) => _update(_state.copyWith(error: () => error));
 

@@ -93,7 +93,12 @@ class const RunStreamer({
             ended = true;
           }
           agent.apply(event);
-          if (event is RunErrorEvent) _onError(event, StackTrace.current);
+          if (event case RunErrorEvent(:final message, :final code)) {
+            _onError(
+              RunError(message: message, code: code),
+              StackTrace.current,
+            );
+          }
         },
         onError: (Object error, StackTrace stackTrace) {
           _fail(agent, error, stackTrace);

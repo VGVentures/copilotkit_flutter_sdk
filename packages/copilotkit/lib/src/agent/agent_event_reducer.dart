@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
@@ -26,7 +27,9 @@ class const AgentEventReducer({
     return switch (event) {
       RunStartedEvent() => snapshot.copyWith(error: () => null),
       RunFinishedEvent() => _finishToolArgs(snapshot),
-      RunErrorEvent() => snapshot.copyWith(error: () => event),
+      RunErrorEvent(:final message, :final code) => snapshot.copyWith(
+        error: () => RunError(message: message, code: code),
+      ),
       TextMessageStartEvent(:final messageId, :final role, :final name) =>
         snapshot.copyWith(
           messages: [
