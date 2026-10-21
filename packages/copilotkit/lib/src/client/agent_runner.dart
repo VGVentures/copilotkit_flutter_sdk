@@ -41,10 +41,12 @@ class AgentRunner({
   ///
   /// Completes when the turn ends and never throws: errors go to the error
   /// handler and to `CopilotAgentState.error`. Does nothing while [agent] is
-  /// already in a turn.
+  /// already in a turn, or while a stop of its turn is still in flight.
   Future<void> run(CopilotAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;
-    if (_turns.containsKey(agentId)) return;
+    // A stop removes the turn before it ends it, so the agent is still
+    // running until the stop is done.
+    if (_turns.containsKey(agentId) || agent.state.isRunning) return;
     final turn = Turn(agent);
     _turns[agentId] = turn;
     // Started first, so the agent's first new state is already running.
