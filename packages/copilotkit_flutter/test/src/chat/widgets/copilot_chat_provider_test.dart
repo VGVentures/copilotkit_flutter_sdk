@@ -147,6 +147,26 @@ void main() {
       expect(find.text('taps 1'), findsOneWidget);
     });
 
+    testWidgets('opens no agent on the old client when both change', (
+      tester,
+    ) async {
+      final other = _MockCopilotKitClient();
+      stubAgent(other, 'other');
+      final blocs = <CopilotChatBloc>[];
+
+      await tester.pumpWidget(
+        build(client: client, agentId: 'default', onBuild: blocs.add),
+      );
+      clearInteractions(client);
+      await tester.pumpWidget(
+        build(client: other, agentId: 'other', onBuild: blocs.add),
+      );
+
+      verifyNever(() => client.agent(any()));
+      verify(() => other.agent('other')).called(greaterThan(0));
+      expect(blocs.first.isClosed, isTrue);
+    });
+
     testWidgets('closes the bloc when removed', (tester) async {
       late CopilotChatBloc bloc;
       await tester.pumpWidget(

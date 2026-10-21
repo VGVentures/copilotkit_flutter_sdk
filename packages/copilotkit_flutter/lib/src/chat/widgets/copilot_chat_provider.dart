@@ -28,40 +28,51 @@ class const CopilotChatProvider({
 }
 
 class _CopilotChatProviderState extends State<CopilotChatProvider> {
-  CopilotKitClient? _client;
-  CopilotChatBloc? _bloc;
+  /// The bloc provided and the client and agent id it was created for.
+  (CopilotKitClient, String, CopilotChatBloc)? _current;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final client = CopilotKit.of(context);
-    if (client != _client) {
-      _client = client;
-      _create();
-    }
+    _sync();
   }
 
   @override
   void didUpdateWidget(CopilotChatProvider oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.agentId != oldWidget.agentId) _create();
+    _sync();
   }
 
-  void _create() {
-    final previous = _bloc;
-    _bloc = CopilotChatBloc(client: _client!, agentId: widget.agentId)
-      ..add(const ChatSubscriptionRequested());
-    unawaited(previous?.close());
+  /// Creates a bloc when the client or agent id differs from the ones the
+  /// current bloc was created for, and closes the current one.
+  ///
+  /// Both callbacks read the latest client, so a client and an agent id
+  /// that change together create one bloc, on the new client.
+  void _sync() {
+    final client = CopilotKit.of(context);
+    final agentId = widget.agentId;
+    final previous = _current;
+    if (previous case (final currentClient, final currentAgentId, _)
+        when currentClient == client && currentAgentId == agentId) {
+      return;
+    }
+    _current = (
+      client,
+      agentId,
+      CopilotChatBloc(client: client, agentId: agentId)
+        ..add(const ChatSubscriptionRequested()),
+    );
+    if (previous case (_, _, final bloc)) unawaited(bloc.close());
   }
 
   @override
   void dispose() {
-    unawaited(_bloc?.close());
+    if (_current case (_, _, final bloc)) unawaited(bloc.close());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider.value(value: _bloc!, child: widget.child);
+    return BlocProvider.value(value: _current!.$3, child: widget.child);
   }
 }
