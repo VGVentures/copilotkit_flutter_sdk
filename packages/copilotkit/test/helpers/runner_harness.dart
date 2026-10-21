@@ -1,3 +1,4 @@
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/client/client.dart';
 import 'package:copilotkit/src/context/context.dart';
@@ -55,7 +56,7 @@ class RunnerHarness {
   final List<Object> errors = [];
 
   /// Event streams for the next runs, consumed in order.
-  final List<Stream<BaseEvent>> runs = [];
+  final List<Stream<ag_ui.BaseEvent>> runs = [];
 
   /// The agent the tests run.
   final CopilotAgent agent = CopilotAgent(agentId: 'default');

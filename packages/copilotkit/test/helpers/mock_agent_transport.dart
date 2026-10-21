@@ -1,4 +1,5 @@
-import 'package:copilotkit/copilotkit.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
+import 'package:copilotkit/src/transport/transport.dart';
 import 'package:mocktail/mocktail.dart';
 
 /// A mocked [AgentTransport] with shortcuts for the stubs and checks the
@@ -10,7 +11,7 @@ class MockAgentTransport extends Mock implements AgentTransport {
   /// Registers the fallback `RunAgentInput` used by `any` matchers.
   static void registerFallbacks() {
     registerFallbackValue(
-      const RunAgentInput(
+      const ag_ui.RunAgentInput(
         threadId: 't',
         runId: 'r',
         messages: [],
@@ -21,7 +22,7 @@ class MockAgentTransport extends Mock implements AgentTransport {
   }
 
   /// Answers every run with the stream [nextRun] returns.
-  void stubRun(Stream<BaseEvent> Function() nextRun) {
+  void stubRun(Stream<ag_ui.BaseEvent> Function() nextRun) {
     when(_anyRun).thenAnswer((_) => nextRun());
   }
 
@@ -41,14 +42,14 @@ class MockAgentTransport extends Mock implements AgentTransport {
   }
 
   /// The inputs of every run sent since the last verification, in order.
-  List<RunAgentInput> sentInputs() {
+  List<ag_ui.RunAgentInput> sentInputs() {
     return verify(
       () => run(
         agentId: any(named: 'agentId'),
         input: captureAny(named: 'input'),
         headers: any(named: 'headers'),
       ),
-    ).captured.cast<RunAgentInput>();
+    ).captured.cast<ag_ui.RunAgentInput>();
   }
 
   /// Checks that no run was sent.
@@ -57,7 +58,7 @@ class MockAgentTransport extends Mock implements AgentTransport {
   /// Checks that no stop was sent.
   void verifyNoStop() => verifyNever(_anyStop);
 
-  Stream<BaseEvent> _anyRun() => run(
+  Stream<ag_ui.BaseEvent> _anyRun() => run(
     agentId: any(named: 'agentId'),
     input: any(named: 'input'),
     headers: any(named: 'headers'),

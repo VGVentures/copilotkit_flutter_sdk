@@ -87,9 +87,13 @@ its features convert to and from `Map<String, Object?>` at the call site.
 it, so every package or app that builds a schema declares `ack` in its
 `pubspec.yaml` and imports `package:ack/ack.dart` itself.
 
-`ag_ui` is how `copilotkit` talks to the runtime. The message models
-convert to and from it with `@internal` members (`Message.fromAgUi`,
-`Message.toAgUi`) and never name its types in a public signature.
+`ag_ui` is an implementation detail of `copilotkit`: it's how the core
+talks to the runtime, and no package exports its types. The transport that
+speaks it is internal, and the message models convert to and from it with
+`@internal` members (`Message.fromAgUi`, `Message.toAgUi`). A public
+signature names an `ag_ui` type only on an `@internal` or
+`@visibleForTesting` member, and code outside `copilotkit` never imports
+`package:ag_ui`.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
