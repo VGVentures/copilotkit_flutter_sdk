@@ -412,9 +412,6 @@ exception. Make it on purpose:
   import or export, or a new dependency in a public signature all count.
 - Record the decision as an ADR in [`adr/`](adr/) when the reason isn't
   obvious from the change: its context, the decision, and its consequences.
-- For a refactor that spans several pull requests, record the intent in
-  [`intent/`](intent/) first, like the
-  [layering refactor](intent/layering-refactor.md).
 
 These commands check the package boundaries before you push. The first one
 lists only the `copilotkit_flutter` barrel, and the second finds nothing:

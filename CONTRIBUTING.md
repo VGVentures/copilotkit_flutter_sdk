@@ -31,8 +31,8 @@ The docs live in this repository, next to the code they describe:
 - `README.md` gets you from a fresh clone to the demo app.
 - Each package's `README.md` shows how to use that package.
 - Doc comments in `lib/` are the API reference.
-- `docs/adr/` records architecture decisions, and `docs/intent/` records the
-  intent behind larger refactors.
+- `docs/ARCHITECTURE.md` describes how the SDK is built, and `docs/adr/`
+  records architecture decisions.
 
 A docs change goes through the same pull request process as a code change.
 
