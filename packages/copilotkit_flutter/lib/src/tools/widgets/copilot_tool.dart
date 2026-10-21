@@ -12,7 +12,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// [args] is `null` while they can't be decoded yet, e.g. while they are
 /// still streaming in.
-typedef CopilotToolBuilder<T> = Widget Function(
+typedef FrontendToolWidgetBuilder<T> = Widget Function(
   BuildContext context,
   ToolCallView call,
   T? args,
@@ -31,7 +31,7 @@ class const CopilotTool<T>({
   required final Widget child,
 
   /// Builds the widget for each call to [tool], if set.
-  final CopilotToolBuilder<T>? builder,
+  final FrontendToolWidgetBuilder<T>? builder,
   super.key,
 }) extends StatelessWidget {
   /// Creates a widget that registers [tool] while mounted.
