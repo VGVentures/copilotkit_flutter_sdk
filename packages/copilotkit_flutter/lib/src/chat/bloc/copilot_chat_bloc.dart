@@ -21,15 +21,18 @@ class CopilotChatBloc({
   required String agentId,
 
   /// Maps the agent's messages to chat rows.
-  final ChatRowMapper _rows = const ChatRowMapper(),
+  final ChatRowMapper _mapper = const ChatRowMapper(),
+
+  /// Generates the ids of the messages the user sends.
+  final Uuid _uuid = const Uuid(),
 }) extends Bloc<CopilotChatEvent, CopilotChatState> {
   /// Creates a bloc that drives a chat UI from the agent `agentId` of
-  /// [_client], opening it if needed.
+  /// `client`, opening it if needed.
   this
     : super(
         CopilotChatState.fromAgentState(
           _client.agent(agentId).state,
-          rows: _rows,
+          mapper: _mapper,
         ),
       ) {
     on<ChatSubscriptionRequested>(
@@ -48,11 +51,15 @@ class CopilotChatBloc({
   ) async {
     // The agent may have changed since this bloc was created. Bloc emits
     // the first state even when it equals the initial one; skip that.
-    final current = CopilotChatState.fromAgentState(_agent.state, rows: _rows);
+    final current = CopilotChatState.fromAgentState(
+      _agent.state,
+      mapper: _mapper,
+    );
     if (current != state) emit(current);
     await emit.forEach(
       _agent.stream,
-      onData: (state) => CopilotChatState.fromAgentState(state, rows: _rows),
+      onData: (state) =>
+          CopilotChatState.fromAgentState(state, mapper: _mapper),
     );
   }
 
@@ -65,7 +72,7 @@ class CopilotChatBloc({
     unawaited(
       _client.runAgent(
         _agent.state.agentId,
-        message: UserMessage(id: const Uuid().v4(), content: text),
+        message: UserMessage(id: _uuid.v4(), content: text),
       ),
     );
   }
