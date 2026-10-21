@@ -70,23 +70,51 @@ void main() {
       expect(registry.tools, isEmpty);
     });
 
-    test('counts a replacing tool from one registration', () {
-      final first = FrontendTool<Map<String, Object?>>(
+    test('counts an equal tool as another registration', () {
+      Future<String> handler(
+        Map<String, Object?> args, {
+        required CancellationSignal signal,
+      }) async => 'ok';
+      FrontendTool<Map<String, Object?>> equalTool() => FrontendTool(
         name: 'showWeather',
-        description: 'Another tool',
+        description: 'A tool',
         parameters: Ack.object({}),
         decode: Map<String, Object?>.of,
-        handler: (_, {required signal}) async => 'ok',
+        handler: handler,
       );
-      final second = tool('showWeather');
+      final first = equalTool();
+      final second = equalTool();
       final registry = ToolRegistry()
-        ..register(first)
         ..register(first)
         ..register(second);
 
-      expect(registry.unregister(second), isTrue);
+      expect(registry.unregister(second), isFalse);
+      expect(registry['showWeather'], same(first));
+
+      expect(registry.unregister(first), isTrue);
       expect(registry.tools, isEmpty);
     });
+
+    test(
+      'resets the count when a different tool replaces the registered one',
+      () {
+        final first = FrontendTool<Map<String, Object?>>(
+          name: 'showWeather',
+          description: 'Another tool',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          handler: (_, {required signal}) async => 'ok',
+        );
+        final second = tool('showWeather');
+        final registry = ToolRegistry()
+          ..register(first)
+          ..register(first)
+          ..register(second);
+
+        expect(registry.unregister(second), isTrue);
+        expect(registry.tools, isEmpty);
+      },
+    );
 
     test('exposes a read-only view', () {
       final registry = ToolRegistry();

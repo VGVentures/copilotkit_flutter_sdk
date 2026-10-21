@@ -99,20 +99,20 @@ void main() {
     });
 
     group('with a real client', () {
-      late CopilotKitClient client;
+      late CopilotKitClient realClient;
 
       setUp(
-        () => client = CopilotKitClient(
+        () => realClient = CopilotKitClient(
           runtimeUrl: Uri.parse('http://runtime.test'),
         ),
       );
 
-      tearDown(() => client.close());
+      tearDown(() => realClient.close());
 
       testWidgets('keeps the tool when its subtree remounts', (tester) async {
         final tool = _tool('showWeather');
         Widget build(Key key) => CopilotKit.value(
-          client: client,
+          client: realClient,
           child: ToolRegistration(
             key: key,
             tool: tool,
@@ -123,7 +123,7 @@ void main() {
         await tester.pumpWidget(build(const ValueKey(1)));
         await tester.pumpWidget(build(const ValueKey(2)));
 
-        expect(client.tools, {'showWeather': tool});
+        expect(realClient.tools, {'showWeather': tool});
       });
 
       testWidgets('keeps a shared tool until its last owner is removed', (
@@ -131,7 +131,7 @@ void main() {
       ) async {
         final tool = _tool('showWeather');
         Widget build({required bool both}) => CopilotKit.value(
-          client: client,
+          client: realClient,
           child: Column(
             children: [
               ToolRegistration(tool: tool, child: const SizedBox()),
@@ -142,12 +142,12 @@ void main() {
 
         await tester.pumpWidget(build(both: true));
         await tester.pumpWidget(build(both: false));
-        expect(client.tools, {'showWeather': tool});
+        expect(realClient.tools, {'showWeather': tool});
 
         await tester.pumpWidget(
-          CopilotKit.value(client: client, child: const SizedBox()),
+          CopilotKit.value(client: realClient, child: const SizedBox()),
         );
-        expect(client.tools, isEmpty);
+        expect(realClient.tools, isEmpty);
       });
     });
   });
