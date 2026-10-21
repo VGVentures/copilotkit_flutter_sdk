@@ -204,14 +204,11 @@ Use one of these types:
 
 ### Breaking changes
 
-If your change can break code that works today, add `!` after the scope and
-a `BREAKING CHANGE:` line with the migration steps:
+If your change can break code that works today, add `!` after the type and
+scope:
 
 ```text
 refactor(copilotkit)!: replace RunErrorEvent with a core RunError
-
-BREAKING CHANGE: RunErrorEvent is no longer exported.
-onError now receives a RunError, with the same message and code.
 ```
 
 Put the same `!` in the pull request title.
