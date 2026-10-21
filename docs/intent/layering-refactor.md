@@ -1,19 +1,22 @@
 # Layering refactor
 
 This document records the confirmed intent behind restructuring the package
-layers of the CopilotKit SDK. It describes the target architecture, the
-phases that get there, and the scope of the first phase, which extracts the
-JSON utilities from `copilotkit` into their own package.
+layers of the CopilotKit SDK. It describes the starting point, the target
+architecture, the phases that get there, and the scope of the first phase,
+which extracts the JSON utilities from `copilotkit` into their own package.
+
+The refactor is complete: all four phases have landed, and the rules it
+settled are recorded in [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ## Problem
 
-The package layers are mixed up today. `copilotkit` forwards the types of its
-dependencies through `show` re-exports, and `copilotkit_flutter` re-exports
-all of `copilotkit`. As a result, `copilotkit_flutter` and apps build on
-types that belong to `ag_ui`, `ack`, and the internal JSON code instead of on
-models that `copilotkit` owns.
+The package layers were mixed up when the refactor started. `copilotkit`
+forwarded the types of its dependencies through `show` re-exports, and
+`copilotkit_flutter` re-exported all of `copilotkit`. As a result,
+`copilotkit_flutter` and apps built on types that belong to `ag_ui`, `ack`,
+and the internal JSON code instead of on models that `copilotkit` owns.
 
-The following table lists what crosses package boundaries today.
+The following table lists what crossed package boundaries at the start.
 
 | Leak | Forwarded by | Used in `copilotkit_flutter` |
 | --- | --- | --- |
@@ -22,40 +25,53 @@ The following table lists what crosses package boundaries today.
 | `ag_ui` (12 types) | `copilotkit.dart` | `UserMessage`, `AssistantMessage`, `ToolCall`, `FunctionCall`, `Message` |
 | Everything above | `copilotkit_flutter.dart` | Apps get every dependency's types |
 
+The leak was in what `copilotkit` forwarded, not in the Flutter re-export.
+Once `copilotkit` exports only its own types, re-exporting it gives apps
+only `copilotkit` types.
+
 ## Target architecture
 
 Each package exposes only its own types in its public API. Dependencies are
 implementation details that a package converts at its boundary and never
-forwards. The one exception is `ack`: it's how apps describe tool
-parameters, so its schema types are part of the public API on purpose. Apps
-and packages that use them depend on `ack` themselves, and no package
-re-exports it.
+forwards. There are two exceptions:
+
+- `ack` is how apps describe tool parameters, so its schema types are part
+  of the public API on purpose. Apps and packages that use them depend on
+  `ack` themselves, and no package re-exports it.
+- `copilotkit_flutter` re-exports the public barrel of `copilotkit`, so a
+  Flutter app imports one library.
 
 ```text
 ag_ui ─────────┐
 ack ───────────┼──► copilotkit ──► copilotkit_flutter ──► app
-json utility ──┘
+json_utils ────┘
 ```
 
-- `copilotkit` is a layer that adds functionality on top of `ag_ui`. It
-  exports its own models and APIs, including the ones that
-  `copilotkit_flutter` uses.
-- `copilotkit_flutter` uses only `copilotkit` models, plus `ack` schemas
-  where a tool takes them.
+- `copilotkit` is the core: a pure Dart layer that adds functionality on
+  top of `ag_ui`, and that other front ends can build on. It exports its
+  own models and APIs, including the ones that `copilotkit_flutter` uses.
+- `copilotkit_flutter` is the default Flutter package. It uses only
+  `copilotkit` models, plus `ack` schemas where a tool takes them, and
+  re-exports `package:copilotkit/copilotkit.dart`.
+- A package may re-export `package:copilotkit/copilotkit.dart`, the core's
+  public barrel. `copilotkit_flutter` does, and so may a future front end
+  built on the core. No other cross-package export is allowed, and nothing
+  re-exports a file under `copilotkit`'s `lib/src/`.
 - `ClientTool.parameters` stays an `ack` `ObjectSchema`. A schema model
   owned by `copilotkit` was considered and rejected: it duplicated `ack`'s
   builders, dropped its constraints and annotation-driven schema generation,
   and only paid off if `ack` were to be replaced. A JSON Schema map was
   rejected too: validating it through `Ack.fromJsonSchema` reports only the
   first error, with messages the agent can't act on.
-- The JSON utility package is a dependency of `copilotkit` only.
-- No package re-exports another package's types.
+- `ag_ui` and `json_utils` are implementation details of `copilotkit`. No
+  other package imports them, declares them in its `pubspec.yaml`, or
+  exports them, and public docs don't name `ag_ui` types.
 
 ## Phases
 
-The refactor lands in four phases. Phase 1 comes first because it's the
-smallest and it settles the `Map<String, Object?>` convention that phase 3
-reuses. Phases 2 and 3 are independent of each other. Phase 4 depends
+The refactor landed in four phases. Phase 1 came first because it was the
+smallest and it settled the `Map<String, Object?>` convention that phase 3
+reused. Phases 2 and 3 were independent of each other. Phase 4 depended
 on both.
 
 1. **Extract the JSON utility.** Move the JSON code into a standalone package
@@ -70,10 +86,10 @@ on both.
    transport and reducer. The publicly exposed
    `BaseEvent`, `EventType`, `RunAgentInput`, and `RunErrorEvent` become
    internal or get core equivalents. The `ag_ui` re-export goes away.
-4. **Remove the Flutter barrel re-export and enforce the rule.** Remove
-   `export 'package:copilotkit/copilotkit.dart'` from `copilotkit_flutter`,
-   so apps import both packages. Add a CI check that fails when a package
-   exports another package's library.
+4. **Record the final rules.** `copilotkit_flutter` keeps re-exporting the
+   core's barrel, so apps import only `copilotkit_flutter`. The layering
+   rules are recorded in `CONTRIBUTING.md` and enforced in review, and
+   every doc is brought up to date with the refactored API.
 
 ## Phase 1: extract the JSON utility
 

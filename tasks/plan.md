@@ -98,7 +98,7 @@ Tasks 2, 3 and 6 are independent after task 1. The stack orders them 1 to
 
 ### Phase A: Rules
 
-- [ ] Task 1: Record the final layering rules in the intent document and
+- [x] Task 1: Record the final layering rules in the intent document and
       `CONTRIBUTING.md`
 
 ### Checkpoint A

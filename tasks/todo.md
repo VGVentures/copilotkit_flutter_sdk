@@ -33,18 +33,18 @@ exception, merge the `ag_ui` and `json_utils` paragraphs into one rule
 (A3), and say that `@docImport` lines aren't feature edges.
 
 **Acceptance criteria:**
-- [ ] The intent document describes the `copilotkit_flutter` re-export as
+- [x] The intent document describes the `copilotkit_flutter` re-export as
       intended, mentions no CI check, and says the refactor is complete.
-- [ ] `CONTRIBUTING.md`'s architecture block lists each package's real
+- [x] `CONTRIBUTING.md`'s architecture block lists each package's real
       features, and it states the barrel exception, the rule that wraps
       `ag_ui` and `json_utils`, and the `@docImport` note.
-- [ ] Neither file contradicts the code: `rg -n "^export 'package:" packages/*/lib`
+- [x] Neither file contradicts the code: `rg -n "^export 'package:" packages/*/lib`
       lists only the Flutter barrel, and
       `rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example`
       finds nothing.
 
 **Verification:**
-- [ ] Shared verification passes
+- [x] Shared verification passes
 
 **Dependencies:** None
 
