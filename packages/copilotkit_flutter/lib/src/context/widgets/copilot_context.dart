@@ -5,7 +5,7 @@ import 'package:flutter/widgets.dart';
 
 /// Shares [value] with the agent while this widget is mounted.
 ///
-/// Adds a context entry on the nearest `CopilotKit` client on mount,
+/// Adds a context entry on the nearest [CopilotKit] client on mount,
 /// updates it when [value] changes and removes it on dispose.
 class const CopilotContext({
   /// Tells the agent what [value] is.

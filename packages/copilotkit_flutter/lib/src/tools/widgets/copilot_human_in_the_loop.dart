@@ -1,3 +1,7 @@
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/copilot_tool.dart';
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/tool_call_widget.dart';
+library;
+
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/client.dart';
 import 'package:copilotkit_flutter/src/tools/widgets/tool_registration.dart';
@@ -11,11 +15,11 @@ import 'package:flutter/widgets.dart';
 typedef ToolCallResponder = void Function(Object? result);
 
 /// Builds the widget for one [call] to a human-in-the-loop tool, with its
-/// [args] decoded by the tool's `HumanInTheLoopTool.decode`.
+/// [args] decoded by the tool's [HumanInTheLoopTool.decode].
 ///
 /// [args] is `null` while they can't be decoded yet, e.g. while they are
 /// still streaming in. [respond] is `null` until the call waits for the user
-/// (`ToolCallView.awaitingResponse`) and again once it has a result.
+/// ([ToolCallView.awaitingResponse]) and again once it has a result.
 typedef HumanInTheLoopWidgetBuilder<T> = Widget Function(
   BuildContext context,
   ToolCallView call,
@@ -26,13 +30,13 @@ typedef HumanInTheLoopWidgetBuilder<T> = Widget Function(
 /// Makes the human-in-the-loop [tool] available to the agent while this
 /// widget is mounted, and renders its calls with [builder].
 ///
-/// Registers like `CopilotTool`, on the nearest `CopilotKit` client. While
+/// Registers like [CopilotTool], on the nearest [CopilotKit] client. While
 /// the agent's call waits for the user, [builder] gets a `respond` function;
 /// calling it sends the answer and the agent continues. Unmounting this
 /// widget while a call waits answers the call as cancelled.
 ///
 /// The widget [builder] returns keeps its state while the call moves from
-/// streaming to waiting to complete (see `ToolCallWidget`), so a card can
+/// streaming to waiting to complete (see [ToolCallWidget]), so a card can
 /// hold what the user typed or picked.
 ///
 /// Keep [tool] stable across rebuilds, e.g. in a field: a different tool

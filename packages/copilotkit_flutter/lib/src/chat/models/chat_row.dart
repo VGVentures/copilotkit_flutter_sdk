@@ -1,3 +1,6 @@
+/// @docImport 'package:copilotkit_flutter/src/tools/tools.dart';
+library;
+
 import 'package:copilotkit/copilotkit.dart';
 import 'package:equatable/equatable.dart';
 
@@ -19,7 +22,7 @@ final class const ChatMessageRow(
   List<Object?> get props => [message];
 }
 
-/// A tool [call]; render it with `ToolCallWidget`.
+/// A tool [call]; render it with [ToolCallWidget].
 final class const ChatToolCallRow(
   /// The tool call to show.
   final ToolCallView call,

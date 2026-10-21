@@ -4,7 +4,7 @@ import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/agent/widgets/copilot_agent_scope.dart';
 import 'package:flutter/widgets.dart';
 
-/// Builds the widget for the [value] an `AgentStateBuilder` selected.
+/// Builds the widget for the [value] an [AgentStateBuilder] selected.
 typedef AgentStateWidgetBuilder<T> = Widget Function(
   BuildContext context,
   T value,
@@ -13,7 +13,7 @@ typedef AgentStateWidgetBuilder<T> = Widget Function(
 /// Rebuilds with the part of the agent's state that [selector] picks, and
 /// only when that part changes.
 ///
-/// Reads the agent of the nearest `CopilotAgentScope`. For example, the
+/// Reads the agent of the nearest [CopilotAgentScope]. For example, the
 /// shared state:
 ///
 /// ```dart

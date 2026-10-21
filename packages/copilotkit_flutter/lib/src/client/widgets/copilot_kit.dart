@@ -7,7 +7,7 @@ import 'package:flutter/widgets.dart';
 ///
 /// Place it near the app root and read the client with [CopilotKit.of].
 class CopilotKit extends StatefulWidget {
-  /// Creates a client for the runtime at [_runtimeUrl] once and disposes it
+  /// Creates a client for the runtime at `runtimeUrl` once and disposes it
   /// when this widget is removed. The configuration is read when the client
   /// is created; later changes are ignored.
   const new({
@@ -19,7 +19,7 @@ class CopilotKit extends StatefulWidget {
     super.key,
   }) : _client = null;
 
-  /// Provides an existing [_client]. The caller owns it: this widget never
+  /// Provides an existing `client`. The caller owns it: this widget never
   /// disposes it.
   const new value({
     required CopilotKitClient this._client,

@@ -1,13 +1,16 @@
+/// @docImport 'package:copilotkit_flutter/src/agent/widgets/agent_state_builder.dart';
+library;
+
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/client.dart';
 import 'package:flutter/widgets.dart';
 
-/// Opens the agent [agentId] on the nearest `CopilotKit` client and provides
+/// Opens the agent [agentId] on the nearest [CopilotKit] client and provides
 /// it to [child] and everything below it.
 ///
 /// Read the agent below with [CopilotAgentScope.of], or watch parts of its
-/// state with `AgentStateBuilder`. A tool card can reach the agent this way,
-/// and a form can edit the shared state with `CopilotAgent.setSharedState`.
+/// state with [AgentStateBuilder]. A tool card can reach the agent this way,
+/// and a form can edit the shared state with [CopilotAgent.setSharedState].
 ///
 /// The client owns the agent, so the scope never closes it: the agent lives
 /// until the client closes. Two scopes with the same [agentId] under the same
