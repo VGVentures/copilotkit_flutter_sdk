@@ -125,6 +125,13 @@ Run them from the repository root before you push:
    fvm dart run build_runner build
    ```
 
+6. If you changed doc comments, generate the docs of each package you
+   touched into a temporary folder and fix every warning:
+
+   ```sh
+   fvm dart doc -o "$(mktemp -d)"
+   ```
+
 CI also builds the example app for the web with WebAssembly.
 
 To check the runtime contract from the command line, send a request to a

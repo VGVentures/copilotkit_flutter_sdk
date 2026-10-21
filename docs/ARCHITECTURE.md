@@ -10,7 +10,7 @@ against it.
 
 The SDK has three packages, layered from the network up:
 
-```
+```text
 packages/json_utils           pure Dart, only package:collection: partial
                               JSON parsing, JSON Patch and JSON Schema
                               helpers over Map<String, Object?>
@@ -46,7 +46,7 @@ packages import.
 Every package except `json_utils` has one folder per feature in `lib/src/`,
 and every feature folder has the same shape:
 
-```
+```text
 lib/src/<feature>/
   <feature>.dart   barrel: exports what other features and the package use
   models/          immutable value types
@@ -367,6 +367,54 @@ if (_SubschemaKey.values.asNameMap().containsKey(key)) ...
   example, one built with `Map.of`).
 
 ## Doc comments
+
+Every public declaration has a `///` doc comment that follows
+[Effective Dart: Documentation](https://dart.dev/effective-dart/documentation).
+`flutter analyze` enforces `public_member_api_docs` and `comment_references`,
+and `dart doc` reports no warnings (see
+[the checks](../CONTRIBUTING.md#step-5-run-the-checks)). The rules below
+are the ones the tools don't check.
+
+- The first paragraph is one sentence that summarizes the declaration.
+  Put the details after a blank `///` line.
+- Start a property with a noun phrase, a boolean with "Whether", and a
+  method with a third-person verb. Don't restate the name or the signature.
+- Link symbols in scope with `[ ]`, including parameters. Link a default
+  constructor as `[ClassName.new]`, and leave the parentheses off method
+  links.
+- To link a symbol from another feature, add a `/// @docImport` of that
+  feature's barrel on a `library;` directive instead of an `import`.
+- Use backticks only for keywords, literals, expressions, and names that
+  can't be linked, such as wire names (`STATE_DELTA`) and symbols hidden
+  from the package barrel.
+- Put doc comments before annotations, and don't repeat the doc comment of
+  an `@override` that doesn't change the behavior.
+- Weave parameters, return values, and exceptions into the prose. Don't use
+  Javadoc tags such as `@param` or `@return`, or `/** */` comments.
+- Label every code fence in a doc comment, for example `dart` or `sh`.
+
+```dart
+// Bad
+/// Tool call id; stable for the whole call, use it as a widget key.
+final String id;
+
+/// Answers the call. See `CopilotKitClient.respondToToolCall`.
+void respond(Object? result);
+
+// Good
+/// @docImport 'package:copilotkit/src/client/client.dart';
+library;
+
+/// The id of the tool call.
+///
+/// It stays the same for the whole call, so use it as a widget key.
+final String id;
+
+/// Answers the call with [result].
+///
+/// See [CopilotKitClient.respondToToolCall].
+void respond(Object? result);
+```
 
 Write plain `///` comments on the class and on the constructor. Don't use
 `{@template}` / `{@macro}` unless one comment is truly shared by several
