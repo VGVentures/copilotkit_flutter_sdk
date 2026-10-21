@@ -65,8 +65,9 @@ on both.
    apps, `copilotkit_flutter` and the example app depend on `ack`
    themselves.
 3. **Add core-owned message and event models.** `copilotkit` defines its own
-   `Message` hierarchy, `ToolCall`, and `FunctionCall`, and maps them to and
-   from `ag_ui` in the transport and reducer. The publicly exposed
+   `Message` hierarchy and a flat `ToolCall` (id, name and arguments, with
+   no separate `FunctionCall`), and maps them to and from `ag_ui` in the
+   transport and reducer. The publicly exposed
    `BaseEvent`, `EventType`, `RunAgentInput`, and `RunErrorEvent` become
    internal or get core equivalents. The `ag_ui` re-export goes away.
 4. **Remove the Flutter barrel re-export and enforce the rule.** Remove
