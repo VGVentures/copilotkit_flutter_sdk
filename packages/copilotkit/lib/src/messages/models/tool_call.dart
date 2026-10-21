@@ -4,7 +4,9 @@ import 'package:meta/meta.dart';
 
 /// A call the agent made to a tool, held by an `AssistantMessage`.
 class const ToolCall({
-  /// Tool call id; stable for the whole call.
+  /// The id of the tool call.
+  ///
+  /// It stays the same for the whole call.
   required final String id,
 
   /// Name of the tool being called.

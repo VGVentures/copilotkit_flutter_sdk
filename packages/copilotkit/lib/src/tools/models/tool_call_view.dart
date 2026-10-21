@@ -3,7 +3,9 @@ import 'package:equatable/equatable.dart';
 
 /// A tool call made by the agent, shaped for rendering.
 class const ToolCallView({
-  /// Tool call id; stable for the whole call, use it as a widget key.
+  /// The id of the tool call.
+  ///
+  /// It stays the same for the whole call, so use it as a widget key.
   required final String id,
 
   /// Name of the tool being called.
