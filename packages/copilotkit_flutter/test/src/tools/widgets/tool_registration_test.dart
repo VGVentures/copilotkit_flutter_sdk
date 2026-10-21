@@ -97,5 +97,58 @@ void main() {
       expect(client.calls, [registered(tool), unregistered(tool)]);
       expect(other.calls, [registered(tool)]);
     });
+
+    group('with a real client', () {
+      late CopilotKitClient client;
+
+      setUp(
+        () => client = CopilotKitClient(
+          runtimeUrl: Uri.parse('http://runtime.test'),
+        ),
+      );
+
+      tearDown(() => client.close());
+
+      testWidgets('keeps the tool when its subtree remounts', (tester) async {
+        final tool = _tool('showWeather');
+        Widget build(Key key) => CopilotKit.value(
+          client: client,
+          child: ToolRegistration(
+            key: key,
+            tool: tool,
+            child: const SizedBox(),
+          ),
+        );
+
+        await tester.pumpWidget(build(const ValueKey(1)));
+        await tester.pumpWidget(build(const ValueKey(2)));
+
+        expect(client.tools, {'showWeather': tool});
+      });
+
+      testWidgets('keeps a shared tool until its last owner is removed', (
+        tester,
+      ) async {
+        final tool = _tool('showWeather');
+        Widget build({required bool both}) => CopilotKit.value(
+          client: client,
+          child: Column(
+            children: [
+              ToolRegistration(tool: tool, child: const SizedBox()),
+              if (both) ToolRegistration(tool: tool, child: const SizedBox()),
+            ],
+          ),
+        );
+
+        await tester.pumpWidget(build(both: true));
+        await tester.pumpWidget(build(both: false));
+        expect(client.tools, {'showWeather': tool});
+
+        await tester.pumpWidget(
+          CopilotKit.value(client: client, child: const SizedBox()),
+        );
+        expect(client.tools, isEmpty);
+      });
+    });
   });
 }

@@ -17,6 +17,10 @@ import 'package:flutter/widgets.dart';
 /// client never lacks the tool in between: unregistering a human-in-the-loop
 /// tool cancels the calls that wait for the user. A tool equal to the
 /// registered one changes nothing.
+///
+/// Each mounted registration counts on the client, so when its subtree
+/// remounts, or another widget registers the same tool, the tool stays
+/// registered until the last of them is disposed.
 @internal
 class const ToolRegistration({
   /// The tool to register.
