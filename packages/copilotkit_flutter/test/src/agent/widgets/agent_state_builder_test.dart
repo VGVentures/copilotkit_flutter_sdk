@@ -47,7 +47,9 @@ void main() {
       await tester.pumpWidget(build());
       built.clear();
 
-      client.agent('ops').addMessage(UserMessage(id: 'u1', content: 'Hi'));
+      client
+          .agent('ops')
+          .addMessage(const UserMessage(id: 'u1', content: 'Hi'));
       await tester.pumpAndSettle();
 
       expect(built, isEmpty);

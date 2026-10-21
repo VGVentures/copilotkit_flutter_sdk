@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/client/client.dart';
 import 'package:mocktail/mocktail.dart';
@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
+import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
@@ -20,7 +21,7 @@ void main() {
     late RunnerHarness harness;
     late MockAgentTransport transport;
     late CopilotAgent agent;
-    late List<Stream<BaseEvent>> runs;
+    late List<Stream<ag_ui.BaseEvent>> runs;
     late List<Object> errors;
     late Turn turn;
 
@@ -37,7 +38,7 @@ void main() {
 
     String threadId() => agent.state.threadId;
 
-    void queueRun(List<BaseEvent> events) =>
+    void queueRun(List<ag_ui.BaseEvent> events) =>
         runs.add(Stream.fromIterable(events));
 
     Future<RunResult> stream() => harness.streamer.stream(turn);
@@ -53,7 +54,7 @@ void main() {
       harness.context.add(
         AgentContextEntry(description: 'Unread', value: const {'count': 3}),
       );
-      final message = UserMessage(id: 'u1', content: 'Hi');
+      const message = UserMessage(id: 'u1', content: 'Hi');
       agent.addMessage(message);
       runs.add(const Stream.empty());
 
@@ -67,10 +68,10 @@ void main() {
                   headers: {'Authorization': 'Bearer token'},
                 ),
               ).captured.single
-              as RunAgentInput;
+              as ag_ui.RunAgentInput;
       expect(input.threadId, threadId());
       expect(Uuid.isValidUUID(fromString: input.runId), isTrue);
-      expect(input.messages, [message]);
+      expect(input.messages.map(Message.fromAgUi), [message]);
       expect(input.tools.single.name, 'showWeather');
       expect(input.context.single.value, '{"count":3}');
       expect(input.forwardedProps, {'userId': '42'});
@@ -82,8 +83,8 @@ void main() {
       agent
         ..setSharedState(const SharedState({'count': 3}))
         ..patchSharedState(const [StatePatchReplace(path: '/count', value: 4)])
-        ..addMessage(UserMessage(id: 'old', content: 'Old'))
-        ..setMessages([UserMessage(id: 'new', content: 'New')]);
+        ..addMessage(const UserMessage(id: 'old', content: 'Old'))
+        ..setMessages([const UserMessage(id: 'new', content: 'New')]);
       await stream();
 
       final input = transport.sentInputs().single;
@@ -116,32 +117,32 @@ void main() {
 
     test('streams the assistant reply into messages', () async {
       queueRun([
-        RunStartedEvent(threadId: threadId(), runId: 'r'),
-        const TextMessageStartEvent(messageId: 'm1'),
-        const TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
-        const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-        RunFinishedEvent(threadId: threadId(), runId: 'r'),
+        ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+        const ag_ui.TextMessageStartEvent(messageId: 'm1'),
+        const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
+        const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
+        ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
       ]);
       final texts = <String?>[];
-      agent.stream.listen((s) => texts.add(s.messages.lastOrNull?.content));
+      agent.stream.listen((s) => texts.add(textOf(s.messages.lastOrNull)));
 
       final result = await stream();
       await pumpEventQueue();
 
       expect(result, RunResult.finished);
-      expect(agent.state.messages.single.content, 'Hello');
+      expect(textOf(agent.state.messages.single), 'Hello');
       expect(texts, containsAllInOrder(['', 'Hel', 'Hello']));
       expect(errors, isEmpty);
     });
 
     test('holds the run on the turn while it streams', () async {
-      final events = StreamController<BaseEvent>();
+      final events = StreamController<ag_ui.BaseEvent>();
       runs.add(events.stream);
 
       final result = stream();
       await pumpEventQueue();
       final run = turn.run;
-      events.add(RunFinishedEvent(threadId: threadId(), runId: 'r'));
+      events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
       await events.close();
       await result;
 
@@ -152,15 +153,15 @@ void main() {
 
     test('applies state snapshots and deltas to sharedState', () async {
       queueRun([
-        RunStartedEvent(threadId: threadId(), runId: 'r'),
-        const StateSnapshotEvent(snapshot: {'count': 1}),
-        const TextMessageStartEvent(messageId: 'm1'),
-        const StateDeltaEvent(
+        ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+        const ag_ui.StateSnapshotEvent(snapshot: {'count': 1}),
+        const ag_ui.TextMessageStartEvent(messageId: 'm1'),
+        const ag_ui.StateDeltaEvent(
           delta: [
             {'op': 'replace', 'path': '/count', 'value': 2},
           ],
         ),
-        RunFinishedEvent(threadId: threadId(), runId: 'r'),
+        ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
       ]);
       final sharedStates = <Object?>[];
       agent.stream
@@ -194,9 +195,9 @@ void main() {
 
     test('the state the runtime sends replaces a local edit', () async {
       queueRun([
-        RunStartedEvent(threadId: threadId(), runId: 'r1'),
-        const StateSnapshotEvent(snapshot: {'count': 1}),
-        RunFinishedEvent(threadId: threadId(), runId: 'r1'),
+        ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r1'),
+        const ag_ui.StateSnapshotEvent(snapshot: {'count': 1}),
+        ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r1'),
       ]);
 
       agent.setSharedState(const SharedState({'count': 3}));
@@ -227,7 +228,7 @@ void main() {
       });
 
       test('on a stream that ends before the run finishes', () async {
-        queueRun([RunStartedEvent(threadId: threadId(), runId: 'r')]);
+        queueRun([ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r')]);
 
         expect(await stream(), RunResult.failed);
         expect(errors.single, isA<StateError>());
@@ -274,7 +275,7 @@ void main() {
       });
 
       test('when cancelled while the run streams', () async {
-        runs.add(StreamController<BaseEvent>().stream);
+        runs.add(StreamController<ag_ui.BaseEvent>().stream);
 
         final result = stream();
         await pumpEventQueue();
@@ -290,39 +291,42 @@ void main() {
         'reasoning, activity, raw and custom events leave text intact',
         () async {
           queueRun([
-            RunStartedEvent(threadId: threadId(), runId: 'r'),
-            const ReasoningStartEvent(messageId: 'think'),
-            const ReasoningMessageContentEvent(
+            ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+            const ag_ui.ReasoningStartEvent(messageId: 'think'),
+            const ag_ui.ReasoningMessageContentEvent(
               messageId: 'think',
               delta: 'Hmm',
             ),
-            const TextMessageStartEvent(messageId: 'm1'),
-            const TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
-            const ActivitySnapshotEvent(
+            const ag_ui.TextMessageStartEvent(messageId: 'm1'),
+            const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hel'),
+            const ag_ui.ActivitySnapshotEvent(
               messageId: 'act',
               activityType: 'search',
               content: {'query': 'weather'},
             ),
-            const ThinkingStartEvent(title: 'plan'),
-            const RawEvent(event: {'anything': true}),
-            const CustomEvent(name: 'progress', value: 0.5),
-            const TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
-            RunFinishedEvent(threadId: threadId(), runId: 'r'),
+            const ag_ui.ThinkingStartEvent(title: 'plan'),
+            const ag_ui.RawEvent(event: {'anything': true}),
+            const ag_ui.CustomEvent(name: 'progress', value: 0.5),
+            const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
+            ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
           ]);
 
           expect(await stream(), RunResult.finished);
-          expect(agent.state.messages.single.content, 'Hello');
+          expect(textOf(agent.state.messages.single), 'Hello');
           expect(errors, isEmpty);
         },
       );
 
-      const runError = RunErrorEvent(message: 'Invalid API key', code: 'AUTH');
+      const runError = ag_ui.RunErrorEvent(
+        message: 'Invalid API key',
+        code: 'AUTH',
+      );
 
       test('RUN_ERROR fails the run and reports the error once', () async {
         queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r'),
-          const TextMessageStartEvent(messageId: 'm1'),
-          const TextMessageContentEvent(messageId: 'm1', delta: 'Par'),
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          const ag_ui.TextMessageStartEvent(messageId: 'm1'),
+          const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Par'),
           runError,
         ]);
 
@@ -330,7 +334,7 @@ void main() {
         const error = RunError(message: 'Invalid API key', code: 'AUTH');
         expect(errors, [error]);
         expect(agent.state.error, error);
-        expect(agent.state.messages.single.content, 'Par');
+        expect(textOf(agent.state.messages.single), 'Par');
       });
 
       test('unknown_events fixture keeps the text reply', () async {
@@ -338,7 +342,7 @@ void main() {
 
         expect(await stream(), RunResult.finished);
         expect(
-          agent.state.messages.single.content,
+          textOf(agent.state.messages.single),
           'Hello! Wonderful to meet you.',
         );
         expect(errors, isEmpty);
@@ -367,7 +371,7 @@ void main() {
 
           expect(await stream(), RunResult.failed);
           expect(errors.single, isA<StateError>());
-          expect(agent.state.messages.single.content, 'Hello! Wonderful to');
+          expect(textOf(agent.state.messages.single), 'Hello! Wonderful to');
         },
       );
     });

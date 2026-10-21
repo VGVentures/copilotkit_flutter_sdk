@@ -1,4 +1,4 @@
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 
@@ -14,7 +14,7 @@ CopilotAgent buildAgent() =>
 /// Returns the states that changed, in order, like an agent emits them, and
 /// the final state.
 ({List<CopilotAgentState> states, CopilotAgentState state}) reduce(
-  List<BaseEvent> events, {
+  List<ag_ui.BaseEvent> events, {
   CopilotAgentState from = agentState,
 }) {
   const reducer = AgentEventReducer();

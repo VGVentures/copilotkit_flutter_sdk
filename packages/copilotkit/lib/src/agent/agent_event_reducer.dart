@@ -1,7 +1,8 @@
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
+import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 
@@ -23,61 +24,63 @@ class const AgentEventReducer({
   ///
   /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
   /// don't change the agent return [snapshot] itself.
-  CopilotAgentState reduce(CopilotAgentState snapshot, BaseEvent event) {
+  CopilotAgentState reduce(CopilotAgentState snapshot, ag_ui.BaseEvent event) {
     return switch (event) {
-      RunStartedEvent() => snapshot.copyWith(error: () => null),
-      RunFinishedEvent() => _finishToolArgs(snapshot),
-      RunErrorEvent(:final message, :final code) => snapshot.copyWith(
+      ag_ui.RunStartedEvent() => snapshot.copyWith(error: () => null),
+      ag_ui.RunFinishedEvent() => _finishToolArgs(snapshot),
+      ag_ui.RunErrorEvent(:final message, :final code) => snapshot.copyWith(
         error: () => RunError(message: message, code: code),
       ),
-      TextMessageStartEvent(:final messageId, :final role, :final name) =>
+      ag_ui.TextMessageStartEvent(:final messageId, :final role, :final name) =>
         snapshot.copyWith(
           messages: [
             ...snapshot.messages,
             _textMessage(messageId, role, name, ''),
           ],
         ),
-      TextMessageContentEvent(:final messageId, :final delta) => _appendText(
-        snapshot,
-        messageId,
-        TextMessageRole.assistant,
-        delta,
-      ),
-      TextMessageChunkEvent(:final messageId, :final role, :final delta) =>
+      ag_ui.TextMessageContentEvent(:final messageId, :final delta) =>
+        _appendText(
+          snapshot,
+          messageId,
+          ag_ui.TextMessageRole.assistant,
+          delta,
+        ),
+      ag_ui.TextMessageChunkEvent(
+        :final messageId,
+        :final role,
+        :final delta,
+      ) =>
         _appendChunk(snapshot, messageId, role, delta ?? ''),
-      ToolCallStartEvent(
+      ag_ui.ToolCallStartEvent(
         :final toolCallId,
         :final toolCallName,
         :final parentMessageId,
       ) =>
         _startToolCall(snapshot, toolCallId, toolCallName, parentMessageId),
-      ToolCallArgsEvent(:final toolCallId, :final delta) => _appendToolArgs(
-        snapshot,
-        toolCallId,
-        delta,
-      ),
-      ToolCallEndEvent(:final toolCallId) => _updateToolCall(
+      ag_ui.ToolCallArgsEvent(:final toolCallId, :final delta) =>
+        _appendToolArgs(snapshot, toolCallId, delta),
+      ag_ui.ToolCallEndEvent(:final toolCallId) => _updateToolCall(
         snapshot,
         toolCallId,
         (view) => view.status == ToolCallStatus.inProgress
             ? view.copyWith(status: ToolCallStatus.executing)
             : view,
       ),
-      ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
-      ToolCallResultEvent(
+      ag_ui.ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
+      ag_ui.ToolCallResultEvent(
         :final messageId,
         :final toolCallId,
         :final content,
       ) =>
         _completeToolCall(snapshot, messageId, toolCallId, content),
-      StateSnapshotEvent(snapshot: final state) => _replaceState(
+      ag_ui.StateSnapshotEvent(snapshot: final state) => _replaceState(
         snapshot,
         state,
       ),
-      StateDeltaEvent() => _applyStateDelta(snapshot, event),
-      MessagesSnapshotEvent(:final messages) => _replaceMessages(
+      ag_ui.StateDeltaEvent() => _applyStateDelta(snapshot, event),
+      ag_ui.MessagesSnapshotEvent(:final messages) => replaceMessages(
         snapshot,
-        messages,
+        [for (final message in messages) Message.fromAgUi(message)],
       ),
       _ => snapshot,
     };
@@ -86,7 +89,7 @@ class const AgentEventReducer({
   /// [snapshot] with [messages] as its conversation, and its tool calls
   /// rebuilt from them, so calls that only exist in [messages] (a loaded
   /// history, a resync) render like live ones.
-  CopilotAgentState _replaceMessages(
+  CopilotAgentState replaceMessages(
     CopilotAgentState snapshot,
     List<Message> messages,
   ) => snapshot.copyWith(
@@ -112,7 +115,7 @@ class const AgentEventReducer({
     final knownById = {for (final view in known) view.id: view};
     return [
       for (final message in messages.whereType<AssistantMessage>())
-        for (final call in message.toolCalls ?? const <ToolCall>[])
+        for (final call in message.toolCalls)
           _viewOf(call, knownById[call.id], results),
     ];
   }
@@ -126,9 +129,9 @@ class const AgentEventReducer({
         known ??
         ToolCallView(
           id: call.id,
-          name: call.function.name,
+          name: call.name,
           status: ToolCallStatus.executing,
-          args: Map.unmodifiable(_parser.parse(call.function.arguments)),
+          args: Map.unmodifiable(_parser.parse(call.arguments)),
         );
     return switch (results[call.id]) {
       final result? => view.copyWith(
@@ -147,7 +150,7 @@ class const AgentEventReducer({
   /// AG-UI client, instead of being dropped.
   CopilotAgentState _applyStateDelta(
     CopilotAgentState snapshot,
-    StateDeltaEvent event,
+    ag_ui.StateDeltaEvent event,
   ) {
     try {
       return snapshot.copyWith(
@@ -186,10 +189,7 @@ class const AgentEventReducer({
     if (snapshot.toolCalls.any((view) => view.id == toolCallId)) {
       return snapshot;
     }
-    final call = ToolCall(
-      id: toolCallId,
-      function: FunctionCall(name: name, arguments: ''),
-    );
+    final call = ToolCall(id: toolCallId, name: name, arguments: '');
     final messages = snapshot.messages;
     final parentIndex = parentMessageId == null
         ? -1
@@ -206,7 +206,7 @@ class const AgentEventReducer({
       final parent = messages[parentIndex] as AssistantMessage;
       nextMessages = [
         ...messages.sublist(0, parentIndex),
-        parent.copyWith(toolCalls: [...?parent.toolCalls, call]),
+        parent.copyWith(toolCalls: [...parent.toolCalls, call]),
         ...messages.sublist(parentIndex + 1),
       ];
     }
@@ -230,40 +230,38 @@ class const AgentEventReducer({
   ) {
     final call = snapshot.messages
         .whereType<AssistantMessage>()
-        .expand((message) => message.toolCalls ?? const <ToolCall>[])
+        .expand((message) => message.toolCalls)
         .where((call) => call.id == toolCallId)
         .lastOrNull;
     if (call == null) return snapshot;
-    final arguments = call.function.arguments + delta;
-    final updatedCall = call.copyWith(
-      function: call.function.copyWith(arguments: arguments),
-    );
+    final arguments = call.arguments + delta;
+    final updatedCall = call.copyWith(arguments: arguments);
     final args = Map<String, Object?>.unmodifiable(_parser.parse(arguments));
     return _updateToolCall(
       snapshot.copyWith(
-        messages: _replaceToolCall(snapshot.messages, call, updatedCall),
+        messages: _replaceToolCall(snapshot.messages, updatedCall),
       ),
       toolCallId,
       (view) => view.copyWith(args: args),
     );
   }
 
-  /// [messages] with [call] replaced by [replacement] in the assistant
-  /// message that holds it.
+  /// [messages] with the call that has the id of [replacement] replaced by
+  /// it, in the assistant message that holds it.
+  ///
+  /// Matches by id: `_startToolCall` drops a repeated id, so no two calls
+  /// share one.
   List<Message> _replaceToolCall(
     List<Message> messages,
-    ToolCall call,
     ToolCall replacement,
   ) => [
     for (final message in messages)
       if (message is AssistantMessage &&
-          (message.toolCalls?.contains(call) ?? false))
+          message.toolCalls.any((c) => c.id == replacement.id))
         message.copyWith(
           toolCalls: [
-            for (final c in message.toolCalls!)
-              // ag_ui models don't override `==`, so this matches the
-              // ToolCall itself, not another one with the same fields.
-              if (c == call) replacement else c,
+            for (final c in message.toolCalls)
+              if (c.id == replacement.id) replacement else c,
           ],
         )
       else
@@ -272,7 +270,7 @@ class const AgentEventReducer({
 
   CopilotAgentState _applyToolChunk(
     CopilotAgentState snapshot,
-    ToolCallChunkEvent event,
+    ag_ui.ToolCallChunkEvent event,
   ) {
     final id = event.toolCallId ?? snapshot.toolCalls.lastOrNull?.id;
     if (id == null) return snapshot;
@@ -354,10 +352,10 @@ class const AgentEventReducer({
   CopilotAgentState _appendChunk(
     CopilotAgentState snapshot,
     String? messageId,
-    TextMessageRole? role,
+    ag_ui.TextMessageRole? role,
     String delta,
   ) {
-    final chunkRole = role ?? TextMessageRole.assistant;
+    final chunkRole = role ?? ag_ui.TextMessageRole.assistant;
     final last = snapshot.messages.lastOrNull;
     final id =
         messageId ??
@@ -366,11 +364,11 @@ class const AgentEventReducer({
     return _appendText(snapshot, id, chunkRole, delta);
   }
 
-  TextMessageRole? _roleOf(Message message) => switch (message) {
-    AssistantMessage() => TextMessageRole.assistant,
-    UserMessage() => TextMessageRole.user,
-    SystemMessage() => TextMessageRole.system,
-    DeveloperMessage() => TextMessageRole.developer,
+  ag_ui.TextMessageRole? _roleOf(Message message) => switch (message) {
+    AssistantMessage() => ag_ui.TextMessageRole.assistant,
+    UserMessage() => ag_ui.TextMessageRole.user,
+    SystemMessage() => ag_ui.TextMessageRole.system,
+    DeveloperMessage() => ag_ui.TextMessageRole.developer,
     _ => null,
   };
 
@@ -379,7 +377,7 @@ class const AgentEventReducer({
   CopilotAgentState _appendText(
     CopilotAgentState snapshot,
     String messageId,
-    TextMessageRole role,
+    ag_ui.TextMessageRole role,
     String delta,
   ) {
     final messages = snapshot.messages;
@@ -389,11 +387,10 @@ class const AgentEventReducer({
         messages: [...messages, _textMessage(messageId, role, null, delta)],
       );
     }
-    final message = messages[index];
     return snapshot.copyWith(
       messages: [
         ...messages.sublist(0, index),
-        _withText(message, '${message.content ?? ''}$delta'),
+        _withDelta(messages[index], delta),
         ...messages.sublist(index + 1),
       ],
     );
@@ -401,23 +398,27 @@ class const AgentEventReducer({
 
   Message _textMessage(
     String id,
-    TextMessageRole role,
+    ag_ui.TextMessageRole role,
     String? name,
     String text,
   ) {
     return switch (role) {
-      TextMessageRole.assistant => AssistantMessage(
+      ag_ui.TextMessageRole.assistant => AssistantMessage(
         id: id,
         content: text,
         name: name,
       ),
-      TextMessageRole.user => UserMessage(id: id, content: text, name: name),
-      TextMessageRole.system => SystemMessage(
+      ag_ui.TextMessageRole.user => UserMessage(
         id: id,
         content: text,
         name: name,
       ),
-      TextMessageRole.developer => DeveloperMessage(
+      ag_ui.TextMessageRole.system => SystemMessage(
+        id: id,
+        content: text,
+        name: name,
+      ),
+      ag_ui.TextMessageRole.developer => DeveloperMessage(
         id: id,
         content: text,
         name: name,
@@ -425,28 +426,51 @@ class const AgentEventReducer({
     };
   }
 
-  /// Returns [message] with its text replaced by [text].
+  /// Returns [message] with [delta] appended to its text.
   ///
   /// Only text messages are created by the reducer, so other message kinds
   /// are returned unchanged.
-  Message _withText(Message message, String text) {
+  Message _withDelta(Message message, String delta) {
     return switch (message) {
-      AssistantMessage() => message.copyWith(content: text),
-      UserMessage(:final id, :final name) => UserMessage(
-        id: id,
-        content: text,
-        name: name,
+      AssistantMessage(:final content) => message.copyWith(
+        content: () => '${content ?? ''}$delta',
       ),
-      SystemMessage(:final id, :final name) => SystemMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
-      DeveloperMessage(:final id, :final name) => DeveloperMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
+      UserMessage(
+        :final id,
+        :final content,
+        :final name,
+        :final encryptedValue,
+      ) =>
+        UserMessage(
+          id: id,
+          content: '$content$delta',
+          name: name,
+          encryptedValue: encryptedValue,
+        ),
+      SystemMessage(
+        :final id,
+        :final content,
+        :final name,
+        :final encryptedValue,
+      ) =>
+        SystemMessage(
+          id: id,
+          content: '$content$delta',
+          name: name,
+          encryptedValue: encryptedValue,
+        ),
+      DeveloperMessage(
+        :final id,
+        :final content,
+        :final name,
+        :final encryptedValue,
+      ) =>
+        DeveloperMessage(
+          id: id,
+          content: '$content$delta',
+          name: name,
+          encryptedValue: encryptedValue,
+        ),
       _ => message,
     };
   }

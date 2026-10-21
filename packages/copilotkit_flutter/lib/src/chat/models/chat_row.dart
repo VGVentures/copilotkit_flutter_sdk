@@ -8,7 +8,8 @@ sealed class ChatRow extends Equatable {
 
 /// A user or assistant text [message].
 final class const ChatMessageRow(
-  /// The message to show; its `content` is the text.
+  /// The message to show: a [UserMessage] or an [AssistantMessage], whose
+  /// `content` is the text.
   final Message message,
 ) extends ChatRow {
   /// Creates a row for a text [message].

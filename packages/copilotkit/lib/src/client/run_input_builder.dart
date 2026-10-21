@@ -30,7 +30,7 @@ class const RunInputBuilder({
     threadId: agent.threadId,
     runId: _uuid.v4(),
     state: agent.sharedState?.toJson(),
-    messages: agent.messages,
+    messages: [for (final message in agent.messages) message.toAgUi()],
     tools: [
       for (final tool in tools)
         Tool(

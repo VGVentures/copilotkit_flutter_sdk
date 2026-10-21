@@ -12,6 +12,11 @@ class const MessageBubble({required final Message message, super.key})
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final isUser = message is UserMessage;
+    final text = switch (message) {
+      UserMessage(:final content) => content,
+      AssistantMessage(:final content) => content ?? '',
+      _ => '',
+    };
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: ConstrainedBox(
@@ -26,14 +31,8 @@ class const MessageBubble({required final Message message, super.key})
             borderRadius: BorderRadius.circular(18),
           ),
           child: isUser
-              ? Text(
-                  message.content ?? '',
-                  style: TextStyle(color: colors.onPrimary),
-                )
-              : GptMarkdown(
-                  message.content ?? '',
-                  style: TextStyle(color: colors.onSurface),
-                ),
+              ? Text(text, style: TextStyle(color: colors.onPrimary))
+              : GptMarkdown(text, style: TextStyle(color: colors.onSurface)),
         ),
       ),
     );

@@ -1,15 +1,17 @@
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/agent.dart';
 import '../../helpers/fixtures.dart';
+import '../../helpers/messages.dart';
 
 void main() {
   group(CopilotAgent, () {
-    final user = UserMessage(id: 'u1', content: 'Hi');
+    const user = UserMessage(id: 'u1', content: 'Hi');
 
     test('starts idle and empty with the given ids', () {
       expect(buildAgent().state, agentState);
@@ -30,12 +32,7 @@ void main() {
     group('setMessages', () {
       const assistant = AssistantMessage(
         id: 'a1',
-        toolCalls: [
-          ToolCall(
-            id: 'c1',
-            function: FunctionCall(name: 'showWeather', arguments: '{}'),
-          ),
-        ],
+        toolCalls: [ToolCall(id: 'c1', name: 'showWeather', arguments: '{}')],
       );
 
       test('replaces the messages', () {
@@ -50,14 +47,14 @@ void main() {
         final agent = buildAgent()
           ..addMessage(user)
           ..apply(
-            const ToolCallStartEvent(
+            const ag_ui.ToolCallStartEvent(
               toolCallId: 'c1',
               toolCallName: 'showWeather',
               parentMessageId: 'a1',
             ),
           )
           ..apply(
-            const ToolCallStartEvent(
+            const ag_ui.ToolCallStartEvent(
               toolCallId: 'c2',
               toolCallName: 'showWeather',
               parentMessageId: 'a2',
@@ -172,20 +169,15 @@ void main() {
     });
 
     group('awaitResponse', () {
-      const start = ToolCallStartEvent(
+      const start = ag_ui.ToolCallStartEvent(
         toolCallId: 'c1',
         toolCallName: 'confirmAction',
         parentMessageId: 'a1',
       );
-      const end = ToolCallEndEvent(toolCallId: 'c1');
+      const end = ag_ui.ToolCallEndEvent(toolCallId: 'c1');
       const assistant = AssistantMessage(
         id: 'a1',
-        toolCalls: [
-          ToolCall(
-            id: 'c1',
-            function: FunctionCall(name: 'confirmAction', arguments: '{}'),
-          ),
-        ],
+        toolCalls: [ToolCall(id: 'c1', name: 'confirmAction', arguments: '{}')],
       );
 
       CopilotAgent awaiting() => buildAgent()
@@ -223,7 +215,7 @@ void main() {
       test('a result completes the call and stops it from awaiting', () {
         final agent = awaiting()
           ..apply(
-            const ToolCallResultEvent(
+            const ag_ui.ToolCallResultEvent(
               messageId: 't1',
               toolCallId: 'c1',
               content: 'ok',
@@ -279,7 +271,7 @@ void main() {
 
     test('apply applies the AG-UI event right away', () {
       final agent = buildAgent()
-        ..apply(const TextMessageStartEvent(messageId: 'm1'));
+        ..apply(const ag_ui.TextMessageStartEvent(messageId: 'm1'));
 
       expect(agent.state.messages.single.id, 'm1');
     });
@@ -304,7 +296,7 @@ void main() {
       final states = agent.stream.toList();
 
       agent
-        ..apply(const StepStartedEvent(stepName: 's'))
+        ..apply(const ag_ui.StepStartedEvent(stepName: 's'))
         ..endTurn();
       await agent.close();
 
@@ -326,7 +318,7 @@ void main() {
       final fixture = loadFixture('text_stream');
       final deltas = [
         for (final event in fixture.events)
-          if (event is TextMessageContentEvent) event.delta,
+          if (event is ag_ui.TextMessageContentEvent) event.delta,
       ];
       final agent = buildAgent();
       final states = agent.stream.toList();
@@ -334,9 +326,11 @@ void main() {
       fixture.events.forEach(agent.apply);
       await agent.close();
 
+      // An empty delta leaves an equal state, which isn't emitted.
       expect(
-        [for (final state in await states) state.messages.single.content],
-        [for (var i = 0; i <= deltas.length; i++) deltas.take(i).join()],
+        [for (final state in await states) textOf(state.messages.single)],
+        {for (var i = 0; i <= deltas.length; i++) deltas.take(i).join()}
+            .toList(),
       );
     });
   });

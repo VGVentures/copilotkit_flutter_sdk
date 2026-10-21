@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' show BaseEvent;
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/agent/models/state_patch_operation.dart';
+import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 import 'package:meta/meta.dart';
@@ -68,7 +69,7 @@ class CopilotAgent({
   /// dropped. Allowed while the agent is running; the events that stream in
   /// afterwards apply on top of [messages].
   void setMessages(List<Message> messages) =>
-      apply(MessagesSnapshotEvent(messages: messages));
+      _update(_reducer.replaceMessages(_state, messages));
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///

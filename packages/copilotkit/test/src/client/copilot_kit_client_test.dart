@@ -1,13 +1,14 @@
 import 'dart:async';
 
 import 'package:ack/ack.dart';
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/client_harness.dart';
+import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
@@ -33,12 +34,12 @@ void main() {
       );
     });
 
-    void stubRun(Stream<BaseEvent> events) {
+    void stubRun(Stream<ag_ui.BaseEvent> events) {
       transport.stubRun(() => events);
     }
 
     /// The input of the only run sent so far.
-    RunAgentInput sentInput() => transport.sentInputs().single;
+    ag_ui.RunAgentInput sentInput() => transport.sentInputs().single;
 
     test('starts with no agents, tools or context', () {
       expect(client.agents, isEmpty);
@@ -121,7 +122,7 @@ void main() {
     });
 
     group('runAgent', () {
-      final message = UserMessage(id: 'u1', content: 'Hi');
+      const message = UserMessage(id: 'u1', content: 'Hi');
 
       test('runs the agent with its tools, context and properties', () async {
         final agent = client.agent('default');
@@ -140,10 +141,13 @@ void main() {
           );
         stubRun(
           Stream.fromIterable([
-            RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
-            const TextMessageStartEvent(messageId: 'm1'),
-            const TextMessageContentEvent(messageId: 'm1', delta: 'Hello'),
-            RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+            ag_ui.RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
+            const ag_ui.TextMessageStartEvent(messageId: 'm1'),
+            const ag_ui.TextMessageContentEvent(
+              messageId: 'm1',
+              delta: 'Hello',
+            ),
+            ag_ui.RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
           ]),
         );
 
@@ -157,12 +161,12 @@ void main() {
                     headers: {'Authorization': 'Bearer token'},
                   ),
                 ).captured.single
-                as RunAgentInput;
-        expect(input.messages, [message]);
+                as ag_ui.RunAgentInput;
+        expect(input.messages.map(Message.fromAgUi), [message]);
         expect(input.tools.single.name, 'showWeather');
         expect(input.context.single.value, '{"count":3}');
         expect(input.forwardedProps, {'userId': '42'});
-        expect(agent.state.messages.last.content, 'Hello');
+        expect(textOf(agent.state.messages.last), 'Hello');
         expect(agent.state.isRunning, isFalse);
       });
 
@@ -207,11 +211,13 @@ void main() {
     group('stopAgent', () {
       test('stops the turn of a running agent', () async {
         final agent = client.agent('default');
-        final events = StreamController<BaseEvent>();
+        final events = StreamController<ag_ui.BaseEvent>();
         stubRun(events.stream);
         transport.stubStop();
         final run = client.runAgent('default');
-        events.add(RunStartedEvent(threadId: agent.state.threadId, runId: 'r'));
+        events.add(
+          ag_ui.RunStartedEvent(threadId: agent.state.threadId, runId: 'r'),
+        );
         await pumpEventQueue();
 
         await client.stopAgent('default');
@@ -251,7 +257,8 @@ void main() {
       test('cancels active runs', () async {
         var cancelled = false;
         stubRun(
-          StreamController<BaseEvent>(onCancel: () => cancelled = true).stream,
+          StreamController<ag_ui.BaseEvent>(onCancel: () => cancelled = true)
+              .stream,
         );
         final run = client.runAgent('default');
         await pumpEventQueue();
@@ -290,7 +297,7 @@ void main() {
                 .sentInputs()
                 .last
                 .messages
-                .whereType<ToolMessage>())
+                .whereType<ag_ui.ToolMessage>())
           message.toolCallId: message.content,
       };
 

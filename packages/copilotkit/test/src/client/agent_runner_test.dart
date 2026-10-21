@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/client/agent_runner.dart';
 import 'package:mocktail/mocktail.dart';
@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../helpers/fixtures.dart';
+import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/runner_harness.dart';
 import '../../helpers/tool_runs.dart';
@@ -20,7 +21,7 @@ void main() {
     late AgentRunner runner;
     late MockAgentTransport transport;
     late CopilotAgent agent;
-    late List<Stream<BaseEvent>> runs;
+    late List<Stream<ag_ui.BaseEvent>> runs;
     late List<Object> errors;
 
     void useHarness(RunnerHarness next) {
@@ -36,9 +37,9 @@ void main() {
 
     String threadId() => agent.state.threadId;
 
-    List<RunAgentInput> sentInputs() => transport.sentInputs();
+    List<ag_ui.RunAgentInput> sentInputs() => transport.sentInputs();
 
-    void queueRun(List<BaseEvent> events) =>
+    void queueRun(List<ag_ui.BaseEvent> events) =>
         runs.add(Stream.fromIterable(events));
 
     /// Records whether the agent was running on every state it emits.
@@ -49,30 +50,30 @@ void main() {
     }
 
     group('run', () {
-      final message = UserMessage(id: 'u1', content: 'Hi');
+      const message = UserMessage(id: 'u1', content: 'Hi');
 
       test('appends the given message before the run', () async {
         runs.add(const Stream.empty());
 
         await runner.run(agent, message: message);
 
-        expect(sentInputs().single.messages, [message]);
+        expect(sentInputs().single.messages.map(Message.fromAgUi), [message]);
         expect(agent.state.messages, [message]);
       });
 
-      late StreamController<BaseEvent> events;
+      late StreamController<ag_ui.BaseEvent> events;
 
       test(
         'drops the given message when the agent is already running',
         () async {
-          events = StreamController<BaseEvent>();
+          events = StreamController<ag_ui.BaseEvent>();
           runs.add(events.stream);
           final first = runner.run(agent);
           await pumpEventQueue();
 
           await runner.run(agent, message: message);
 
-          events.add(RunFinishedEvent(threadId: threadId(), runId: 'r'));
+          events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
           await events.close();
           await first;
           expect(agent.state.messages, isEmpty);
@@ -80,28 +81,28 @@ void main() {
       );
 
       test('is running as soon as the run starts', () async {
-        events = StreamController<BaseEvent>();
+        events = StreamController<ag_ui.BaseEvent>();
         runs.add(events.stream);
 
         final run = runner.run(agent);
         await pumpEventQueue();
         expect(agent.state.isRunning, isTrue);
 
-        events.add(RunFinishedEvent(threadId: threadId(), runId: 'r'));
+        events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
         await events.close();
         await run;
         expect(agent.state.isRunning, isFalse);
       });
 
       test('ignores a run while one is in progress', () async {
-        events = StreamController<BaseEvent>();
+        events = StreamController<ag_ui.BaseEvent>();
         runs.add(events.stream);
         final first = runner.run(agent);
         await pumpEventQueue();
 
         await runner.run(agent);
 
-        events.add(RunFinishedEvent(threadId: threadId(), runId: 'r'));
+        events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
         await events.close();
         await first;
         expect(sentInputs(), hasLength(1));
@@ -121,7 +122,7 @@ void main() {
     });
 
     group('stop', () {
-      late StreamController<BaseEvent> events;
+      late StreamController<ag_ui.BaseEvent> events;
       late bool cancelled;
       late Future<void> run;
 
@@ -141,16 +142,20 @@ void main() {
 
       setUp(() {
         cancelled = false;
-        events = StreamController<BaseEvent>(onCancel: () => cancelled = true);
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancelled = true,
+        );
         useStreamingHarness();
       });
 
       Future<void> startStreaming() async {
         run = runner.run(agent);
         events
-          ..add(RunStartedEvent(threadId: threadId(), runId: 'r'))
-          ..add(const TextMessageStartEvent(messageId: 'm1'))
-          ..add(const TextMessageContentEvent(messageId: 'm1', delta: 'Hal'));
+          ..add(ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'))
+          ..add(const ag_ui.TextMessageStartEvent(messageId: 'm1'))
+          ..add(
+            const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hal'),
+          );
         await pumpEventQueue();
       }
 
@@ -168,7 +173,7 @@ void main() {
           expect(cancelled, isTrue);
           expect(agent.state.isRunning, isFalse);
           expect(agent.state.error, isNull);
-          expect(agent.state.messages.single.content, 'Hal');
+          expect(textOf(agent.state.messages.single), 'Hal');
           expect(errors, isEmpty);
         },
       );
@@ -197,11 +202,13 @@ void main() {
         final changes = <CopilotAgentState>[];
         agent.stream.listen(changes.add);
 
-        events.add(const TextMessageContentEvent(messageId: 'm1', delta: 'lo'));
+        events.add(
+          const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
+        );
         await pumpEventQueue();
 
         expect(changes, isEmpty);
-        expect(agent.state.messages.single.content, 'Hal');
+        expect(textOf(agent.state.messages.single), 'Hal');
       });
 
       group('while the headers are being built', () {
@@ -239,8 +246,11 @@ void main() {
       });
 
       for (final (name, end) in [
-        ('fails', (StreamController<BaseEvent> e) => e.addError(Exception())),
-        ('ends early', (StreamController<BaseEvent> e) => e.close()),
+        (
+          'fails',
+          (StreamController<ag_ui.BaseEvent> e) => e.addError(Exception()),
+        ),
+        ('ends early', (StreamController<ag_ui.BaseEvent> e) => e.close()),
       ]) {
         test('can be called from onError when the stream $name', () async {
           Future<void>? stop;
@@ -293,21 +303,24 @@ void main() {
         await stopStreaming();
         transport.stubRun(
           () => Stream.fromIterable([
-            RunStartedEvent(threadId: threadId(), runId: 'r2'),
-            const TextMessageStartEvent(messageId: 'm2'),
-            const TextMessageContentEvent(messageId: 'm2', delta: 'Again'),
-            RunFinishedEvent(threadId: threadId(), runId: 'r2'),
+            ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r2'),
+            const ag_ui.TextMessageStartEvent(messageId: 'm2'),
+            const ag_ui.TextMessageContentEvent(
+              messageId: 'm2',
+              delta: 'Again',
+            ),
+            ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r2'),
           ]),
         );
 
         await runner.run(agent);
 
         expect(agent.state.isRunning, isFalse);
-        expect(agent.state.messages.map((m) => m.content), ['Hal', 'Again']);
+        expect(agent.state.messages.map(textOf), ['Hal', 'Again']);
       });
 
       test('stops one agent while another keeps running', () async {
-        final otherEvents = StreamController<BaseEvent>();
+        final otherEvents = StreamController<ag_ui.BaseEvent>();
         final other = CopilotAgent(agentId: 'other');
         when(
           () => transport.run(
@@ -329,8 +342,12 @@ void main() {
         expect(other.state.isRunning, isTrue);
 
         otherEvents
-          ..add(RunStartedEvent(threadId: other.state.threadId, runId: 'o'))
-          ..add(RunFinishedEvent(threadId: other.state.threadId, runId: 'o'));
+          ..add(
+            ag_ui.RunStartedEvent(threadId: other.state.threadId, runId: 'o'),
+          )
+          ..add(
+            ag_ui.RunFinishedEvent(threadId: other.state.threadId, runId: 'o'),
+          );
         await otherEvents.close();
         await otherRun;
 
@@ -343,7 +360,8 @@ void main() {
       test('cancels active runs', () async {
         var cancelled = false;
         runs.add(
-          StreamController<BaseEvent>(onCancel: () => cancelled = true).stream,
+          StreamController<ag_ui.BaseEvent>(onCancel: () => cancelled = true)
+              .stream,
         );
         final run = runner.run(agent);
         await pumpEventQueue();
@@ -393,12 +411,13 @@ void main() {
         final inputs = sentInputs();
         expect(inputs, hasLength(2));
         final followUp = inputs.last.messages;
-        final assistant = followUp[followUp.length - 2] as AssistantMessage;
+        final assistant =
+            followUp[followUp.length - 2] as ag_ui.AssistantMessage;
         expect(
           assistant.toolCalls!.single.function.arguments,
           '{"city": "Lima"}',
         );
-        final toolMessage = followUp.last as ToolMessage;
+        final toolMessage = followUp.last as ag_ui.ToolMessage;
         expect(Uuid.isValidUUID(fromString: toolMessage.id!), isTrue);
         expect(toolMessage.toolCallId, 'c1');
         expect(toolMessage.content, '{"forecast": "sunny"}');
@@ -408,7 +427,7 @@ void main() {
           ToolCallStatus.executing,
           ToolCallStatus.complete,
         ]);
-        expect(agent.state.messages.last.content, 'Sunny in Lima');
+        expect(textOf(agent.state.messages.last), 'Sunny in Lima');
         expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       });
@@ -448,8 +467,8 @@ void main() {
 
       test('stays running until a failed turn ends', () async {
         queueRun([
-          RunStartedEvent(threadId: threadId(), runId: 'r1'),
-          const RunErrorEvent(message: 'model error'),
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r1'),
+          const ag_ui.RunErrorEvent(message: 'model error'),
         ]);
         running = recordRunning();
 
@@ -480,7 +499,7 @@ void main() {
         registerRecordingTool();
         queueRun(
           toolCallRun(threadId())
-            ..[4] = const RunErrorEvent(message: 'model error'),
+            ..[4] = const ag_ui.RunErrorEvent(message: 'model error'),
         );
 
         await runner.run(agent);
@@ -527,7 +546,7 @@ void main() {
         test('when the runtime reports an error mid-args', () async {
           queueRun([
             ...toolCallRun(threadId()).take(3),
-            const RunErrorEvent(message: 'model error'),
+            const ag_ui.RunErrorEvent(message: 'model error'),
           ]);
 
           await runner.run(agent);
@@ -542,7 +561,7 @@ void main() {
           await runner.run(agent);
           await runner.run(agent);
 
-          expect(sentInputs().last.messages.last, isA<ToolMessage>());
+          expect(sentInputs().last.messages.last, isA<ag_ui.ToolMessage>());
         });
       });
 
@@ -583,15 +602,20 @@ void main() {
         );
 
         test('while args stream closes the call as cancelled', () async {
-          final events = StreamController<BaseEvent>();
+          final events = StreamController<ag_ui.BaseEvent>();
           runs.add(events.stream);
           final run = runner.run(agent);
           events
-            ..add(RunStartedEvent(threadId: threadId(), runId: 'r1'))
+            ..add(ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r1'))
             ..add(
-              const ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
+              const ag_ui.ToolCallStartEvent(
+                toolCallId: 'c1',
+                toolCallName: 'tool',
+              ),
             )
-            ..add(const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"ci'));
+            ..add(
+              const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{"ci'),
+            );
           await pumpEventQueue();
 
           await runner.stop(agent);
@@ -621,10 +645,11 @@ void main() {
           expect(calls, [
             const {'city': 'Lima'},
           ]);
-          final result = sentInputs().last.messages.whereType<ToolMessage>();
+          final result = sentInputs().last.messages
+              .whereType<ag_ui.ToolMessage>();
           expect(result.single.content, 'Sunny, 24°C');
           expect(
-            agent.state.messages.last.content,
+            textOf(agent.state.messages.last),
             'Hello! Wonderful to meet you.',
           );
           expect(errors, isEmpty);
@@ -651,7 +676,7 @@ void main() {
       late CopilotAgentState waiting;
       // The inputs of every run, read once: the mock counts a verified call
       // only once.
-      List<RunAgentInput>? inputs;
+      List<ag_ui.RunAgentInput>? inputs;
 
       setUp(() {
         tool = approvalTool();
@@ -659,7 +684,7 @@ void main() {
         harness.tools.register(tool);
       });
 
-      List<RunAgentInput> sentHumanInputs() => inputs ??= sentInputs();
+      List<ag_ui.RunAgentInput> sentHumanInputs() => inputs ??= sentInputs();
 
       /// Queues a run that calls the tool for each of [ids], then a reply.
       void queueCallsAndReply({List<String> ids = const ['c1']}) {
@@ -678,7 +703,7 @@ void main() {
       /// call.
       Map<String, String> sentResults() => {
         for (final message
-            in sentHumanInputs().last.messages.whereType<ToolMessage>())
+            in sentHumanInputs().last.messages.whereType<ag_ui.ToolMessage>())
           message.toolCallId: message.content,
       };
 
@@ -713,23 +738,23 @@ void main() {
         expect(call.result, 'approved');
         expect(call.awaitingResponse, isFalse);
         expect(agent.state.awaitingResponseIds, isEmpty);
-        expect(agent.state.messages.last.content, 'Sunny in Lima');
+        expect(textOf(agent.state.messages.last), 'Sunny in Lima');
         expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);
       });
 
       group('an answer that arrives before the turn waits for the call', () {
-        late StreamController<BaseEvent> events;
+        late StreamController<ag_ui.BaseEvent> events;
 
         setUp(() {
-          events = StreamController<BaseEvent>();
+          events = StreamController<ag_ui.BaseEvent>();
           runs.add(events.stream);
           queueRun(replyRun(threadId()));
         });
 
         test('is kept until the run has finished streaming', () async {
           run = runner.run(agent);
-          events.add(RunStartedEvent(threadId: threadId(), runId: 'r1'));
+          events.add(ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r1'));
           approvalCall('c1').forEach(events.add);
           await pumpEventQueue();
           // The call is complete, but the run has not finished: the turn
@@ -737,7 +762,7 @@ void main() {
           expect(agent.state.awaitingResponseIds, isEmpty);
 
           runner.respond('c1', 'early');
-          events.add(RunFinishedEvent(threadId: threadId(), runId: 'r1'));
+          events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r1'));
           await events.close();
           await run;
 

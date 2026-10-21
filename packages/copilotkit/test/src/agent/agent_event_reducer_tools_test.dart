@@ -1,13 +1,14 @@
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/agent_event_reducer.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/agent.dart';
 import '../../helpers/fixtures.dart';
 
-const _start = ToolCallStartEvent(
+const _start = ag_ui.ToolCallStartEvent(
   toolCallId: 'c1',
   toolCallName: 'showWeather',
   parentMessageId: 'm1',
@@ -35,7 +36,7 @@ void main() {
     test('Args exposes unmodifiable args', () {
       final result = reduce(const [
         _start,
-        ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Lima"}'),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Lima"}'),
       ]);
       final args = result.state.toolCalls.single.args;
 
@@ -46,26 +47,25 @@ void main() {
       final result = reduce(const [_start]);
       final message = result.state.messages.single as AssistantMessage;
       expect(message.id, 'm1');
-      final call = message.toolCalls!.single;
+      final call = message.toolCalls.single;
       expect(call.id, 'c1');
-      expect(call.type, 'function');
-      expect(call.function.name, 'showWeather');
-      expect(call.function.arguments, '');
+      expect(call.name, 'showWeather');
+      expect(call.arguments, '');
     });
 
     test('Start without a parent message uses the call id', () {
       final result = reduce(const [
-        ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
+        ag_ui.ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'tool'),
       ]);
       expect(result.state.messages.single.id, 'c1');
     });
 
     test('Start adds the call to an existing assistant message', () {
       final result = reduce(const [
-        TextMessageStartEvent(messageId: 'm1'),
-        TextMessageContentEvent(messageId: 'm1', delta: 'Checking'),
+        ag_ui.TextMessageStartEvent(messageId: 'm1'),
+        ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Checking'),
         _start,
-        ToolCallStartEvent(
+        ag_ui.ToolCallStartEvent(
           toolCallId: 'c2',
           toolCallName: 'other',
           parentMessageId: 'm1',
@@ -73,7 +73,7 @@ void main() {
       ]);
       final message = result.state.messages.single as AssistantMessage;
       expect(message.content, 'Checking');
-      expect(message.toolCalls!.map((c) => c.id), ['c1', 'c2']);
+      expect(message.toolCalls.map((c) => c.id), ['c1', 'c2']);
       expect(result.state.toolCalls.map((v) => v.id), ['c1', 'c2']);
     });
 
@@ -85,8 +85,8 @@ void main() {
     test('Args grow the raw arguments and the parsed partial args', () {
       final result = reduce(const [
         _start,
-        ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
-        ToolCallArgsEvent(toolCallId: 'c1', delta: 'ma"}'),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: 'ma"}'),
       ]);
       expect(result.states, [
         _hasArgs(const {}),
@@ -94,41 +94,61 @@ void main() {
         _hasArgs({'city': 'Lima'}),
       ]);
       final message = result.state.messages.single as AssistantMessage;
-      expect(message.toolCalls!.single.function.arguments, '{"city": "Lima"}');
+      expect(message.toolCalls.single.arguments, '{"city": "Lima"}');
     });
 
-    final user = UserMessage(id: 'u1', content: 'Weather?');
+    const user = UserMessage(id: 'u1', content: 'Weather?');
 
     test('Args leave other messages untouched', () {
       final result = reduce(const [
         _start,
-        ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
       ], from: agentState.copyWith(messages: [user]));
       expect(result.state.messages.first, same(user));
     });
 
+    test('Args grow only the call with their id', () {
+      final result = reduce(const [
+        _start,
+        ag_ui.ToolCallStartEvent(
+          toolCallId: 'c2',
+          toolCallName: 'showWeather',
+          parentMessageId: 'm1',
+        ),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'c2', delta: '{}'),
+      ]);
+      final message = result.state.messages.single as AssistantMessage;
+      expect(message.toolCalls, const [
+        ToolCall(id: 'c1', name: 'showWeather', arguments: ''),
+        ToolCall(id: 'c2', name: 'showWeather', arguments: '{}'),
+      ]);
+    });
+
     test('Args for an unknown call are ignored', () {
       final result = reduce(const [
-        ToolCallArgsEvent(toolCallId: 'x', delta: '{}'),
+        ag_ui.ToolCallArgsEvent(toolCallId: 'x', delta: '{}'),
       ]);
       expect(result.states, const <CopilotAgentState>[]);
     });
 
     test('End moves the call to executing', () {
-      final result = reduce(const [_start, ToolCallEndEvent(toolCallId: 'c1')]);
+      final result = reduce(const [
+        _start,
+        ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+      ]);
       expect(result.state.toolCalls.single.status, ToolCallStatus.executing);
     });
 
     test('End for an unknown call is ignored', () {
-      final result = reduce(const [ToolCallEndEvent(toolCallId: 'x')]);
+      final result = reduce(const [ag_ui.ToolCallEndEvent(toolCallId: 'x')]);
       expect(result.states, const <CopilotAgentState>[]);
     });
 
     test('Result completes the call and appends a tool message', () {
       final result = reduce(const [
         _start,
-        ToolCallEndEvent(toolCallId: 'c1'),
-        ToolCallResultEvent(
+        ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+        ag_ui.ToolCallResultEvent(
           messageId: 't1',
           toolCallId: 'c1',
           content: '{"forecast": "sunny"}',
@@ -145,14 +165,18 @@ void main() {
 
     test('Result for an unknown call still appends the tool message', () {
       final result = reduce(const [
-        ToolCallResultEvent(messageId: 't1', toolCallId: 'x', content: 'done'),
+        ag_ui.ToolCallResultEvent(
+          messageId: 't1',
+          toolCallId: 'x',
+          content: 'done',
+        ),
       ]);
       expect(result.state.toolCalls, isEmpty);
       expect(result.state.messages.single, isA<ToolMessage>());
     });
 
     test('a repeated Result is ignored', () {
-      const result = ToolCallResultEvent(
+      const result = ag_ui.ToolCallResultEvent(
         messageId: 't1',
         toolCallId: 'c1',
         content: 'done',
@@ -164,14 +188,14 @@ void main() {
     group('chunks', () {
       test('first chunk starts the call, later chunks grow its args', () {
         final result = reduce(const [
-          ToolCallChunkEvent(
+          ag_ui.ToolCallChunkEvent(
             toolCallId: 'c1',
             toolCallName: 'showWeather',
             parentMessageId: 'm1',
             delta: '{"city":',
           ),
-          ToolCallChunkEvent(delta: ' "Lima"'),
-          ToolCallChunkEvent(toolCallId: 'c1', delta: '}'),
+          ag_ui.ToolCallChunkEvent(delta: ' "Lima"'),
+          ag_ui.ToolCallChunkEvent(toolCallId: 'c1', delta: '}'),
         ]);
         final view = result.state.toolCalls.single;
         expect(view.name, 'showWeather');
@@ -181,15 +205,15 @@ void main() {
 
       test('a chunk without a name for an unknown call is ignored', () {
         final result = reduce(const [
-          ToolCallChunkEvent(toolCallId: 'c1', delta: '{}'),
-          ToolCallChunkEvent(delta: '{}'),
+          ag_ui.ToolCallChunkEvent(toolCallId: 'c1', delta: '{}'),
+          ag_ui.ToolCallChunkEvent(delta: '{}'),
         ]);
         expect(result.states, const <CopilotAgentState>[]);
       });
 
       test('a chunk without delta only starts the call', () {
         final result = reduce(const [
-          ToolCallChunkEvent(toolCallId: 'c1', toolCallName: 'tool'),
+          ag_ui.ToolCallChunkEvent(toolCallId: 'c1', toolCallName: 'tool'),
         ]);
         expect(result.states, [_hasArgs(const {})]);
       });
@@ -198,9 +222,13 @@ void main() {
     test('RunFinished moves calls still in progress to executing', () {
       final result = reduce(const [
         _start,
-        ToolCallStartEvent(toolCallId: 'c2', toolCallName: 'done'),
-        ToolCallResultEvent(messageId: 't', toolCallId: 'c2', content: 'ok'),
-        RunFinishedEvent(threadId: 't', runId: 'r'),
+        ag_ui.ToolCallStartEvent(toolCallId: 'c2', toolCallName: 'done'),
+        ag_ui.ToolCallResultEvent(
+          messageId: 't',
+          toolCallId: 'c2',
+          content: 'ok',
+        ),
+        ag_ui.RunFinishedEvent(threadId: 't', runId: 'r'),
       ]);
       expect(result.state.toolCalls.map((v) => v.status), [
         ToolCallStatus.executing,
@@ -218,40 +246,40 @@ void main() {
     });
 
     group('MessagesSnapshot', () {
-      const weatherMessage = AssistantMessage(
+      const weatherMessage = ag_ui.AssistantMessage(
         id: 'm1',
         toolCalls: [
-          ToolCall(
+          ag_ui.ToolCall(
             id: 'c1',
-            function: FunctionCall(name: 'showWeather', arguments: '{}'),
+            function: ag_ui.FunctionCall(name: 'showWeather', arguments: '{}'),
           ),
         ],
       );
 
       test('rebuilds the tool calls held by its messages', () {
         final result = reduce([
-          MessagesSnapshotEvent(
+          ag_ui.MessagesSnapshotEvent(
             messages: const [
-              AssistantMessage(
+              ag_ui.AssistantMessage(
                 id: 'a1',
                 toolCalls: [
-                  ToolCall(
+                  ag_ui.ToolCall(
                     id: 'c1',
-                    function: FunctionCall(
+                    function: ag_ui.FunctionCall(
                       name: 'showWeather',
                       arguments: '{"city": "Lima"}',
                     ),
                   ),
-                  ToolCall(
+                  ag_ui.ToolCall(
                     id: 'c2',
-                    function: FunctionCall(
+                    function: ag_ui.FunctionCall(
                       name: 'showMap',
                       arguments: '{"zoom": 3}',
                     ),
                   ),
                 ],
               ),
-              ToolMessage(
+              ag_ui.ToolMessage(
                 id: 't1',
                 toolCallId: 'c1',
                 content: '{"forecast": "sunny"}',
@@ -273,8 +301,11 @@ void main() {
       test('keeps the view of a call it already knows', () {
         final result = reduce([
           _start,
-          const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"city": "Li'),
-          MessagesSnapshotEvent(messages: const [weatherMessage]),
+          const ag_ui.ToolCallArgsEvent(
+            toolCallId: 'c1',
+            delta: '{"city": "Li',
+          ),
+          ag_ui.MessagesSnapshotEvent(messages: const [weatherMessage]),
         ]);
         final view = result.state.toolCalls.single;
         expect(view.status, ToolCallStatus.inProgress);
@@ -284,11 +315,11 @@ void main() {
       test('completes a known call whose result it holds', () {
         final result = reduce([
           _start,
-          const ToolCallEndEvent(toolCallId: 'c1'),
-          MessagesSnapshotEvent(
+          const ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+          ag_ui.MessagesSnapshotEvent(
             messages: const [
               weatherMessage,
-              ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
+              ag_ui.ToolMessage(id: 't1', toolCallId: 'c1', content: 'ok'),
             ],
           ),
         ]);
@@ -300,7 +331,7 @@ void main() {
       test('drops the calls its messages no longer hold', () {
         final result = reduce([
           _start,
-          MessagesSnapshotEvent(messages: const []),
+          ag_ui.MessagesSnapshotEvent(messages: const []),
         ]);
         expect(result.state.toolCalls, isEmpty);
       });

@@ -16,7 +16,7 @@ void main() {
     });
 
     test('holds the given values', () {
-      final message = UserMessage(id: 'user-1', content: 'Hi');
+      const message = UserMessage(id: 'user-1', content: 'Hi');
       const toolCall = ToolCallView(
         id: 'call-1',
         name: 'showWeather',
@@ -27,7 +27,7 @@ void main() {
       final snapshot = CopilotAgentState(
         agentId: 'a',
         threadId: 't',
-        messages: [message],
+        messages: const [message],
         sharedState: const SharedState({'count': 1}),
         isRunning: true,
         toolCalls: const [toolCall],
@@ -42,11 +42,11 @@ void main() {
     });
 
     test('supports value equality', () {
-      final message = UserMessage(id: 'u1', content: 'Hi');
+      const message = UserMessage(id: 'u1', content: 'Hi');
       CopilotAgentState snapshot({bool isRunning = false}) => CopilotAgentState(
         agentId: 'a',
         threadId: 't',
-        messages: [message],
+        messages: const [message],
         sharedState: const SharedState({'a': 1}),
         isRunning: isRunning,
         error: 'boom',
@@ -96,7 +96,7 @@ void main() {
         final snapshot = CopilotAgentState(
           agentId: 'a',
           threadId: 't',
-          messages: [UserMessage(id: 'u1', content: 'Hi')],
+          messages: const [UserMessage(id: 'u1', content: 'Hi')],
           sharedState: const SharedState({'a': 1}),
           isRunning: true,
           toolCalls: const [
@@ -117,7 +117,7 @@ void main() {
       });
 
       test('replaces the given fields', () {
-        final message = UserMessage(id: 'u1', content: 'Hi');
+        const message = UserMessage(id: 'u1', content: 'Hi');
         const toolCall = ToolCallView(
           id: 'c',
           name: 't',

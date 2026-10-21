@@ -16,7 +16,7 @@ void main() {
       final agent = _MockCopilotAgent();
       when(() => client.agent(ChatPage.agentId)).thenReturn(agent);
       when(() => agent.state).thenReturn(
-        CopilotAgentState(
+        const CopilotAgentState(
           agentId: ChatPage.agentId,
           threadId: 't',
           messages: [UserMessage(id: 'u1', content: 'Hi')],

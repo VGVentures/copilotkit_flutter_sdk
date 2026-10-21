@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:ack/ack.dart';
-import 'package:ag_ui/ag_ui.dart';
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit/src/client/client.dart';
 import 'package:copilotkit/src/tools/tools.dart';
@@ -33,7 +33,7 @@ void main() {
     String threadId() => agent.state.threadId;
 
     /// Applies [events] to the agent, as a run would.
-    void receive(List<BaseEvent> events) => events.forEach(agent.apply);
+    void receive(List<ag_ui.BaseEvent> events) => events.forEach(agent.apply);
 
     /// The results of the agent's tool calls, by call.
     Map<String, String?> results() => {
@@ -57,7 +57,7 @@ void main() {
         expect(receivedArgs, const {'city': 'Lima'});
         expect(receivedSignal, same(turn.signal));
         final message = agent.state.messages.last as ToolMessage;
-        expect(Uuid.isValidUUID(fromString: message.id!), isTrue);
+        expect(Uuid.isValidUUID(fromString: message.id), isTrue);
         expect(message.toolCallId, 'c1');
         expect(message.content, 'sunny');
         expect(agent.state.toolCalls.single.status, ToolCallStatus.complete);
@@ -114,7 +114,7 @@ void main() {
         );
         receive(
           toolCallRun(threadId())
-            ..[2] = const ToolCallArgsEvent(
+            ..[2] = const ag_ui.ToolCallArgsEvent(
               toolCallId: 'c1',
               delta: '{"days": "3"}',
             ),
@@ -145,12 +145,12 @@ void main() {
         tools.register(weatherTool((_, {required signal}) async => 'ok'));
         receive(
           toolCallRun(threadId())..insertAll(4, const [
-            ToolCallStartEvent(
+            ag_ui.ToolCallStartEvent(
               toolCallId: 'c2',
               toolCallName: 'gone',
               parentMessageId: 'a1',
             ),
-            ToolCallEndEvent(toolCallId: 'c2'),
+            ag_ui.ToolCallEndEvent(toolCallId: 'c2'),
           ]),
         );
 
@@ -169,7 +169,7 @@ void main() {
         receive(
           toolCallRun(threadId())..insert(
             4,
-            const ToolCallResultEvent(
+            const ag_ui.ToolCallResultEvent(
               messageId: 't1',
               toolCallId: 'c1',
               content: 'from server',
@@ -204,7 +204,7 @@ void main() {
         () => receive([
           ...approvalCall('c1'),
           ...approvalCall('c2'),
-          const ToolCallResultEvent(
+          const ag_ui.ToolCallResultEvent(
             messageId: 't3',
             toolCallId: 'c2',
             content: 'done',
@@ -382,8 +382,11 @@ void main() {
 
         respond('c1', 'too early');
         receive([
-          const ToolCallArgsEvent(toolCallId: 'c1', delta: '{"action": "x"}'),
-          const ToolCallEndEvent(toolCallId: 'c1'),
+          const ag_ui.ToolCallArgsEvent(
+            toolCallId: 'c1',
+            delta: '{"action": "x"}',
+          ),
+          const ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
         ]);
         final again = toolCalls.runPending(turn);
         await pumpEventQueue();
@@ -469,16 +472,16 @@ void main() {
             ..register(weatherTool((_, {required signal}) async => 'sunny'));
           receive([
             ...approvalCall('c1'),
-            const ToolCallStartEvent(
+            const ag_ui.ToolCallStartEvent(
               toolCallId: 'c2',
               toolCallName: 'showWeather',
               parentMessageId: 'a1',
             ),
-            const ToolCallArgsEvent(
+            const ag_ui.ToolCallArgsEvent(
               toolCallId: 'c2',
               delta: '{"city": "Lima"}',
             ),
-            const ToolCallEndEvent(toolCallId: 'c2'),
+            const ag_ui.ToolCallEndEvent(toolCallId: 'c2'),
           ]);
           final again = toolCalls.runPending(turn);
           await pumpEventQueue();

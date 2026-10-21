@@ -67,5 +67,30 @@ void main() {
         },
       );
     });
+
+    group('copyWith', () {
+      const call = ToolCall(
+        id: 'call-1',
+        name: 'showWeather',
+        arguments: '{"ci',
+        encryptedValue: 'secret',
+      );
+
+      test('keeps every field when nothing is passed', () {
+        expect(call.copyWith(), call);
+      });
+
+      test('replaces the arguments', () {
+        expect(
+          call.copyWith(arguments: '{"city":"Lima"}'),
+          const ToolCall(
+            id: 'call-1',
+            name: 'showWeather',
+            arguments: '{"city":"Lima"}',
+            encryptedValue: 'secret',
+          ),
+        );
+      });
+    });
   });
 }

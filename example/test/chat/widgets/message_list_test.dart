@@ -48,7 +48,7 @@ void main() {
       when(() => bloc.state).thenReturn(
         CopilotChatState(
           rows: [
-            ChatMessageRow(UserMessage(id: 'u1', content: 'Hi')),
+            const ChatMessageRow(UserMessage(id: 'u1', content: 'Hi')),
             _assistant('a1', 'Hello!'),
           ],
         ),
