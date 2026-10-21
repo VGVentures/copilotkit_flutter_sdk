@@ -21,9 +21,9 @@ void main() {
             name: 'Ana',
             encryptedValue: 'secret',
           ),
-          const UserMessage(
+          UserMessage(
             id: 'm1',
-            content: 'Hi',
+            content: String.fromCharCodes('Hi'.codeUnits),
             name: 'Ana',
             encryptedValue: 'secret',
           ),
@@ -121,9 +121,9 @@ void main() {
             name: 'app',
             encryptedValue: 'secret',
           ),
-          const SystemMessage(
+          SystemMessage(
             id: 'm1',
-            content: 'Be brief',
+            content: String.fromCharCodes('Be brief'.codeUnits),
             name: 'app',
             encryptedValue: 'secret',
           ),
@@ -151,9 +151,9 @@ void main() {
             name: 'dev',
             encryptedValue: 'secret',
           ),
-          const DeveloperMessage(
+          DeveloperMessage(
             id: 'm1',
-            content: 'Be brief',
+            content: String.fromCharCodes('Be brief'.codeUnits),
             name: 'dev',
             encryptedValue: 'secret',
           ),
@@ -186,9 +186,9 @@ void main() {
             error: 'timeout',
             encryptedValue: 'secret',
           ),
-          const ToolMessage(
+          ToolMessage(
             id: 'm1',
-            content: 'sunny',
+            content: String.fromCharCodes('sunny'.codeUnits),
             toolCallId: 'c1',
             error: 'timeout',
             encryptedValue: 'secret',
