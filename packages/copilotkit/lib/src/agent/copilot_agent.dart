@@ -1,3 +1,6 @@
+/// @docImport 'package:copilotkit/src/client/client.dart';
+library;
+
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart' show BaseEvent;
@@ -15,7 +18,7 @@ import 'package:uuid/uuid.dart';
 ///
 /// Holds the messages, shared state and tool calls of a thread as its
 /// [state], and adds the new state to [stream] every time it changes.
-/// Open one with `CopilotKitClient.agent`.
+/// Open one with [CopilotKitClient.agent].
 ///
 /// It changes over time, so unlike the value types it is mutable: [state] is
 /// replaced, never modified.
@@ -27,7 +30,7 @@ class CopilotAgent({
 }) {
   /// Creates the agent [agentId].
   ///
-  /// Internal: only `CopilotKitClient.agent` creates agents, so the client
+  /// Internal: only [CopilotKitClient.agent] creates agents, so the client
   /// tracks every agent it runs. A random [threadId] is generated when none
   /// is given. The reducer applies AG-UI events to the state, and the
   /// patcher applies the app's edits to the shared state.
@@ -53,7 +56,7 @@ class CopilotAgent({
 
   /// Appends [message] to the conversation, without starting a run.
   ///
-  /// Run the agent with `CopilotKitClient.runAgent`, which can also add a
+  /// Run the agent with [CopilotKitClient.runAgent], which can also add a
   /// message.
   void addMessage(Message message) {
     _update(_state.copyWith(messages: [..._state.messages, message]));
@@ -63,7 +66,7 @@ class CopilotAgent({
   ///
   /// Use it to reset a conversation (`setMessages([])`) or to restore a saved
   /// one. Like a `MESSAGES_SNAPSHOT` from the runtime, it rebuilds
-  /// `CopilotAgentState.toolCalls` from [messages]: a call a message holds
+  /// [CopilotAgentState.toolCalls] from [messages]: a call a message holds
   /// keeps the view the agent already has, or becomes executing, or complete
   /// when a tool message answers it; calls no message holds anymore are
   /// dropped. Allowed while the agent is running; the events that stream in
@@ -110,7 +113,7 @@ class CopilotAgent({
   void apply(BaseEvent event) => _update(_reducer.reduce(_state, event));
 
   /// Marks the executing tool call [toolCallId] as waiting for the user's
-  /// answer (`ToolCallView.awaitingResponse`), until it gets its result.
+  /// answer ([ToolCallView.awaitingResponse]), until it gets its result.
   @internal
   void awaitResponse(String toolCallId) {
     _update(

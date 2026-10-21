@@ -1,8 +1,11 @@
+/// @docImport 'package:copilotkit/src/messages/models/message.dart';
+library;
+
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:equatable/equatable.dart';
 import 'package:meta/meta.dart';
 
-/// A call the agent made to a tool, held by an `AssistantMessage`.
+/// A call the agent made to a tool, held by an [AssistantMessage].
 class const ToolCall({
   /// The id of the tool call.
   ///

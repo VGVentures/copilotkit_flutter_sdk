@@ -40,7 +40,7 @@ class AgentRunner({
   /// Runs a turn of [agent], after appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to the error
-  /// handler and to `CopilotAgentState.error`. Does nothing while [agent] is
+  /// handler and to [CopilotAgentState.error]. Does nothing while [agent] is
   /// already in a turn, or while a stop of its turn is still in flight.
   Future<void> run(CopilotAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;

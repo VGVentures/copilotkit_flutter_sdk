@@ -1,17 +1,22 @@
+/// @docImport 'package:copilotkit/src/agent/agent.dart';
+/// @docImport 'package:copilotkit/src/client/client.dart';
+/// @docImport 'package:copilotkit/src/tools/models/tool_call_view.dart';
+library;
+
 import 'package:ack/ack.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:equatable/equatable.dart';
 
 /// Handles a frontend tool call on the device.
 ///
-/// Receives the tool [args], validated by `FrontendTool.parameters` and
-/// decoded by `FrontendTool.decode`, and a [signal] that is cancelled when
+/// Receives the tool [args], validated by [FrontendTool.parameters] and
+/// decoded by [FrontendTool.decode], and a [signal] that is cancelled when
 /// the run is stopped. Calls whose arguments don't match the schema never
 /// reach the handler; the agent gets a result listing the problems instead.
 ///
 /// Returns the result string sent back to the agent. If it throws, the agent
 /// gets a generic failure result and the error goes to
-/// the `onError` of `CopilotKitClient`.
+/// the `onError` of [CopilotKitClient].
 typedef FrontendToolHandler<T> = Future<String> Function(
   T args, {
   required CancellationSignal signal,
@@ -20,7 +25,7 @@ typedef FrontendToolHandler<T> = Future<String> Function(
 /// A tool the agent can call that is carried out in the app, with arguments
 /// of type [T].
 ///
-/// Register one with `CopilotKitClient.registerTool`. The client sends every
+/// Register one with [CopilotKitClient.registerTool]. The client sends every
 /// registered tool to the agent on each run, and when the agent calls one,
 /// the tool decides who produces the result: a [FrontendTool] runs code, a
 /// [HumanInTheLoopTool] waits for the user.
@@ -67,7 +72,7 @@ sealed class ClientTool<T> extends Equatable {
 /// A tool the agent can call that runs in the app, with arguments of type
 /// [T].
 ///
-/// Register it with `CopilotKitClient.registerTool`. When the agent calls
+/// Register it with [CopilotKitClient.registerTool]. When the agent calls
 /// it, the arguments are validated with `parameters`, decoded with `decode`
 /// and passed to [handler]; its result is appended as a tool message, and
 /// the agent continues in the same turn.
@@ -98,14 +103,14 @@ class const FrontendTool<T>({
 /// A tool whose result is the user's answer, not the result of code, with
 /// arguments of type [T].
 ///
-/// Register it with `CopilotKitClient.registerTool`, or with
+/// Register it with [CopilotKitClient.registerTool], or with
 /// `CopilotHumanInTheLoop` in Flutter. When the agent calls it, the call is
-/// marked as awaiting a response (`ToolCallView.awaitingResponse`) and the
-/// turn waits until the app answers with `CopilotKitClient.respondToToolCall`,
+/// marked as awaiting a response ([ToolCallView.awaitingResponse]) and the
+/// turn waits until the app answers with [CopilotKitClient.respondToToolCall],
 /// whenever the user decides. That answer is appended as the tool message,
 /// and the agent continues in the same turn, unless [followUp] is `false`.
 ///
-/// The agent stays running while it waits: `CopilotAgentState.isRunning` is
+/// The agent stays running while it waits: [CopilotAgentState.isRunning] is
 /// true for the whole turn. Stopping the agent, or unregistering the tool
 /// while a call waits, answers the call as cancelled.
 class const HumanInTheLoopTool<T>({

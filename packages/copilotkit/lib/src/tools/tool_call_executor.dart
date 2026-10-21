@@ -31,7 +31,7 @@ class const ToolCallExecutor() {
   /// belongs to: runs the handler of a [FrontendTool], or waits in
   /// [responses] for the user to answer a [HumanInTheLoopTool].
   ///
-  /// Arguments that don't match `ClientTool.parameters` never reach the
+  /// Arguments that don't match [ClientTool.parameters] never reach the
   /// tool: the result lists the problems so the agent can fix them, and
   /// they are logged rather than reported, since the agent is at fault. A
   /// decoder or handler that throws gives a generic result and the error,
