@@ -1,3 +1,4 @@
+export 'active_run.dart';
 export 'agent_runner.dart';
 export 'copilot_kit_client.dart';
 export 'models/run_result.dart';

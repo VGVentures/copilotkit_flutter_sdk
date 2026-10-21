@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
+import 'package:copilotkit/src/client/active_run.dart';
 import 'package:copilotkit/src/client/models/run_result.dart';
 import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/client/turn.dart';
