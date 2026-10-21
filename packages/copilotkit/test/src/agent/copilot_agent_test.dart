@@ -98,6 +98,16 @@ void main() {
         expect(agent.state, agentState);
       });
 
+      test('keeps an unmodifiable copy of the state', () {
+        final json = <String, Object?>{'count': 1};
+        final agent = buildAgent()..setSharedState(SharedState(json));
+        json['count'] = 2;
+
+        final state = agent.state.sharedState!;
+        expect(state, const SharedState({'count': 1}));
+        expect(() => state.toJson()['count'] = 3, throwsUnsupportedError);
+      });
+
       test('an equal state emits nothing', () async {
         final agent = buildAgent()
           ..setSharedState(const SharedState({'count': 1}));
@@ -138,6 +148,16 @@ void main() {
           ..patchSharedState(const [StatePatchAdd(path: '/count', value: 1)]);
 
         expect(agent.state.sharedState, const SharedState({'count': 1}));
+      });
+
+      test('keeps an unmodifiable state', () {
+        final agent = buildAgent()
+          ..patchSharedState(const [StatePatchAdd(path: '/count', value: 1)]);
+
+        expect(
+          () => agent.state.sharedState!.toJson()['count'] = 2,
+          throwsUnsupportedError,
+        );
       });
 
       test('keeps the state and throws when an operation fails', () {

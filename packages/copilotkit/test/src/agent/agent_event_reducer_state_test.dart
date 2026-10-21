@@ -22,6 +22,15 @@ void main() {
       ]);
     });
 
+    test('StateSnapshot keeps an unmodifiable state', () {
+      final result = reduce([
+        ag_ui.StateSnapshotEvent(snapshot: Map.of(const {'count': 1})),
+      ]);
+      final state = result.states.single.sharedState!;
+
+      expect(() => state.toJson()['count'] = 2, throwsUnsupportedError);
+    });
+
     test('a null StateSnapshot clears the state', () {
       final result = reduce(
         const [ag_ui.StateSnapshotEvent(snapshot: null)],
@@ -44,6 +53,19 @@ void main() {
         ),
       );
       expect(result.states, const <CopilotAgentState>[]);
+    });
+
+    test('StateDelta keeps an unmodifiable state', () {
+      final result = reduce(const [
+        ag_ui.StateDeltaEvent(
+          delta: [
+            {'op': 'add', 'path': '/count', 'value': 1},
+          ],
+        ),
+      ]);
+      final state = result.states.single.sharedState!;
+
+      expect(() => state.toJson()['count'] = 2, throwsUnsupportedError);
     });
 
     test('StateDelta applies a JSON Patch to the state', () {
