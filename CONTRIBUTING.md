@@ -82,10 +82,11 @@ git checkout -b <type>/<short-description>
 
 ### Step 4: Make your changes
 
-Read [`AGENTS.md`](AGENTS.md) before you change code. It holds the project
-conventions: the architecture, the layout of each package, and the rules for
-code, tests and doc comments. They apply to every change, whether an agent or
-a person writes it.
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before you change code.
+It describes the packages and their layers, the layout of each package, and
+the conventions for code, tests and doc comments. They apply to every change,
+whether an agent or a person writes it. If you use a coding agent, it reads
+[`AGENTS.md`](AGENTS.md), which points it to the same document.
 
 ### Step 5: Run the checks
 

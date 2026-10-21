@@ -6,7 +6,7 @@ architecture, the phases that get there, and the scope of the first phase,
 which extracts the JSON utilities from `copilotkit` into their own package.
 
 The refactor is complete: all four phases have landed, and the rules it
-settled are recorded in [`AGENTS.md`](../../AGENTS.md).
+settled are recorded in [`ARCHITECTURE.md`](../ARCHITECTURE.md).
 
 ## Problem
 
@@ -88,7 +88,7 @@ on both.
    internal or get core equivalents. The `ag_ui` re-export goes away.
 4. **Record the final rules.** `copilotkit_flutter` keeps re-exporting the
    core's barrel, so apps import only `copilotkit_flutter`. The layering
-   rules are recorded in `AGENTS.md` and enforced in review, and
+   rules are recorded in `docs/ARCHITECTURE.md` and enforced in review, and
    every doc is brought up to date with the refactored API.
 
 ## Phase 1: extract the JSON utility
