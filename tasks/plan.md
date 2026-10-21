@@ -34,7 +34,7 @@ another package's types. That changes:
   them. Public docs don't name `ag_ui` types either (audit A7, A12).
 - `ack` stays as decided in phase 2: public on purpose, never re-exported,
   so apps import it themselves.
-- No CI check. Each rule is in `CONTRIBUTING.md` and is enforced in review.
+- No CI check. Each rule is in `AGENTS.md` and is enforced in review.
 
 ## What phase 3 left in place
 
@@ -70,7 +70,7 @@ them.
   ones are left alone, as the skill allows.
 - **Links over backticks (D2).** In-scope symbols use `[ ]`. Symbols from
   another feature use a `/// @docImport` of that feature's barrel on a
-  `library;` directive. Task 1 adds a line to `CONTRIBUTING.md` saying that
+  `library;` directive. Task 1 adds a line to `AGENTS.md` saying that
   doc imports aren't feature edges, so the feature table doesn't change.
 - **Package READMEs keep only what's specific to the package.** The
   template "Continuous integration" and "Running tests" sections become
@@ -83,7 +83,7 @@ them.
 ## Dependency graph
 
 ```text
-1 layering rules: intent doc + CONTRIBUTING (A1-A3)
+1 layering rules: intent doc + AGENTS (A1-A3)
 ├── 2 copilotkit doc comments (A11, A12, D1, D2)
 │   └── 4 copilotkit README (A6, A7, A10, M1-M3)
 ├── 3 copilotkit_flutter + json_utils doc comments (D1, D2)
@@ -99,7 +99,7 @@ Tasks 2, 3 and 6 are independent after task 1. The stack orders them 1 to
 ### Phase A: Rules
 
 - [x] Task 1: Record the final layering rules in the intent document and
-      `CONTRIBUTING.md`
+      `AGENTS.md`
 
 ### Checkpoint A
 
@@ -141,7 +141,7 @@ Tasks 2, 3 and 6 are independent after task 1. The stack orders them 1 to
 | A README snippet doesn't compile against the API | Med | Base the snippets on `packages/copilotkit/example/main.dart` and the example app, which CI compiles. Check every snippet by hand before review |
 | `@docImport` lines read like feature edges and confuse the feature table | Low | Task 1 documents that they aren't edges. Each one imports a feature barrel, never a file |
 | Tasks 2 and 3 touch ~25 and ~7 files | Low | Only comments change, so tests and coverage are unaffected. `dart doc --dry-run` catches broken links |
-| Without a check, a later change leaks `ag_ui` or re-exports another package | Med | The rule is in `CONTRIBUTING.md`, which `AGENTS.md` points every agent to |
+| Without a check, a later change leaks `ag_ui` or re-exports another package | Med | The rule is in `AGENTS.md`, which every agent reads and `CONTRIBUTING.md` points contributors to |
 
 ## Resolved questions
 

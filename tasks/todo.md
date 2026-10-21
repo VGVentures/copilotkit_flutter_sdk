@@ -19,7 +19,7 @@ package they touch. Delete the empty `doc/` folder it leaves behind.
 
 ---
 
-## Task 1: Record the final layering rules in the intent document and `CONTRIBUTING.md`
+## Task 1: Record the final layering rules in the intent document and `AGENTS.md`
 
 **Description:** Revise `docs/intent/layering-refactor.md`. In the target
 architecture, `copilotkit` is the core that front ends build on, and
@@ -28,17 +28,20 @@ core's barrel, so apps import one library. Its barrel is the only
 cross-package export, and `ag_ui` and `json_utils` never leave `copilotkit`.
 Rewrite phase 4 (keep the re-export, record the rules, no CI check). Frame
 the problem table as the starting point, and mark the refactor complete.
-In `CONTRIBUTING.md`, fix the architecture block (A2), add the barrel
-exception, merge the `ag_ui` and `json_utils` paragraphs into one rule
-(A3), and say that `@docImport` lines aren't feature edges.
+Move the project conventions from `CONTRIBUTING.md` to `AGENTS.md`, and
+turn `CONTRIBUTING.md` into a contributor workflow guide (setup, checks,
+commits and pull requests). In `AGENTS.md`, fix the architecture block
+(A2), add the barrel exception, merge the `ag_ui` and `json_utils`
+paragraphs into one rule (A3), and say that `@docImport` lines aren't
+feature edges.
 
 **Acceptance criteria:**
 - [x] The intent document describes the `copilotkit_flutter` re-export as
       intended, mentions no CI check, and says the refactor is complete.
-- [x] `CONTRIBUTING.md`'s architecture block lists each package's real
+- [x] `AGENTS.md`'s architecture block lists each package's real
       features, and it states the barrel exception, the rule that wraps
       `ag_ui` and `json_utils`, and the `@docImport` note.
-- [x] Neither file contradicts the code: `rg -n "^export 'package:" packages/*/lib`
+- [x] No file contradicts the code: `rg -n "^export 'package:" packages/*/lib`
       lists only the Flutter barrel, and
       `rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example`
       finds nothing.
@@ -50,7 +53,7 @@ exception, merge the `ag_ui` and `json_utils` paragraphs into one rule
 
 **Files likely touched:**
 - `docs/intent/layering-refactor.md`
-- `CONTRIBUTING.md`
+- `AGENTS.md`, `CONTRIBUTING.md` and `README.md`
 
 **Estimated scope:** S
 

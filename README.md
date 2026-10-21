@@ -123,5 +123,6 @@ The repository is a Dart pub workspace with three packages.
 
 ## Development
 
-Conventions, the checks CI runs and how to run them locally are in
-[`CONTRIBUTING.md`](CONTRIBUTING.md).
+To set up the repository, run the checks CI runs, and open a pull request,
+see [`CONTRIBUTING.md`](CONTRIBUTING.md). The project conventions are in
+[`AGENTS.md`](AGENTS.md).
