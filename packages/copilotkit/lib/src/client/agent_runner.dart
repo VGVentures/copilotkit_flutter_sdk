@@ -41,10 +41,12 @@ class AgentRunner({
   ///
   /// Completes when the turn ends and never throws: errors go to the error
   /// handler and to `CopilotAgentState.error`. Does nothing while [agent] is
-  /// already in a turn.
+  /// already in a turn, or while a stop of its turn is still in flight.
   Future<void> run(CopilotAgent agent, {Message? message}) async {
     final agentId = agent.state.agentId;
-    if (_turns.containsKey(agentId)) return;
+    // A stop removes the turn before it ends it, so the agent is still
+    // running until the stop is done.
+    if (_turns.containsKey(agentId) || agent.state.isRunning) return;
     final turn = Turn(agent);
     _turns[agentId] = turn;
     // Started first, so the agent's first new state is already running.
@@ -75,14 +77,22 @@ class AgentRunner({
   /// Stops the turn of [agent]: cancels its tool handlers, closes its open
   /// tool calls and asks the runtime to stop the run in flight, if any.
   ///
-  /// Does nothing when [agent] isn't in a turn. Errors from the stop request
-  /// go to the error handler.
+  /// Does nothing when [agent] isn't in a turn. Errors from cancelling the
+  /// run and from the stop request go to the error handler.
   Future<void> stop(CopilotAgent agent) async {
     final turn = _turns.remove(agent.state.agentId);
     if (turn == null) return;
     turn.signal.cancel();
     final run = turn.run;
-    if (run != null) await run.subscription.cancel();
+    if (run != null) {
+      // A failed cancel must not skip the end of the turn below: the run
+      // guard would then drop every later run of the agent.
+      try {
+        await run.subscription.cancel();
+      } on Object catch (error, stackTrace) {
+        _onError(error, stackTrace);
+      }
+    }
 
     _toolCalls.closeOpen(agent, FallbackToolResult.cancelled);
     // close() ended the turn while this stop was waiting; like close(), it

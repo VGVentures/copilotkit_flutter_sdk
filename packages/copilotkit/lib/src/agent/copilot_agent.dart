@@ -77,7 +77,13 @@ class CopilotAgent({
   /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
   /// a local edit made during a run can be overwritten by the agent.
   void setSharedState(SharedState? state) {
-    _update(_state.copyWith(sharedState: () => state));
+    _update(
+      _state.copyWith(
+        sharedState: () => state == null
+            ? null
+            : SharedState(Map.unmodifiable(state.toJson())),
+      ),
+    );
   }
 
   /// Edits the shared state with [operations], the operations of an RFC 6902
@@ -91,7 +97,11 @@ class CopilotAgent({
     final patched = _patcher.apply(_state.sharedState?.toJson() ?? const {}, [
       for (final operation in operations) operation.toJson(),
     ]);
-    _update(_state.copyWith(sharedState: () => SharedState(patched)));
+    _update(
+      _state.copyWith(
+        sharedState: () => SharedState(Map.unmodifiable(patched)),
+      ),
+    );
   }
 
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool

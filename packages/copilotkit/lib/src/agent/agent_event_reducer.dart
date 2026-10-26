@@ -155,9 +155,11 @@ class const AgentEventReducer({
     try {
       return snapshot.copyWith(
         sharedState: () => SharedState(
-          _patcher.apply(
-            snapshot.sharedState?.toJson() ?? const {},
-            event.delta,
+          Map.unmodifiable(
+            _patcher.apply(
+              snapshot.sharedState?.toJson() ?? const {},
+              event.delta,
+            ),
           ),
         ),
       );
@@ -175,7 +177,7 @@ class const AgentEventReducer({
       switch (state) {
         null => snapshot.copyWith(sharedState: () => null),
         final Map<String, Object?> json => snapshot.copyWith(
-          sharedState: () => SharedState(json),
+          sharedState: () => SharedState(Map.unmodifiable(json)),
         ),
         _ => snapshot,
       };

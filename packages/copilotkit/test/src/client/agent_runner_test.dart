@@ -319,6 +319,40 @@ void main() {
         expect(agent.state.messages.map(textOf), ['Hal', 'Again']);
       });
 
+      test('ignores a run while the stop is in flight', () async {
+        final cancel = Completer<void>();
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancel.future,
+        );
+        await startStreaming();
+
+        final stop = runner.stop(agent);
+        final again = runner.run(agent);
+        await pumpEventQueue();
+
+        expect(sentInputs(), hasLength(1));
+        cancel.complete();
+        await stop;
+        await again;
+        await run;
+        expect(agent.state.isRunning, isFalse);
+        expect(errors, isEmpty);
+      });
+
+      test('reports a failed cancel but still ends the turn', () async {
+        final cancelFailure = Exception('cancel failed');
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => throw cancelFailure,
+        );
+        await startStreaming();
+
+        await runner.stop(agent);
+        await run;
+
+        expect(agent.state.isRunning, isFalse);
+        expect(errors, [same(cancelFailure)]);
+      });
+
       test('stops one agent while another keeps running', () async {
         final otherEvents = StreamController<ag_ui.BaseEvent>();
         final other = CopilotAgent(agentId: 'other');
