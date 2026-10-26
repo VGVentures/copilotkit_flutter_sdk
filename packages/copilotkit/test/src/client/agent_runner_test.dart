@@ -339,6 +339,20 @@ void main() {
         expect(errors, isEmpty);
       });
 
+      test('reports a failed cancel but still ends the turn', () async {
+        final cancelFailure = Exception('cancel failed');
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => throw cancelFailure,
+        );
+        await startStreaming();
+
+        await runner.stop(agent);
+        await run;
+
+        expect(agent.state.isRunning, isFalse);
+        expect(errors, [same(cancelFailure)]);
+      });
+
       test('stops one agent while another keeps running', () async {
         final otherEvents = StreamController<ag_ui.BaseEvent>();
         final other = CopilotAgent(agentId: 'other');

@@ -77,14 +77,22 @@ class AgentRunner({
   /// Stops the turn of [agent]: cancels its tool handlers, closes its open
   /// tool calls and asks the runtime to stop the run in flight, if any.
   ///
-  /// Does nothing when [agent] isn't in a turn. Errors from the stop request
-  /// go to the error handler.
+  /// Does nothing when [agent] isn't in a turn. Errors from cancelling the
+  /// run and from the stop request go to the error handler.
   Future<void> stop(CopilotAgent agent) async {
     final turn = _turns.remove(agent.state.agentId);
     if (turn == null) return;
     turn.signal.cancel();
     final run = turn.run;
-    if (run != null) await run.subscription.cancel();
+    if (run != null) {
+      // A failed cancel must not skip the end of the turn below: the run
+      // guard would then drop every later run of the agent.
+      try {
+        await run.subscription.cancel();
+      } on Object catch (error, stackTrace) {
+        _onError(error, stackTrace);
+      }
+    }
 
     _toolCalls.closeOpen(agent, FallbackToolResult.cancelled);
     // close() ended the turn while this stop was waiting; like close(), it
