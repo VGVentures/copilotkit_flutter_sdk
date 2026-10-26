@@ -23,11 +23,15 @@ class ToolCallRunner({
 
   /// Generates the ids of the tool results added locally.
   final Uuid _uuid = const Uuid(),
+
+  /// Keeps the user's answers to human-in-the-loop calls; a new, empty store
+  /// by default.
+  ToolResponses? responses,
 }) {
   /// Creates a runner for the calls of the tools in the registry.
   this;
 
-  final _responses = ToolResponses();
+  final ToolResponses _responses = responses ?? ToolResponses();
 
   /// Produces the results of the executing calls of the agent of [turn] to
   /// registered tools, in call order, and returns whether the agent should
