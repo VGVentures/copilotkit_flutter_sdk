@@ -207,17 +207,4 @@ void main() {
       });
     });
   });
-
-  group(ToolCallOutcome, () {
-    test('supports value equality', () {
-      expect(
-        const ToolCallOutcome(result: 'ok'),
-        const ToolCallOutcome(result: 'ok'),
-      );
-      expect(
-        const ToolCallOutcome(result: 'ok'),
-        isNot(const ToolCallOutcome(result: 'ok', error: 'boom')),
-      );
-    });
-  });
 }

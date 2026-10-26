@@ -10,7 +10,7 @@ void main() {
     test('supports value equality', () {
       expect(
         const StopRequest(runId: 'run-1'),
-        const StopRequest(runId: 'run-1'),
+        StopRequest(runId: String.fromCharCodes('run-1'.codeUnits)),
       );
       expect(
         const StopRequest(runId: 'run-1'),
