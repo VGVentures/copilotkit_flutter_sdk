@@ -1,7 +1,10 @@
+/// @docImport 'package:copilotkit/src/agent/copilot_agent.dart';
+library;
+
 import 'package:equatable/equatable.dart';
 
 /// One edit of the shared state, applied with
-/// `CopilotAgent.patchSharedState`.
+/// [CopilotAgent.patchSharedState].
 ///
 /// The operations are those of an RFC 6902 JSON Patch, the format of a
 /// `STATE_DELTA`. Paths are RFC 6901 JSON Pointers, e.g. `/items/0`; `''` is

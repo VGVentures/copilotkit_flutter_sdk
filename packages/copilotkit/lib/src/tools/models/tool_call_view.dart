@@ -1,9 +1,15 @@
+/// @docImport 'package:copilotkit/src/client/client.dart';
+/// @docImport 'package:copilotkit/src/tools/client_tool.dart';
+library;
+
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:equatable/equatable.dart';
 
 /// A tool call made by the agent, shaped for rendering.
 class const ToolCallView({
-  /// Tool call id; stable for the whole call, use it as a widget key.
+  /// The id of the tool call.
+  ///
+  /// It stays the same for the whole call, so use it as a widget key.
   required final String id,
 
   /// Name of the tool being called.
@@ -14,15 +20,15 @@ class const ToolCallView({
 
   /// Arguments sent by the agent, as a JSON object; partial while [status]
   /// is [ToolCallStatus.inProgress], so decode them with
-  /// `ClientTool.tryDecode`. Unmodifiable when set by the SDK.
+  /// [ClientTool.tryDecode]. Unmodifiable when set by the SDK.
   final Map<String, Object?> args = const {},
 
   /// Result string; set once [status] is [ToolCallStatus.complete].
   final String? result,
 
   /// Whether the call waits for the user: the agent called a
-  /// `HumanInTheLoopTool` and the app has yet to answer with
-  /// `CopilotKitClient.respondToToolCall`. Only set while [status] is
+  /// [HumanInTheLoopTool] and the app has yet to answer with
+  /// [CopilotKitClient.respondToToolCall]. Only set while [status] is
   /// [ToolCallStatus.executing].
   final bool awaitingResponse = false,
 }) extends Equatable {

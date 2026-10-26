@@ -1,3 +1,8 @@
+/// @docImport 'package:copilotkit/src/agent/copilot_agent.dart';
+/// @docImport 'package:copilotkit/src/client/client.dart';
+/// @docImport 'package:copilotkit/src/tools/tools.dart';
+library;
+
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/messages/models/message.dart';
@@ -6,7 +11,7 @@ import 'package:equatable/equatable.dart';
 
 /// Immutable view of an agent at one point in time.
 ///
-/// A `CopilotAgent` replaces its state with a new one every time it
+/// A [CopilotAgent] replaces its state with a new one every time it
 /// changes.
 class const CopilotAgentState({
   /// Id of the agent on the runtime, e.g. `default`.
@@ -22,19 +27,17 @@ class const CopilotAgentState({
   /// State the agent shares with the app, or `null` if neither the agent nor
   /// the app set one.
   ///
-  /// Sent as `RunAgentInput.state` on every run. Change it from the app with
-  /// `CopilotAgent.setSharedState` and `CopilotAgent.patchSharedState`; the
-  /// agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events. Debug
-  /// builds of `ag_ui` assert that it is a JSON object (a `Map`) or `null`
-  /// when a run is sent.
+  /// Sent as the run's state on every run. Change it from the app with
+  /// [CopilotAgent.setSharedState] and [CopilotAgent.patchSharedState]; the
+  /// agent changes it with `STATE_SNAPSHOT` and `STATE_DELTA` events.
   final SharedState? sharedState,
 
-  /// Whether the agent is working: from `CopilotKitClient.runAgent` until
+  /// Whether the agent is working: from [CopilotKitClient.runAgent] until
   /// the whole turn ends, including frontend tool handlers and the runs that
   /// follow them.
   ///
-  /// It stays `true` while a `HumanInTheLoopTool` call waits for the user,
-  /// because the turn is still open: `CopilotKitClient.runAgent` does nothing
+  /// It stays `true` while a [HumanInTheLoopTool] call waits for the user,
+  /// because the turn is still open: [CopilotKitClient.runAgent] does nothing
   /// for the agent until it ends, and the chat bloc ignores sent messages
   /// while it is `true`. Use [awaitingResponseIds] to tell an agent that
   /// waits for the user from one that is streaming, for example to pause the
@@ -56,9 +59,9 @@ class const CopilotAgentState({
 
   /// Ids of the tool calls that wait for the user's answer, in call order.
   ///
-  /// Empty unless a `HumanInTheLoopTool` call is awaiting
-  /// `CopilotKitClient.respondToToolCall`; see
-  /// `ToolCallView.awaitingResponse`.
+  /// Empty unless a [HumanInTheLoopTool] call is awaiting
+  /// [CopilotKitClient.respondToToolCall]; see
+  /// [ToolCallView.awaitingResponse].
   List<String> get awaitingResponseIds => [
     for (final call in toolCalls)
       if (call.awaitingResponse) call.id,

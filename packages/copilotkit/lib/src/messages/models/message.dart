@@ -216,7 +216,7 @@ final class const ToolMessage({
   /// The result, as sent to the agent.
   required final String content,
 
-  /// Id of the `ToolCall` this message answers.
+  /// Id of the [ToolCall] this message answers.
   required final String toolCallId,
 
   /// Error reported for the call, if it failed.

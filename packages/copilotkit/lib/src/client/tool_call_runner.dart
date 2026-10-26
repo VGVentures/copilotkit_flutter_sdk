@@ -71,13 +71,13 @@ class ToolCallRunner({
   }
 
   /// Answers the human-in-the-loop call [toolCallId] of one of [agents] with
-  /// [result]: a `String` as it is, anything else JSON-encoded.
+  /// [result]: a [String] as it is, anything else JSON-encoded.
   ///
   /// [agents] are the agents in a turn. An answer that arrives before
   /// [runPending] waits for the call (its arguments are complete but its run
   /// has not finished streaming) is kept until it does. Ignored when the
   /// call is unknown, already has a result or was answered already, or when
-  /// its tool is not a registered `HumanInTheLoopTool`. A [result] that
+  /// its tool is not a registered [HumanInTheLoopTool]. A [result] that
   /// can't be encoded goes to the error handler and leaves the call waiting.
   void respond(
     Iterable<CopilotAgent> agents,
@@ -157,7 +157,7 @@ class ToolCallRunner({
     HumanInTheLoopTool(:final followUp) => followUp,
   };
 
-  /// Whether [toolCallId] is a call of a registered `HumanInTheLoopTool`
+  /// Whether [toolCallId] is a call of a registered [HumanInTheLoopTool]
   /// in one of [agents] with complete arguments, no result and no answer
   /// yet.
   bool _isUnansweredHumanCall(

@@ -20,7 +20,7 @@ class ToolResponses() {
   bool isAnswered(String toolCallId) =>
       _responses[toolCallId]?.isCompleted ?? false;
 
-  /// Answers the call [toolCallId] with [result]: a `String` as it is,
+  /// Answers the call [toolCallId] with [result]: a [String] as it is,
   /// anything else JSON-encoded.
   ///
   /// Only the first answer counts; later ones are ignored. Throws a

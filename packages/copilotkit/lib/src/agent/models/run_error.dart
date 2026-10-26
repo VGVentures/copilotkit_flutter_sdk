@@ -1,9 +1,13 @@
+/// @docImport 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
+/// @docImport 'package:copilotkit/src/client/client.dart';
+library;
+
 import 'package:equatable/equatable.dart';
 
 /// An error the runtime reported for a run, e.g. a rejected API key.
 ///
-/// Set as `CopilotAgentState.error` and passed to the `onError` of
-/// `CopilotKitClient` when the run fails this way.
+/// Set as [CopilotAgentState.error] and passed to the `onError` of
+/// [CopilotKitClient] when the run fails this way.
 class const RunError({
   /// What went wrong, as the runtime describes it.
   required final String message,

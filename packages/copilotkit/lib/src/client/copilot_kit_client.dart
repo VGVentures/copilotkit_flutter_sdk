@@ -30,8 +30,8 @@ class CopilotKitClient({
   /// `https://host/api/copilotkit`.
   ///
   /// `headers` builds the headers sent with each run, e.g. for auth.
-  /// `properties` are sent with every run as `RunAgentInput.forwardedProps`,
-  /// e.g. a model's `toJson()`.
+  /// `properties` are sent with every run as its forwarded props, e.g. a
+  /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the AG-UI transport to
   /// [runtimeUrl] in tests.
@@ -96,7 +96,7 @@ class CopilotKitClient({
   /// Answers the call [toolCallId] of a [HumanInTheLoopTool] with [result],
   /// and the turn that waits for it continues with it as the tool result.
   ///
-  /// A `String` [result] is sent to the agent as it is; any other value is
+  /// A [String] [result] is sent to the agent as it is; any other value is
   /// JSON-encoded (an app model with `toJson` works), and a value that can't
   /// be encoded goes to `onError` and leaves the call waiting.
   ///
@@ -123,7 +123,7 @@ class CopilotKitClient({
   /// appending [message] if given.
   ///
   /// Completes when the turn ends and never throws: errors go to `onError`
-  /// and to `CopilotAgentState.error`. Does nothing while the agent is
+  /// and to [CopilotAgentState.error]. Does nothing while the agent is
   /// already running, so the message is dropped too.
   Future<void> runAgent(String agentId, {Message? message}) =>
       _runner.run(agent(agentId), message: message);
