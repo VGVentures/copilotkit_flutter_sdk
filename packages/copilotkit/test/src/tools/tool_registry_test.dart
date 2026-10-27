@@ -95,26 +95,73 @@ void main() {
       expect(registry.tools, isEmpty);
     });
 
-    test(
-      'resets the count when a different tool replaces the registered one',
-      () {
-        final first = FrontendTool<Map<String, Object?>>(
-          name: 'showWeather',
-          description: 'Another tool',
-          parameters: Ack.object({}),
-          decode: Map<String, Object?>.of,
-          handler: (_, {required signal}) async => 'ok',
-        );
-        final second = tool('showWeather');
-        final registry = ToolRegistry()
-          ..register(first)
-          ..register(first)
-          ..register(second);
+    test('keeps the count of a tool replaced by a different one', () {
+      final first = tool('showWeather');
+      final second = tool('showWeather');
+      final registry = ToolRegistry()
+        ..register(first)
+        ..register(first)
+        ..register(second);
 
-        expect(registry.unregister(second), isTrue);
-        expect(registry.tools, isEmpty);
-      },
-    );
+      expect(registry.unregister(second), isFalse);
+      expect(registry['showWeather'], same(first));
+
+      expect(registry.unregister(first), isFalse);
+      expect(registry['showWeather'], same(first));
+
+      expect(registry.unregister(first), isTrue);
+      expect(registry.tools, isEmpty);
+    });
+
+    test('uses the tool registered last', () {
+      final first = tool('showWeather');
+      final second = tool('showWeather');
+      final registry = ToolRegistry()
+        ..register(first)
+        ..register(second)
+        ..register(first);
+
+      expect(registry['showWeather'], same(first));
+
+      expect(registry.unregister(first), isFalse);
+      expect(registry['showWeather'], same(first));
+
+      expect(registry.unregister(first), isFalse);
+      expect(registry['showWeather'], same(second));
+    });
+
+    test('keeps a shared tool while one owner swaps away and back', () {
+      final shared = tool('showWeather');
+      final other = tool('showWeather');
+      final registry = ToolRegistry()
+        ..register(shared)
+        ..register(shared)
+        // One owner swaps to another tool: register the new one, then
+        // unregister the old one.
+        ..register(other);
+      expect(registry.unregister(shared), isFalse);
+      expect(registry['showWeather'], same(other));
+
+      // It swaps back.
+      registry.register(shared);
+      expect(registry.unregister(other), isFalse);
+      expect(registry['showWeather'], same(shared));
+
+      // It is disposed; the other owner still holds the tool.
+      expect(registry.unregister(shared), isFalse);
+      expect(registry['showWeather'], same(shared));
+
+      expect(registry.unregister(shared), isTrue);
+      expect(registry.tools, isEmpty);
+    });
+
+    test('ignores a tool that is not registered', () {
+      final registry = ToolRegistry()..register(tool('showWeather'));
+
+      expect(registry.unregister(tool('showWeather')), isFalse);
+      expect(registry.unregister(tool('showMap')), isFalse);
+      expect(registry.tools, hasLength(1));
+    });
 
     test('exposes a read-only view', () {
       final registry = ToolRegistry();

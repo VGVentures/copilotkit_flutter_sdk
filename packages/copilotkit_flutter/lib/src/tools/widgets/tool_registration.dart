@@ -20,7 +20,8 @@ import 'package:flutter/widgets.dart';
 ///
 /// Each mounted registration counts on the client, so when its subtree
 /// remounts, or another widget registers the same tool, the tool stays
-/// registered until the last of them is disposed.
+/// registered until the last of them is disposed, even if some of them
+/// switch to a different tool under the same name and back in between.
 @internal
 class const ToolRegistration({
   /// The tool to register.

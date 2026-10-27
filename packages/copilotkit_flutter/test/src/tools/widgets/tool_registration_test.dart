@@ -149,6 +149,41 @@ void main() {
         );
         expect(realClient.tools, isEmpty);
       });
+
+      testWidgets('keeps a shared tool while one owner swaps away and back', (
+        tester,
+      ) async {
+        final tool = _tool('showWeather');
+        final other = FrontendTool<Map<String, Object?>>(
+          name: 'showWeather',
+          description: 'Another tool',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          handler: _handler,
+        );
+        Widget build(ClientTool<Object?>? first) => CopilotKit.value(
+          client: realClient,
+          child: Column(
+            children: [
+              if (first != null)
+                ToolRegistration(tool: first, child: const SizedBox()),
+              ToolRegistration(
+                key: const ValueKey('second'),
+                tool: tool,
+                child: const SizedBox(),
+              ),
+            ],
+          ),
+        );
+
+        await tester.pumpWidget(build(tool));
+        await tester.pumpWidget(build(other));
+        expect(realClient.tools, {'showWeather': other});
+
+        await tester.pumpWidget(build(tool));
+        await tester.pumpWidget(build(null));
+        expect(realClient.tools, {'showWeather': tool});
+      });
     });
   });
 }

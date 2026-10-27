@@ -76,21 +76,25 @@ class CopilotKitClient({
   /// Registers [tool]; every run sends it to the agent.
   ///
   /// Calls to a [FrontendTool] run its handler on the device, and calls to a
-  /// [HumanInTheLoopTool] wait for [respondToToolCall]. Replaces a different
-  /// tool with the same name. Registering a tool equal to the registered one
-  /// counts as another registration of it, which [unregisterTool] undoes.
+  /// [HumanInTheLoopTool] wait for [respondToToolCall]. Replaces the tool in
+  /// use under the same name. Registering a tool equal to one already
+  /// registered counts as another registration of it, which [unregisterTool]
+  /// undoes.
   void registerTool(ClientTool<Object?> tool) => _tools.register(tool);
 
-  /// Undoes one registration of [tool] if it is the tool registered under
-  /// its name; a different tool registered later under the same name stays.
+  /// Undoes one registration of [tool].
   ///
-  /// The tool is removed once each of its registrations is undone, so code
-  /// that registered it twice, like a widget and its remounted copy, keeps it
-  /// until both unregister it. Calls of a removed [HumanInTheLoopTool] that
-  /// wait for the user are answered as cancelled: with the tool gone, nothing
-  /// can answer them anymore. To swap a tool for an updated one, register the
-  /// new tool first (it replaces the old one), then unregister the old one,
-  /// which then does nothing, so no call is cancelled.
+  /// Each distinct tool under a name counts its own registrations, so code
+  /// that registered a tool twice, like a widget and its remounted copy,
+  /// keeps it until both unregister it, even if one of them registered a
+  /// different tool under the same name in between. Once a tool's
+  /// registrations are all undone, the tool registered before it under that
+  /// name is used again. When none is left, the name is removed, and calls
+  /// of a removed [HumanInTheLoopTool] that wait for the user are answered
+  /// as cancelled: with the tool gone, nothing can answer them anymore. To
+  /// swap a tool for an updated one, register the new tool first (it
+  /// replaces the old one), then unregister the old one, so the name is
+  /// never left empty and no call is cancelled.
   void unregisterTool(ClientTool<Object?> tool) {
     if (_tools.unregister(tool) && tool is HumanInTheLoopTool) {
       _runner.cancelAwaiting(tool.name);
