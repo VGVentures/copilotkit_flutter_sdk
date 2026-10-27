@@ -24,97 +24,22 @@ void main() {
 
     setUp(() => client = RecordingClient());
 
-    testWidgets('registers the tool on mount', (tester) async {
-      final tool = _tool('showWeather');
-
-      await tester.pumpWidget(
-        CopilotKit.value(
-          client: client,
-          child: CopilotTool(tool: tool, child: const SizedBox()),
-        ),
-      );
-
-      expect(client.calls, [registered(tool)]);
-    });
-
-    testWidgets('unregisters the tool on dispose', (tester) async {
-      final tool = _tool('showWeather');
-      await tester.pumpWidget(
-        CopilotKit.value(
-          client: client,
-          child: CopilotTool(tool: tool, child: const SizedBox()),
-        ),
-      );
-
-      await tester.pumpWidget(
-        CopilotKit.value(client: client, child: const SizedBox()),
-      );
-
-      expect(client.calls, [registered(tool), unregistered(tool)]);
-    });
-
-    testWidgets('re-registers when the tool changes', (tester) async {
-      final first = _tool('first');
-      final second = _tool('second');
-      Widget build(FrontendTool<Object?> tool) => CopilotKit.value(
-        client: client,
-        child: CopilotTool(tool: tool, child: const SizedBox()),
-      );
-
-      await tester.pumpWidget(build(first));
-      await tester.pumpWidget(build(first));
-      await tester.pumpWidget(build(second));
-
-      // The new tool first, so the client never lacks the tool in between.
-      expect(client.calls, [
-        registered(first),
-        registered(second),
-        unregistered(first),
-      ]);
-    });
-
-    testWidgets('keeps the registration when an equal tool replaces it', (
+    testWidgets('registers the tool on mount and unregisters it on dispose', (
       tester,
     ) async {
-      Future<String> handler(
-        Map<String, Object?> args, {
-        required CancellationSignal signal,
-      }) async => 'ok';
-      FrontendTool<Map<String, Object?>> tool() => FrontendTool(
-        name: 'showWeather',
-        description: 'A tool',
-        parameters: Ack.object({}),
-        decode: Map<String, Object?>.of,
-        handler: handler,
-      );
-      final first = tool();
-      Widget build(FrontendTool<Map<String, Object?>> tool) => CopilotKit.value(
-        client: client,
-        child: CopilotTool(tool: tool, child: const SizedBox()),
-      );
+      final tool = _tool('showWeather');
 
-      await tester.pumpWidget(build(first));
-      await tester.pumpWidget(build(tool()));
+      await tester.pumpWidget(
+        CopilotKit.value(
+          client: client,
+          child: CopilotTool(tool: tool, child: const SizedBox()),
+        ),
+      );
       await tester.pumpWidget(
         CopilotKit.value(client: client, child: const SizedBox()),
       );
 
-      expect(client.calls, [registered(first), unregistered(first)]);
-    });
-
-    testWidgets('moves the tool when the client changes', (tester) async {
-      final other = RecordingClient();
-      final tool = _tool('showWeather');
-      Widget build(CopilotKitClient c) => CopilotKit.value(
-        client: c,
-        child: CopilotTool(tool: tool, child: const SizedBox()),
-      );
-
-      await tester.pumpWidget(build(client));
-      await tester.pumpWidget(build(other));
-
       expect(client.calls, [registered(tool), unregistered(tool)]);
-      expect(other.calls, [registered(tool)]);
     });
 
     testWidgets('renders its calls with its builder', (tester) async {

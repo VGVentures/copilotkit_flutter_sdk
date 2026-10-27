@@ -338,6 +338,23 @@ void main() {
         expect(sentResults(), {'c1': 'still here'});
       });
 
+      test(
+        'keeps the call waiting while the tool is still registered',
+        () async {
+          client
+            ..registerTool(tool)
+            ..unregisterTool(tool);
+          await pumpEventQueue();
+          final mid = agent.state.awaitingResponseIds;
+          client.respondToToolCall('c1', 'still here');
+          await run;
+
+          expect(mid, ['c1']);
+          expect(client.tools, {tool.name: tool});
+          expect(sentResults(), {'c1': 'still here'});
+        },
+      );
+
       test('unregistering a frontend tool cancels nothing', () async {
         final weather = weatherTool((_, {required signal}) async => '');
         client

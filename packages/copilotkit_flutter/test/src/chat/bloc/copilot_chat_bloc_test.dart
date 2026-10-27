@@ -10,6 +10,10 @@ class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
 class _MockCopilotAgent extends Mock implements CopilotAgent;
 
+class _MockChatRowMapper extends Mock implements ChatRowMapper;
+
+class _MockUuid extends Mock implements Uuid;
+
 const _agentState = CopilotAgentState(agentId: 'default', threadId: 't');
 const _user = UserMessage(id: 'u1', content: 'Weather in Lima?');
 const _call = ToolCallView(
@@ -28,9 +32,12 @@ void main() {
   group(CopilotChatBloc, () {
     late _MockCopilotKitClient client;
     late _MockCopilotAgent agent;
+    late _MockUuid uuid;
     late StreamController<CopilotAgentState> changes;
 
     setUp(() {
+      uuid = _MockUuid();
+      when(() => uuid.v4()).thenReturn('m1');
       client = _MockCopilotKitClient();
       agent = _MockCopilotAgent();
       when(() => client.agent('default')).thenReturn(agent);
@@ -45,7 +52,7 @@ void main() {
     tearDown(() => changes.close());
 
     CopilotChatBloc buildBloc() =>
-        CopilotChatBloc(client: client, agentId: 'default');
+        CopilotChatBloc(client: client, agentId: 'default', uuid: uuid);
 
     /// The messages the agent was run with so far.
     List<UserMessage> sentMessages() => verify(
@@ -136,6 +143,38 @@ void main() {
       expect: () => <CopilotChatState>[],
     );
 
+    group('with a mapper', () {
+      const rows = [ChatMessageRow(_user)];
+      final running = _agentState.copyWith(isRunning: true);
+      late _MockChatRowMapper mapper;
+
+      setUp(() {
+        mapper = _MockChatRowMapper();
+        when(() => mapper.rowsFor(_agentState)).thenReturn(const []);
+        when(() => mapper.rowsFor(running)).thenReturn(rows);
+      });
+
+      blocTest<CopilotChatBloc, CopilotChatState>(
+        'maps the rows with it',
+        build: () =>
+            CopilotChatBloc(client: client, agentId: 'default', mapper: mapper),
+        act: (bloc) async {
+          when(() => agent.state).thenReturn(running);
+          bloc.add(const ChatSubscriptionRequested());
+          await pumpEventQueue();
+          changes.add(_agentState);
+        },
+        expect: () => [
+          const CopilotChatState(rows: rows, isRunning: true),
+          const CopilotChatState(),
+        ],
+        verify: (_) {
+          verify(() => mapper.rowsFor(_agentState)).called(2);
+          verify(() => mapper.rowsFor(running)).called(1);
+        },
+      );
+    });
+
     blocTest<CopilotChatBloc, CopilotChatState>(
       'stops listening to the agent when closed',
       build: buildBloc,
@@ -151,23 +190,9 @@ void main() {
       'ChatMessageSent runs the agent with the trimmed user message',
       build: buildBloc,
       act: (bloc) => bloc.add(const ChatMessageSent('  Hi there  ')),
-      verify: (_) {
-        final message = sentMessages().single;
-        expect(message.content, 'Hi there');
-        expect(Uuid.isValidUUID(fromString: message.id), isTrue);
-      },
-    );
-
-    blocTest<CopilotChatBloc, CopilotChatState>(
-      'ChatMessageSent gives each message its own id',
-      build: buildBloc,
-      act: (bloc) => bloc
-        ..add(const ChatMessageSent('one'))
-        ..add(const ChatMessageSent('two')),
-      verify: (_) {
-        final ids = sentMessages().map((message) => message.id);
-        expect(ids.toSet(), hasLength(2));
-      },
+      verify: (_) => expect(sentMessages(), [
+        const UserMessage(id: 'm1', content: 'Hi there'),
+      ]),
     );
 
     blocTest<CopilotChatBloc, CopilotChatState>(

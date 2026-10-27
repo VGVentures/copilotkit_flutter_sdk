@@ -1,3 +1,7 @@
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/copilot_tool.dart';
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/tool_call_widget.dart';
+library;
+
 import 'package:copilotkit/copilotkit.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -12,7 +16,7 @@ typedef ToolCallWidgetBuilder = Widget Function(
 ///
 /// Use [nameFallback] as [name] for a fallback that renders any tool without
 /// its own builder. Nested renderers for the same name override outer ones.
-/// Use it for tools the agent runs elsewhere (backend tools); `CopilotTool`
+/// Use it for tools the agent runs elsewhere (backend tools); [CopilotTool]
 /// does the same for frontend tools.
 class const ToolRenderer({
   /// Name of the tool, or [nameFallback] for the fallback.
@@ -33,7 +37,7 @@ class const ToolRenderer({
   static const nameFallback = '*';
 
   /// The builders registered by the renderers above [context], by tool name,
-  /// or `null` when there are none. Used by `ToolCallWidget`.
+  /// or `null` when there are none. Used by [ToolCallWidget].
   @internal
   static Map<String, ToolCallWidgetBuilder>? maybeOf(BuildContext context) =>
       _ToolBuilders.maybeOf(context);

@@ -1,11 +1,15 @@
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/copilot_human_in_the_loop.dart';
+/// @docImport 'package:copilotkit_flutter/src/tools/widgets/copilot_tool.dart';
+library;
+
 import 'package:copilotkit/copilotkit.dart';
 import 'package:copilotkit_flutter/src/client/client.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// Registers [tool] on the nearest `CopilotKit` client while mounted.
+/// Registers [tool] on the nearest [CopilotKit] client while mounted.
 ///
-/// Internal: `CopilotTool` and `CopilotHumanInTheLoop` build it, so the
+/// Internal: [CopilotTool] and [CopilotHumanInTheLoop] build it, so the
 /// registration rules live in one place.
 ///
 /// Registers [tool] on mount and unregisters it on dispose. A tool that
@@ -13,6 +17,11 @@ import 'package:flutter/widgets.dart';
 /// client never lacks the tool in between: unregistering a human-in-the-loop
 /// tool cancels the calls that wait for the user. A tool equal to the
 /// registered one changes nothing.
+///
+/// Each mounted registration counts on the client, so when its subtree
+/// remounts, or another widget registers the same tool, the tool stays
+/// registered until the last of them is disposed, even if some of them
+/// switch to a different tool under the same name and back in between.
 @internal
 class const ToolRegistration({
   /// The tool to register.
