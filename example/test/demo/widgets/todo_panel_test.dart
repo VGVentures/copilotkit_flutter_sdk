@@ -115,6 +115,22 @@ void main() {
       expect(find.widgetWithText(TextField, ''), findsOneWidget);
     });
 
+    testWidgets('shares the todo the user submits from the keyboard', (
+      tester,
+    ) async {
+      await pump(tester, _state(null));
+
+      await tester.enterText(find.byType(TextField), 'Pay rent');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pump();
+
+      expect(captureEdit().toJson(), {
+        'todos': [
+          {'title': 'Pay rent', 'done': false},
+        ],
+      });
+    });
+
     testWidgets('does not add a blank todo', (tester) async {
       await pump(tester, _state(null));
 

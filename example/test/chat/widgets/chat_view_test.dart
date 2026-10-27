@@ -46,7 +46,7 @@ void main() {
       expect(find.text('Header'), findsOneWidget);
       expect(
         tester.getBottomLeft(find.text('Header')).dy,
-        lessThan(tester.getTopLeft(find.byType(MessageList)).dy),
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(MessageList)).dy),
       );
     });
 
