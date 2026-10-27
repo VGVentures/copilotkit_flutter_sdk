@@ -13,7 +13,12 @@ const runtime = new CopilotRuntime({
   agents: {
     default: new BuiltInAgent({
       model,
-      prompt: "You are a helpful assistant for a Flutter app.",
+      prompt:
+        "You are a helpful assistant for a Flutter app. The app shows the " +
+        "user a todo list, kept in the application state as " +
+        '{"todos": [{"title": string, "done": boolean}]}. When the user ' +
+        "asks to add, finish or remove a todo, edit that list with the state " +
+        "tools and keep the other items as they are.",
     }),
   },
 });

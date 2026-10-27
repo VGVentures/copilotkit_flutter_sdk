@@ -17,12 +17,12 @@ void main() {
 
     setUp(() => bloc = _MockCopilotChatBloc());
 
-    Future<void> pump(WidgetTester tester) {
+    Future<void> pump(WidgetTester tester, {Widget? header}) {
       return tester.pumpWidget(
         MaterialApp(
           home: BlocProvider<CopilotChatBloc>.value(
             value: bloc,
-            child: const ChatView(),
+            child: ChatView(header: header),
           ),
         ),
       );
@@ -36,6 +36,18 @@ void main() {
       expect(find.byType(MessageList), findsOneWidget);
       expect(find.byType(Composer), findsOneWidget);
       expect(find.byKey(const Key('chat_error')), findsNothing);
+    });
+
+    testWidgets('shows the header above the message list', (tester) async {
+      when(() => bloc.state).thenReturn(const CopilotChatState());
+
+      await pump(tester, header: const Text('Header'));
+
+      expect(find.text('Header'), findsOneWidget);
+      expect(
+        tester.getBottomLeft(find.text('Header')).dy,
+        lessThanOrEqualTo(tester.getTopLeft(find.byType(MessageList)).dy),
+      );
     });
 
     testWidgets('shows a notice when the last run failed', (tester) async {

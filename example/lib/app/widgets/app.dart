@@ -20,7 +20,12 @@ class const App({
       title: 'CopilotKit',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6766FC)),
       home: isValid
-          ? const WeatherDemo(child: ChatPage())
+          ? const WeatherDemo(
+              child: CopilotAgentScope(
+                agentId: ChatPage.agentId,
+                child: ChatPage(header: TodoPanel()),
+              ),
+            )
           : const _MissingRuntimeScreen(),
     );
     if (!isValid) return app;
