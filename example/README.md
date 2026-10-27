@@ -132,7 +132,9 @@ Use this checklist to check the app end to end against a running runtime. The
 demo in `lib/demo/widgets/weather_demo.dart` registers a `showWeather`
 frontend tool and a `confirmAction` human-in-the-loop tool
 (`lib/demo/widgets/approval_demo.dart`),
-and shares a current user (`{name: Ada, homeCity: Lima}`) as context.
+shows a todo list kept in the agent's shared state
+(`lib/demo/widgets/todo_panel.dart`), and shares a current user
+(`{name: Ada, homeCity: Lima}`) as context.
 
 <!-- prettier-ignore -->
 > [!NOTE]
@@ -179,6 +181,23 @@ These checks cover the `confirmAction` approval tool.
 - Repeat and tap **Reject**. The agent acknowledges that it did not proceed.
 - Repeat and tap **Stop** instead of answering. The card shows
   `Tool call cancelled.` and the button turns back into **Send**.
+
+### Shared state
+
+These checks cover the todo list above the chat, which lives in the agent's
+shared state (`{"todos": [{"title", "done"}]}`). Restart the runtime first if
+it started before this demo: its prompt tells the agent about the list.
+
+- The panel starts with **Nothing yet**. Type "Buy milk" and tap **Add**. The
+  item appears.
+- Ask "What's on my todo list?" The agent names Buy milk. This confirms that
+  the app's edit reached the runtime.
+- Ask "Add call Ada and pay rent to my list." Both items appear in the panel
+  without you touching it, and Buy milk stays. This confirms that the agent's
+  state edit reached the app.
+- Tick Buy milk, then ask "What's left to do?" The agent leaves it out.
+- Ask "Remove everything I finished." The ticked item disappears.
+- Tap the **×** of an item. It disappears.
 
 ### Stop
 
