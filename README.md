@@ -6,6 +6,13 @@ agent on a Copilot Runtime over AG-UI: replies stream in, the agent calls tools
 that run in the app and render Flutter widgets in the chat, and it answers from
 data the app shares with it.
 
+<!-- prettier-ignore -->
+> [!WARNING]
+> This is a **beta** version of the official CopilotKit Flutter SDK. The API may
+> change between releases, and it is not yet recommended for production use.
+> Please [open an issue](https://github.com/VGVentures/copilotkit_flutter_sdk/issues)
+> if you run into a problem.
+
 This guide gets you from a fresh clone to the demo app running on a simulator,
 emulator, or device.
 
@@ -126,3 +133,13 @@ The repository is a Dart pub workspace with three packages.
 To set up the repository, run the checks CI runs, and open a pull request,
 see [`CONTRIBUTING.md`](CONTRIBUTING.md). The architecture and the project
 conventions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Security and conduct
+
+To report a vulnerability, follow [`SECURITY.md`](SECURITY.md). Everyone taking
+part in this project is expected to follow the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+Released under the [MIT License](LICENSE).
