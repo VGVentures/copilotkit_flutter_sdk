@@ -132,6 +132,14 @@ Run them from the repository root before you push:
    fvm dart doc -o "$(mktemp -d)"
    ```
 
+7. If you changed a package's public API, regenerate its `api.txt` in the
+   package's folder and commit it. `test/api_test.dart` fails until the
+   file matches the code, and the diff shows reviewers what changed:
+
+   ```sh
+   fvm dart run api_summary --write
+   ```
+
 CI also builds the example app for the web with WebAssembly.
 
 To check the runtime contract from the command line, send a request to a
