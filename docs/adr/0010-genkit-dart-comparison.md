@@ -92,10 +92,10 @@ comparison supports.
   against the schema before the handler runs, and tells the agent what was
   wrong. A tool that throws produces a fallback result and is reported to
   `onError`.
-- **A stop the server hears.** `stopAgent` stops the run on the runtime and
+- **One call to stop.** `stopAgent` calls the runtime's stop route and
   closes the run's own `http.Client`, so the socket closes too. Genkit's
-  `AgentTurn.abort` only cancels the local subscription; the server finds out
-  only when the app also calls `AgentChat.abort`.
+  `AgentTurn.abort` cancels the local subscription without calling the abort
+  route; an explicit stop on the server takes a separate `AgentChat.abort`.
 - **Stricter test gates.** CI requires 100% line coverage in every package
   and the example, tests mirror the source files one to one, and each wire
   fixture records the runtime version it came from. Genkit doesn't measure
