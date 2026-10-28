@@ -103,6 +103,21 @@ comparison supports.
 - **Repository hygiene.** Dependabot, a spell checker, a security policy, a
   code of conduct and a written architecture guide. Genkit has none of these.
 
+## Our utilities against Genkit's
+
+Genkit has its own versions of several helpers we wrote. None of them
+should replace ours outright:
+
+| Ours                   | Genkit                                           | Verdict                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PartialJsonParser`    | `extractJson(text, allowPartial: true)`          | Keep ours. Genkit closes open strings and containers and then trims the tail with regular expressions, and it also finds JSON in markdown fences and free text, which suits model output. Ours parses the input: it drops a key without a value and completes a cut literal or number, which suits streamed tool arguments, always an object prefix. |
+| `JsonPatcher`          | `applyPatch` and `diff`                          | Keep ours. Both implement RFC 6902. Genkit's are top-level functions in an `@experimental` library, so using them means depending on all of `genkit`. We don't need `diff`, because the runtime sends the patches.                                                                                                                                   |
+| `JsonSchemaNormalizer` | None; `schemantic` writes the schema itself      | Keep for now. It could go away only if tools move to generated schemas (see Evaluate).                                                                                                                                                                                                                                                               |
+| `CancellationSignal`   | `CancellationController` and `CancellationToken` | Keep the class, borrow the split (see Evaluate).                                                                                                                                                                                                                                                                                                     |
+
+`json_utils` has no counterpart that Genkit publishes as its own package,
+and depending on `genkit` for a few helpers would make the core heavier.
+
 ## Decision
 
 Keep the calls above. Adopt the practices below, each in its own pull
@@ -136,8 +151,17 @@ it.
 - **Generate the tool schema from the model.** Today the `ack` schema and the
   `decode` function are written separately and can drift; the example has to
   say "keep in sync with `ApprovalArgs`". Genkit's `@Schema` classes avoid
-  this. `ack` is part of our public API, so start from what `ack` itself can
-  generate.
+  this. Their `schemantic` package stands alone (it depends only on
+  `json_schema_builder`) and generates the type, its JSON Schema and its
+  decoding from one annotated class; it may also make
+  `JsonSchemaNormalizer` unnecessary. `ack` is part of our public API, so
+  compare `schemantic` with what `ack` itself can generate before choosing.
+- **Split cancellation into a controller and a token.** Every tool handler
+  receives a `CancellationSignal` with a public `cancel()`, so a handler can
+  cancel its own signal. Genkit gives the owner a `CancellationController`
+  and the work a read-only `CancellationToken`. Doing the same here keeps
+  `cancel()` with the client. Leave out the rest of Genkit's version
+  (reasons, linked tokens, listener disposers) until something needs it.
 - **A typed error family.** `CopilotAgentState.error` is an `Object?`. A
   sealed family (run error, connection lost, transport failure, stop failure)
   would let apps `switch` over it. Genkit's `AgentError`, which carries the
