@@ -136,7 +136,9 @@ Run them from the repository root before you push:
    its `api.txt` in the package's folder and commit it. The file also
    records the pubspec's `environment` section, so an SDK upgrade fails
    `test/api_test.dart` even when the API is the same. The test fails until
-   the file matches, and the diff shows reviewers what changed:
+   the file matches, and the diff shows reviewers what changed.
+   `copilotkit_flutter` re-exports `copilotkit`, so a change to the core's
+   API also changes `copilotkit_flutter/api.txt`:
 
    ```sh
    fvm dart run api_summary --write
