@@ -134,7 +134,9 @@ Run them from the repository root before you push:
 
 7. If you changed a package's public API, regenerate its `api.txt` in the
    package's folder and commit it. `test/api_test.dart` fails until the
-   file matches the code, and the diff shows reviewers what changed:
+   file matches the code, and the diff shows reviewers what changed.
+   `copilotkit_flutter` re-exports `copilotkit`, so a change to the core's
+   API also changes `copilotkit_flutter/api.txt`:
 
    ```sh
    fvm dart run api_summary --write

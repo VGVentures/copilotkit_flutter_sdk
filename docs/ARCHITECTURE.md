@@ -114,12 +114,15 @@ them, and `copilotkit` exports neither:
   `@internal` members (`Message.fromAgUi`, `Message.toAgUi`). A public
   signature names an `ag_ui` type only on an `@internal` or
   `@visibleForTesting` member, and public doc comments and READMEs don't
-  name `ag_ui` types.
+  name `ag_ui` types. In a package's `api.txt`, the `ag_ui` types it
+  names are listed under `package:ag_ui/...`, and every member that names
+  one ends in `internal`.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
 whole sit at the top of `test/`, outside the mirror: `test/api_test.dart`
-checks the public API against the package's `api.txt`, and
+checks the public API against the package's `api.txt` (the summary of what
+its library exports, from `package:api_summary`), and
 `test/fixtures_test.dart` checks the wire fixtures.
 
 ## Logic lives in classes
