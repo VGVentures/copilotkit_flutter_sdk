@@ -6,6 +6,8 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "bootstrap-sha": "fce93269e960c0d5dee8289f426dc57946c0e451",
+  "pull-request-title-pattern": "chore(${component}): release ${version}",
+  "component-no-space": true,
   "packages": {
     "packages/json_utils": {
       "component": "json_utils"
