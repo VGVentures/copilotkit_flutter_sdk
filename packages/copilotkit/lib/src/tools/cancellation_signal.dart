@@ -1,6 +1,6 @@
 import 'dart:async';
 
-/// Tells a tool handler that its run was stopped.
+/// Tells a tool handler that its run was stopped. See [NoSuchThing].
 ///
 /// The client creates one per tool call and cancels it when the run stops
 /// or the client closes. Handlers check [isCancelled] or await
