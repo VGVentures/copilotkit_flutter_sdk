@@ -157,8 +157,7 @@ lists them with their dependencies.
 
 Each Adopt item is its own pull request. They are ordered so the gates that
 protect later work land first: the API snapshot guards every following
-change, and the release workflows come after the hardened ones, so they are
-pinned and read-only from the start.
+change.
 
 ### Adopt
 
@@ -181,16 +180,7 @@ pinned and read-only from the start.
    `copilotkit` and `copilotkit_flutter` when their files change, fails on
    any warning, and the warnings it finds today are fixed in the same pull
    request.
-3. **A3. Hardened workflows.** Pin third-party actions and reusable
-   workflows, including `very_good_workflows`, to commit SHAs, and let
-   Dependabot update them. Set `permissions: contents: read` on every
-   workflow, and widen it only on the jobs that need it, such as
-   `pull-requests: read` for the `changes` job.
-   _Done when_ every `uses:` in `.github/workflows/` names a full SHA with
-   its version in a comment, each workflow sets `contents: read` at the top,
-   and CI passes. Dependabot already updates the `github-actions`
-   ecosystem, so it needs no change.
-4. **A4. Automated release workflows, with publishing off.** release-please
+3. **A4. Automated release workflows, with publishing off.** release-please
    opens one release pull request per package from Conventional Commits on
    `main`. Merging it bumps that package's version, writes its
    `CHANGELOG.md`, and tags the release; a maintainer merging it is the
@@ -291,6 +281,11 @@ only an accepted record.
   [#84](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/84).
 - **Middleware around tools.** A handler can wrap its own work, and no app
   has needed a shared hook yet.
+- **A3. Hardened workflows.** Pinning every action and reusable workflow
+  to a commit SHA and making each workflow's token read-only isn't worth
+  the upkeep for now: the workflows only use well-known actions and
+  `very_good_workflows`, and none of them writes to the repository
+  ([#157](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/157)).
 
 ## Alternatives
 
@@ -344,8 +339,7 @@ together.
 | -- | ---------------------------------------- | ---------------- | --------------- | ------------------ | ----------------------------------------------------------------------- |
 | A1 | Public API snapshot                      | Pull request     | None            | `test`, p1         | [#155](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/155) |
 | A2 | dartdoc in CI                            | Pull request     | None            | `ci`, p1           | [#156](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/156) |
-| A3 | Hardened workflows                       | Pull request     | None            | `ci`, p1           | [#157](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/157) |
-| A4 | Release workflows, publishing off        | Pull request     | A3              | `build`, p2        | [#158](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/158) |
+| A4 | Release workflows, publishing off        | Pull request     | None            | `build`, p2        | [#158](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/158) |
 | F1 | A tool handler can end the whole turn    | Pull request     | None            | `bug`, p1          | [#159](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/159) |
 | F2 | `runAgent` drops a message during a turn | Record, then fix | None            | `bug`, `spike`, p2 | [#160](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/160) |
 | E1 | Tool schema generated from the model     | Record           | None            | `spike`, p3        | [#161](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/161) |
@@ -357,9 +351,8 @@ together.
 | E7 | Layering check                           | Record           | None            | `spike`, p3        | [#167](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/167) |
 | E8 | Skill for app developers                 | Record           | First publish   | `spike`, p3        | [#168](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/168) |
 
-A1, A2, A3 and F1 can start at once and in parallel; A1 lands first when
-they conflict. A4 starts once A3 is merged, so its workflows follow the
-same pinning and permission rules. E3 and E4 should be decided before #75
+A1, A2, A4 and F1 can start at once and in parallel; A1 lands first when
+they conflict. E3 and E4 should be decided before #75
 adds a second transport, so its errors and options follow the same rules.
 
 ## Consequences
