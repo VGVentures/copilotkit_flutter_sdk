@@ -1,6 +1,6 @@
 # 0010. Comparison with the Genkit Dart SDK
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -151,60 +151,89 @@ and depending on `genkit` for a few helpers would make the core heavier.
 
 ## Decision
 
-Keep the design choices above, and take the practices below. Each Adopt item
-is its own pull request. They are ordered so the gates that protect later
-work land first: the API snapshot guards every following change, and the
-release process waits for the first publish.
+Keep the design choices above, and take the practices below. Each item has
+an ID that its issue and pull request refer to; [Follow-up work](#follow-up-work)
+lists them with their dependencies.
+
+Each Adopt item is its own pull request. They are ordered so the gates that
+protect later work land first: the API snapshot guards every following
+change, and the release workflows come after the hardened ones, so they are
+pinned and read-only from the start.
 
 ### Adopt
 
-1. **A public API snapshot.** Add `package:api_summary` as a dev dependency
-   of `json_utils`, `copilotkit` and `copilotkit_flutter`, commit an
-   `api.txt` for each, and add a test that fails when the code and the file
-   disagree. Unlike a refactor helper, the snapshot is a permanent gate, so
-   it belongs in the repository. First check how `api_summary` lists
+1. **A1. A public API snapshot.** Add `package:api_summary` as a dev
+   dependency of `json_utils`, `copilotkit` and `copilotkit_flutter`, commit
+   an `api.txt` for each, and add a test that fails when the code and the
+   file disagree. Unlike a refactor helper, the snapshot is a permanent gate,
+   so it belongs in the repository. First check how `api_summary` lists
    `@internal` members and re-exports. A leak is then a new `ag_ui` name on
    a member without `@internal` or `@visibleForTesting`. CONTRIBUTING step 5
    gets the command that regenerates the file.
-2. **dartdoc in CI.** CONTRIBUTING step 5 already lists `dart doc` with no
-   warnings among the checks that CI runs, but no job runs it. A job makes
-   [CONTRIBUTING.md](../../CONTRIBUTING.md) true.
-3. **Hardened workflows.** Pin third-party actions and reusable workflows,
-   including `very_good_workflows`, to commit SHAs, and let Dependabot
-   update them. Set `permissions: contents: read` on every workflow, and
-   widen it only on the jobs that need it, such as `pull-requests: read` for
-   the `changes` job.
-4. **A release process, in the pull request that prepares the first
-   publish.** A `CHANGELOG.md` in each package, a semver policy (while a
-   package is at 0.x, a minor release may break the API), and a tag per
-   package release. `json_utils` publishes first, because `copilotkit`
-   depends on it. A standard tool such as release-please is enough. The same
-   pull request replaces the `dart pub add copilotkit` and
-   `dart pub add copilotkit_flutter` lines and the Mason badge in the package
-   READMEs; the `ack` install steps stay.
+   _Done when_ each package has an `api.txt` and a test that fails on a
+   stale one, the pull request states how `@internal` members and the
+   `copilotkit_flutter` re-export appear in the file, and CONTRIBUTING step 5
+   has the command.
+2. **A2. dartdoc in CI.** CONTRIBUTING step 5 already lists `dart doc` with
+   no warnings among the checks that CI runs, but no job runs it. A job
+   makes [CONTRIBUTING.md](../../CONTRIBUTING.md) true.
+   _Done when_ a job in `main.yaml` runs `dart doc` for `json_utils`,
+   `copilotkit` and `copilotkit_flutter` when their files change, fails on
+   any warning, and the warnings it finds today are fixed in the same pull
+   request.
+3. **A3. Hardened workflows.** Pin third-party actions and reusable
+   workflows, including `very_good_workflows`, to commit SHAs, and let
+   Dependabot update them. Set `permissions: contents: read` on every
+   workflow, and widen it only on the jobs that need it, such as
+   `pull-requests: read` for the `changes` job.
+   _Done when_ every `uses:` in `.github/workflows/` names a full SHA with
+   its version in a comment, each workflow sets `contents: read` at the top,
+   and CI passes. Dependabot already updates the `github-actions`
+   ecosystem, so it needs no change.
+4. **A4. Automated release workflows, with publishing off.** release-please
+   opens one release pull request per package from Conventional Commits on
+   `main`. Merging it bumps that package's version, writes its
+   `CHANGELOG.md`, and tags the release; a maintainer merging it is the
+   approval. Each package keeps its own version, and a semver policy goes
+   in CONTRIBUTING: while a package is at 0.x, a minor release may break
+   the API. A publish workflow runs on each tag, but its publish step runs
+   only once publishing is turned on, so the packages stay
+   `publish_to: none`. Turning it on is a separate pull request: it
+   publishes `json_utils` first, because `copilotkit` depends on it, and
+   replaces the `dart pub add copilotkit` and
+   `dart pub add copilotkit_flutter` lines and the Mason badge in the
+   package READMEs; the `ack` install steps stay.
+   _Done when_ a merged release pull request tags its package without
+   manual edits to versions or changelogs, and a tag run of the publish
+   workflow ends without publishing.
 
 ### Evaluate
 
 Each of these changes a rule in ARCHITECTURE.md or the public API, so each
 needs its own record, and that record updates ARCHITECTURE.md in the same
-pull request.
+pull request. Each starts as a spike whose output is that record: accepted,
+or rejected with its reason added to the Rejected list below. Code follows
+only an accepted record.
 
-- **Generate the tool schema from the model.** The `ack` schema and the
+- **E1. Generate the tool schema from the model.** The `ack` schema and the
   `decode` function are written separately and can drift; the example says
   "Keep in sync with `ApprovalArgs`". Genkit's standalone `schemantic`
   package generates the type, its schema and its decoding from one class,
   but its classes are mutable and have no value equality. Compare it with
   what `ack` can generate, and keep app models immutable. Replacing `ack`
   amends the rule that `ack` is the only dependency in the public API.
-- **Split cancellation into a controller and a token.** Each turn has one
-  `CancellationSignal`, and every frontend tool handler in that turn gets it
-  with a public `cancel()`. A handler that cancels it ends the whole turn
-  (see Findings). Genkit gives the owner a `CancellationController` and the
-  work a read-only `CancellationToken`. Here the token belongs to `tools`,
-  next to `ClientTool`, and the controller to the turn in `client`. Leave out
-  the rest of Genkit's version (reasons, linked tokens, listener disposers)
-  until something needs it.
-- **A typed error family.** `CopilotAgentState.error` is an `Object?`. A
+- **E2. Split cancellation into a controller and a token.** Every frontend
+  tool handler gets a `CancellationSignal` with a public `cancel()`, which
+  only the client should call. Once F1 gives each handler its own signal, a
+  handler that calls it no longer ends the turn, but the API still offers a
+  call that means nothing to a handler. Genkit gives the owner a
+  `CancellationController` and the work a read-only `CancellationToken`.
+  Here the token belongs to `tools`, next to `ClientTool`, and the
+  controller to the turn in `client`. It changes the handler signature of
+  every `ClientTool`, so it is a breaking change. Leave out the rest of
+  Genkit's version (reasons, linked tokens, listener disposers) until
+  something needs it.
+- **E3. A typed error family.** `CopilotAgentState.error` is an `Object?`. A
   sealed family in `agent/models` would replace `RunError` and let apps
   `switch` over the variants the code produces: a run error from the
   runtime, a connection that closed before the run finished, a transport
@@ -212,31 +241,37 @@ pull request.
   because it comes from `http`, `ag_ui` or the app. Stop failures go only to
   `onError` today; sending them to `state.error` would be new. Genkit's
   `AgentError`, which keeps the last good state, is worth copying in spirit.
-- **Transport options on the client.** `AgUiTransport` takes an HTTP client
+  The Intelligence transport
+  ([#75](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/75))
+  adds failures of its own, so the family must cover both transports.
+- **E4. Transport options on the client.** `AgUiTransport` takes an HTTP client
   factory, a stop timeout and `onSkippedEvent`, but `CopilotKitClient`
   doesn't expose them. Exposing the factory puts `http.Client` in the public
   API, and `onSkippedEvent` would hand apps `ag_ui` errors, so the record
   amends the public dependency rule. Keep the option a factory, because the
   transport closes its client after every run, and wrap skipped events in an
-  SDK type.
-- **Named loggers.** Replace `developer.log` with `package:logging`. A
+  SDK type, which E3 may provide. Decide with #75 whether the options belong
+  to the client or to each transport.
+- **E5. Named loggers.** Replace `developer.log` with `package:logging`. A
   top-level `Logger` is not allowed and `Logger('name')` is a global lookup,
   so each class takes its logger in its constructor, with a default. Logger
   names become public API, `logging` stays out of public signatures, and
-  `onError` still reports errors.
-- **Live tests behind a flag.** Add a test that sends real runs to a runtime
+  `onError` still reports errors. The Inspector
+  ([#70](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/70))
+  may read these logs, so the record checks what it needs.
+- **E6. Live tests behind a flag.** Add a test that sends real runs to a runtime
   and is skipped when no runtime URL is set, like Genkit's tests that skip
   without an API key. CI sets no URL, so it never runs there; it is a local
   check, like `packages/copilotkit/tool/round_trip.dart`, which stays as the
   command-line probe that CONTRIBUTING describes. The test sits next to
   `test/fixtures_test.dart`, outside the mirror of `lib/src/`.
-- **A check for the layering table.** A test that checks feature imports
+- **E7. A check for the layering table.** A test that checks feature imports
   against the table in ARCHITECTURE.md, alongside the `rg` commands, which
   check package boundaries. Its record decides where the rules live: parsing
   the table breaks on prose edits, and a copy in Dart must be kept in sync.
   It adds tooling to the repository, so weigh it against keeping such tools
   local.
-- **A skill for app developers, after the first publish.** Genkit publishes
+- **E8. A skill for app developers, after the first publish.** Genkit publishes
   one that teaches coding agents its API. Ours would need real usage to
   learn from first.
 
@@ -251,7 +286,9 @@ pull request.
   client.
 - **Retry middleware.** Retrying an AG-UI run would replay its messages and
   tool calls. Reconnecting to a dropped run needs its own design, based on
-  what the runtime supports.
+  what the runtime supports; replay and reconnect are planned in
+  [#83](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/83) and
+  [#84](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/84).
 - **Middleware around tools.** A handler can wrap its own work, and no app
   has needed a shared hook yet.
 
@@ -271,25 +308,68 @@ pull request.
 The comparison also turned up issues that don't depend on Genkit. Each
 becomes an issue with a regression test in its fix.
 
-- **A tool handler can end the whole turn.** The turn shares one
+- **F1. A tool handler can end the whole turn.** The turn shares one
   `CancellationSignal` (`client/turn.dart`) with all its frontend tool
   handlers. If a handler calls `cancel()`, `ToolCallRunner` stops running the
   pending calls. The turn ends with that call and the rest left without a
   result, and nothing is sent to the runtime. The doc comment on
   `CancellationSignal` also says the client creates one per tool call, which
-  is wrong. The controller and token split above fixes the cause.
-- **`runAgent` drops a message during a turn.** It does nothing while the
-  agent is running, so the message is lost. The doc comment says so, but the
-  caller gets no signal. ADR 0009 keeps `isRunning` true for the whole turn
-  so the chat bloc doesn't send into this gap, so a fix revisits ADR 0009.
-  The test shows that a second send is queued, rejected or reported.
+  is wrong. The fix needs no record and no API change: `ToolCallRunner`
+  gives each call its own signal, cancelled when the turn's is, so the doc
+  comment becomes true. A handler that cancels its own signal then affects
+  only its own call, whose result is what the handler returns. E2 later
+  removes `cancel()` from what handlers see.
+  _Done when_ a test with two frontend calls in one turn, where the first
+  handler cancels its signal, shows the second still runs, both results
+  reach the agent and the turn follows up; and the tests for stop and close
+  still show every handler cancelled.
+- **F2. `runAgent` drops a message during a turn.** It does nothing while
+  the agent is running, so the message is lost. The doc comment says so, but
+  the caller gets no signal. ADR 0009 keeps `isRunning` true for the whole
+  turn so the chat bloc doesn't send into this gap, so a fix revisits ADR
+  0009 and needs its own record that amends it. The record chooses between
+  queuing the message for the next run, rejecting it through the return
+  value, and reporting it through `onError`; the first two change the public
+  API.
+  _Done when_ the record is accepted and a test shows that a second send is
+  handled the way it decides.
+
+## Follow-up work
+
+Each row becomes one issue, linked to this record. Priorities are proposed
+and set during planning. An item that depends on another starts once that
+one is merged; "with" means the two are designed together.
+
+| ID | Item                                     | Output           | Depends on      | Labels             |
+| -- | ---------------------------------------- | ---------------- | --------------- | ------------------ |
+| A1 | Public API snapshot                      | Pull request     | None            | `test`, p1         |
+| A2 | dartdoc in CI                            | Pull request     | None            | `ci`, p1           |
+| A3 | Hardened workflows                       | Pull request     | None            | `ci`, p1           |
+| A4 | Release workflows, publishing off        | Pull request     | A3              | `build`, p2        |
+| F1 | A tool handler can end the whole turn    | Pull request     | None            | `bug`, p1          |
+| F2 | `runAgent` drops a message during a turn | Record, then fix | None            | `bug`, `spike`, p2 |
+| E1 | Tool schema generated from the model     | Record           | None            | `spike`, p3        |
+| E2 | Cancellation controller and token        | Record           | F1              | `spike`, p3        |
+| E3 | Typed error family                       | Record           | With #75        | `spike`, p2        |
+| E4 | Transport options on the client          | Record           | With #75 and E3 | `spike`, p2        |
+| E5 | Named loggers                            | Record           | With #70        | `spike`, p3        |
+| E6 | Live tests behind a flag                 | Record           | None            | `spike`, p2        |
+| E7 | Layering check                           | Record           | None            | `spike`, p3        |
+| E8 | Skill for app developers                 | Record           | First publish   | `spike`, p3        |
+
+A1, A2, A3 and F1 can start at once and in parallel; A1 lands first when
+they conflict. A4 starts once A3 is merged, so its workflows follow the
+same pinning and permission rules. E3 and E4 should be decided before #75
+adds a second transport, so its errors and options follow the same rules.
 
 ## Consequences
 
+- Each row of [Follow-up work](#follow-up-work) becomes an issue that names
+  its ID, and this record links back to the issues once they exist.
 - Each Adopt item becomes a follow-up pull request that updates
   ARCHITECTURE.md or CONTRIBUTING.md where it adds a rule.
 - Each Evaluate item gets its own record, which updates ARCHITECTURE.md in
   the same pull request, before any code.
-- Each finding becomes a tracked issue.
+- F1 is fixed without a record; F2 needs one that amends ADR 0009.
 - The Rejected list records why we said no, so the same proposals don't need
   a new review.
