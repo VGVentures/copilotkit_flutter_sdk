@@ -90,6 +90,47 @@ jobs:
       flutter_version_file: .fvmrc
       min_coverage: 100
 
+  docs:
+    needs: changes
+    if: ${{ needs.changes.outputs.json_utils == 'true' || needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.copilotkit_flutter == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 📝 Check Docs (json_utils)
+        if: ${{ needs.changes.outputs.json_utils == 'true' }}
+        working-directory: packages/json_utils
+        run: |
+          dart doc --validate-links -o "$RUNNER_TEMP/docs/json_utils" 2>&1 | tee "$RUNNER_TEMP/json_utils.log"
+          grep -q 'Found 0 warnings and 0 errors' "$RUNNER_TEMP/json_utils.log"
+
+      - name: 📝 Check Docs (copilotkit)
+        if: ${{ needs.changes.outputs.copilotkit == 'true' }}
+        working-directory: packages/copilotkit
+        run: |
+          dart doc --validate-links -o "$RUNNER_TEMP/docs/copilotkit" 2>&1 | tee "$RUNNER_TEMP/copilotkit.log"
+          grep -q 'Found 0 warnings and 0 errors' "$RUNNER_TEMP/copilotkit.log"
+
+      - name: 📝 Check Docs (copilotkit_flutter)
+        if: ${{ needs.changes.outputs.copilotkit_flutter == 'true' }}
+        working-directory: packages/copilotkit_flutter
+        run: |
+          dart doc --validate-links -o "$RUNNER_TEMP/docs/copilotkit_flutter" 2>&1 | tee "$RUNNER_TEMP/copilotkit_flutter.log"
+          grep -q 'Found 0 warnings and 0 errors' "$RUNNER_TEMP/copilotkit_flutter.log"
+
   web:
     needs: changes
     if: ${{ needs.changes.outputs.example == 'true' }}
