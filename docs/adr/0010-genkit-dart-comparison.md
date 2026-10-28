@@ -336,26 +336,26 @@ becomes an issue with a regression test in its fix.
 
 ## Follow-up work
 
-Each row becomes one issue, linked to this record. Priorities are proposed
-and set during planning. An item that depends on another starts once that
-one is merged; "with" means the two are designed together.
+Each row has one issue, linked to this record. An item that depends on
+another starts once that one is merged; "with" means the two are designed
+together.
 
-| ID | Item                                     | Output           | Depends on      | Labels             |
-| -- | ---------------------------------------- | ---------------- | --------------- | ------------------ |
-| A1 | Public API snapshot                      | Pull request     | None            | `test`, p1         |
-| A2 | dartdoc in CI                            | Pull request     | None            | `ci`, p1           |
-| A3 | Hardened workflows                       | Pull request     | None            | `ci`, p1           |
-| A4 | Release workflows, publishing off        | Pull request     | A3              | `build`, p2        |
-| F1 | A tool handler can end the whole turn    | Pull request     | None            | `bug`, p1          |
-| F2 | `runAgent` drops a message during a turn | Record, then fix | None            | `bug`, `spike`, p2 |
-| E1 | Tool schema generated from the model     | Record           | None            | `spike`, p3        |
-| E2 | Cancellation controller and token        | Record           | F1              | `spike`, p3        |
-| E3 | Typed error family                       | Record           | With #75        | `spike`, p2        |
-| E4 | Transport options on the client          | Record           | With #75 and E3 | `spike`, p2        |
-| E5 | Named loggers                            | Record           | With #70        | `spike`, p3        |
-| E6 | Live tests behind a flag                 | Record           | None            | `spike`, p2        |
-| E7 | Layering check                           | Record           | None            | `spike`, p3        |
-| E8 | Skill for app developers                 | Record           | First publish   | `spike`, p3        |
+| ID | Item                                     | Output           | Depends on      | Labels             | Issue                                                                   |
+| -- | ---------------------------------------- | ---------------- | --------------- | ------------------ | ----------------------------------------------------------------------- |
+| A1 | Public API snapshot                      | Pull request     | None            | `test`, p1         | [#155](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/155) |
+| A2 | dartdoc in CI                            | Pull request     | None            | `ci`, p1           | [#156](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/156) |
+| A3 | Hardened workflows                       | Pull request     | None            | `ci`, p1           | [#157](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/157) |
+| A4 | Release workflows, publishing off        | Pull request     | A3              | `build`, p2        | [#158](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/158) |
+| F1 | A tool handler can end the whole turn    | Pull request     | None            | `bug`, p1          | [#159](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/159) |
+| F2 | `runAgent` drops a message during a turn | Record, then fix | None            | `bug`, `spike`, p2 | [#160](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/160) |
+| E1 | Tool schema generated from the model     | Record           | None            | `spike`, p3        | [#161](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/161) |
+| E2 | Cancellation controller and token        | Record           | F1              | `spike`, p3        | [#162](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/162) |
+| E3 | Typed error family                       | Record           | With #75        | `spike`, p2        | [#163](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/163) |
+| E4 | Transport options on the client          | Record           | With #75 and E3 | `spike`, p2        | [#164](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/164) |
+| E5 | Named loggers                            | Record           | With #70        | `spike`, p3        | [#165](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/165) |
+| E6 | Live tests behind a flag                 | Record           | None            | `spike`, p2        | [#166](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/166) |
+| E7 | Layering check                           | Record           | None            | `spike`, p3        | [#167](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/167) |
+| E8 | Skill for app developers                 | Record           | First publish   | `spike`, p3        | [#168](https://github.com/VGVentures/copilotkit_flutter_sdk/issues/168) |
 
 A1, A2, A3 and F1 can start at once and in parallel; A1 lands first when
 they conflict. A4 starts once A3 is merged, so its workflows follow the
@@ -364,8 +364,8 @@ adds a second transport, so its errors and options follow the same rules.
 
 ## Consequences
 
-- Each row of [Follow-up work](#follow-up-work) becomes an issue that names
-  its ID, and this record links back to the issues once they exist.
+- Each row of [Follow-up work](#follow-up-work) has an issue that names its
+  ID, and this record links to it.
 - Each Adopt item becomes a follow-up pull request that updates
   ARCHITECTURE.md or CONTRIBUTING.md where it adds a rule.
 - Each Evaluate item gets its own record, which updates ARCHITECTURE.md in
