@@ -14,22 +14,14 @@ class const ChatRowMapper() {
   List<ChatRow> call(CopilotAgentState agentState) {
     final calls = {for (final call in agentState.toolCalls) call.id: call};
     return [
-      for (final message in agentState.messages) ..._rowsFor(message, calls),
+      for (final message in agentState.messages) ...[
+        if (message is UserMessage || message is AssistantMessage)
+          if (message.text case final text? when text.isNotEmpty)
+            ChatMessageRow(message),
+        if (message is AssistantMessage)
+          for (final toolCall in message.toolCalls)
+            if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
+      ],
     ];
   }
-
-  /// The rows shown for [message]: its text, then each of its tool calls
-  /// found in [calls].
-  List<ChatRow> _rowsFor(Message message, Map<String, ToolCallView> calls) => [
-    if (_hasText(message)) ChatMessageRow(message),
-    if (message is AssistantMessage)
-      for (final toolCall in message.toolCalls)
-        if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
-  ];
-
-  bool _hasText(Message message) => switch (message) {
-    UserMessage(:final content) => content.isNotEmpty,
-    AssistantMessage(:final content) => (content ?? '').isNotEmpty,
-    _ => false,
-  };
 }

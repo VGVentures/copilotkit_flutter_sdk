@@ -64,8 +64,83 @@ sealed class Message extends Equatable {
     };
   }
 
+  /// Creates a text message from the author [role] with the text [content].
+  @internal
+  factory fromRole(
+    ag_ui.TextMessageRole role, {
+    required String id,
+    required String content,
+    String? name,
+  }) => switch (role) {
+    ag_ui.TextMessageRole.assistant => AssistantMessage(
+      id: id,
+      content: content,
+      name: name,
+    ),
+    ag_ui.TextMessageRole.user => UserMessage(
+      id: id,
+      content: content,
+      name: name,
+    ),
+    ag_ui.TextMessageRole.system => SystemMessage(
+      id: id,
+      content: content,
+      name: name,
+    ),
+    ag_ui.TextMessageRole.developer => DeveloperMessage(
+      id: id,
+      content: content,
+      name: name,
+    ),
+  };
+
   /// Unique id of the message in its conversation.
   final String id;
+
+  /// Text of the message, or `null` when it has none.
+  ///
+  /// The text of a user, system or developer message, and the text of an
+  /// assistant message if it has any. Tool results and unsupported messages
+  /// have no text.
+  String? get text => switch (this) {
+    UserMessage(:final content) ||
+    SystemMessage(:final content) ||
+    DeveloperMessage(:final content) => content,
+    AssistantMessage(:final content) => content,
+    ToolMessage() || UnsupportedMessage() => null,
+  };
+
+  /// The AG-UI role of the author of a text message, or `null` for a tool
+  /// result or an unsupported message.
+  @internal
+  ag_ui.TextMessageRole? get textRole => switch (this) {
+    AssistantMessage() => ag_ui.TextMessageRole.assistant,
+    UserMessage() => ag_ui.TextMessageRole.user,
+    SystemMessage() => ag_ui.TextMessageRole.system,
+    DeveloperMessage() => ag_ui.TextMessageRole.developer,
+    ToolMessage() || UnsupportedMessage() => null,
+  };
+
+  /// Returns this message with [delta] appended to its text.
+  ///
+  /// A tool result or an unsupported message has no text, so it is returned
+  /// unchanged.
+  @internal
+  Message appended(String delta) => switch (this) {
+    final UserMessage message => message.copyWith(
+      content: '${message.content}$delta',
+    ),
+    final AssistantMessage message => message.copyWith(
+      content: () => '${message.content ?? ''}$delta',
+    ),
+    final SystemMessage message => message.copyWith(
+      content: '${message.content}$delta',
+    ),
+    final DeveloperMessage message => message.copyWith(
+      content: '${message.content}$delta',
+    ),
+    ToolMessage() || UnsupportedMessage() => this,
+  };
 
   /// This message as an AG-UI message.
   @internal
@@ -87,6 +162,14 @@ final class const UserMessage({
 }) extends Message {
   /// Creates a message from the user with the text [content].
   this;
+
+  /// Returns a copy with [content] replaced.
+  UserMessage copyWith({String? content}) => UserMessage(
+    id: id,
+    content: content ?? this.content,
+    name: name,
+    encryptedValue: encryptedValue,
+  );
 
   @override
   @internal
@@ -135,6 +218,27 @@ final class const AssistantMessage({
     encryptedValue: encryptedValue,
   );
 
+  /// Whether any of the [toolCalls] of this message is the call
+  /// [toolCallId].
+  @internal
+  bool anyToolCall(String toolCallId) =>
+      toolCalls.any((call) => call.id == toolCallId);
+
+  /// Returns this message with [call] after its tool calls.
+  @internal
+  AssistantMessage toolCallAdded(ToolCall call) =>
+      copyWith(toolCalls: [...toolCalls, call]);
+
+  /// Returns this message with the tool call that has the id of [call]
+  /// replaced by it.
+  @internal
+  AssistantMessage toolCallReplaced(ToolCall call) => copyWith(
+    toolCalls: [
+      for (final held in toolCalls)
+        if (held.id == call.id) call else held,
+    ],
+  );
+
   @override
   @internal
   ag_ui.Message toAgUi() => ag_ui.AssistantMessage(
@@ -167,6 +271,14 @@ final class const SystemMessage({
   /// Creates a system message with the text [content].
   this;
 
+  /// Returns a copy with [content] replaced.
+  SystemMessage copyWith({String? content}) => SystemMessage(
+    id: id,
+    content: content ?? this.content,
+    name: name,
+    encryptedValue: encryptedValue,
+  );
+
   @override
   @internal
   ag_ui.Message toAgUi() => ag_ui.SystemMessage(
@@ -195,6 +307,14 @@ final class const DeveloperMessage({
 }) extends Message {
   /// Creates a developer message with the text [content].
   this;
+
+  /// Returns a copy with [content] replaced.
+  DeveloperMessage copyWith({String? content}) => DeveloperMessage(
+    id: id,
+    content: content ?? this.content,
+    name: name,
+    encryptedValue: encryptedValue,
+  );
 
   @override
   @internal
