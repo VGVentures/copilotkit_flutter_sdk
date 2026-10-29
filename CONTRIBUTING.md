@@ -278,9 +278,10 @@ dependent too.
 
 Tags and pull requests created with the default `GITHUB_TOKEN` don't
 start other workflows, so CI wouldn't run on release pull requests. The
-`release` workflow uses the `RELEASE_PLEASE_TOKEN` secret instead, and
-fails with an error when it isn't set. It is a fine-grained personal
-access token that a maintainer creates:
+`release` workflow uses the `RELEASE_PLEASE_TOKEN` secret instead. Until
+the secret is set, the workflow skips release-please and leaves a warning
+on the run. The secret is a fine-grained personal access token that a
+maintainer creates:
 
 - **Repository access:** only this repository.
 - **Permissions:** read and write on contents, pull requests and issues
