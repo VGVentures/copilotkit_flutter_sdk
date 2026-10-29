@@ -164,7 +164,9 @@ declarations. There are no extensions and no static helpers.
   builder or a mapper, exposes that thing as `call`, so it is used as a
   function: `executor(tool, call, signal, responses: responses)`. A
   general-purpose library like `json_utils` keeps the verbs of its domain
-  instead: a parser parses, and a JSON Patch is applied.
+  instead: a parser parses, and a JSON Patch is applied. Any other method
+  it has is `@internal`, like `AgentEventMapper.replaceMessages`, which
+  lends the mapper's parser to `CopilotAgent.setMessages`.
 - A constant becomes a static field, or an enum when it is one of a set.
 - The only static methods are `of` / `maybeOf` lookups on inherited widgets.
 

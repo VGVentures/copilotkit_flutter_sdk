@@ -199,6 +199,11 @@ void main() {
         toolCalls: [view],
       );
 
+      test('anyToolCall says whether it has a call', () {
+        expect(state.anyToolCall('c1'), isTrue);
+        expect(state.anyToolCall('c2'), isFalse);
+      });
+
       test('toolCallsById maps each view by id', () {
         expect(state.toolCallsById, {'c1': view});
       });
@@ -229,24 +234,6 @@ void main() {
         expect(state.messages, [
           const AssistantMessage(id: 'm1', content: 'Hello'),
         ]);
-      });
-
-      test('chunkAppended continues the last message of the same role', () {
-        final state = empty
-            .chunkAppended('m1', null, 'Hel')
-            .chunkAppended(null, null, 'lo');
-
-        expect(state.messages, [
-          const AssistantMessage(id: 'm1', content: 'Hello'),
-        ]);
-      });
-
-      test('chunkAppended drops a chunk with no message to continue', () {
-        final state = empty.messageAdded(
-          const UserMessage(id: 'u1', content: 'Hi'),
-        );
-
-        expect(state.chunkAppended(null, null, 'x'), state);
       });
 
       test('toolCallStarted adds the call to its parent message', () {

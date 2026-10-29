@@ -82,6 +82,11 @@ class const CopilotAgentState({
     for (final call in toolCalls) call.id: call,
   };
 
+  /// Whether any of the [toolCalls] is the call [toolCallId].
+  @internal
+  bool anyToolCall(String toolCallId) =>
+      toolCalls.any((view) => view.id == toolCallId);
+
   /// The tool calls held by the assistant [messages], in order.
   @internal
   List<ToolCall> get messageToolCalls => [
@@ -164,27 +169,6 @@ class const CopilotAgentState({
     );
   }
 
-  /// Returns this state with the text chunk [delta] from [role] appended.
-  ///
-  /// A chunk without [messageId] continues the last message, but only when
-  /// it has the chunk's role, so assistant text never lands in a user
-  /// message; otherwise it is dropped. A chunk without [role] is from the
-  /// assistant.
-  @internal
-  CopilotAgentState chunkAppended(
-    String? messageId,
-    ag_ui.TextMessageRole? role,
-    String delta,
-  ) {
-    final chunkRole = role ?? ag_ui.TextMessageRole.assistant;
-    final last = messages.lastOrNull;
-    final id =
-        messageId ??
-        (last != null && last.textRole == chunkRole ? last.id : null);
-    if (id == null) return this;
-    return textAppended(id, chunkRole, delta);
-  }
-
   /// Returns this state with the new tool call [toolCallId] to the tool
   /// [name], in progress and with no arguments yet.
   ///
@@ -197,7 +181,7 @@ class const CopilotAgentState({
     String name,
     String? parentMessageId,
   ) {
-    if (toolCalls.any((view) => view.id == toolCallId)) return this;
+    if (anyToolCall(toolCallId)) return this;
     final call = ToolCall(id: toolCallId, name: name, arguments: '');
     final parentIndex = parentMessageId == null
         ? -1

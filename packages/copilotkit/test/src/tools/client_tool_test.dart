@@ -70,6 +70,23 @@ void main() {
       });
     });
 
+    group('accepts', () {
+      final tool = HumanInTheLoopTool(
+        name: 'showWeather',
+        description: 'Show the weather for a city',
+        parameters: Ack.object({'city': Ack.string()}),
+        decode: Map<String, Object?>.of,
+      );
+
+      test('is true when the args match the parameters', () {
+        expect(tool.accepts({'city': 'Lima'}), isTrue);
+      });
+
+      test('is false when they do not', () {
+        expect(tool.accepts({'days': 3}), isFalse);
+      });
+    });
+
     group('tryDecode', () {
       HumanInTheLoopTool<_WeatherArgs> tool() => HumanInTheLoopTool(
         name: 'showWeather',

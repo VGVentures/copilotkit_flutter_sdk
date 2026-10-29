@@ -66,6 +66,10 @@ sealed class ClientTool<T> extends Equatable {
     HumanInTheLoopTool(:final followUp) => followUp,
   };
 
+  /// Whether [args] match [parameters].
+  @internal
+  bool accepts(Map<String, Object?> args) => parameters.safeParse(args) is Ok;
+
   /// Decodes [args] with [decode], or returns `null` when [decode] throws,
   /// e.g. for arguments that are still streaming in.
   T? tryDecode(Map<String, Object?> args) {
