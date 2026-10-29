@@ -4,6 +4,7 @@ import 'package:ack/ack.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:copilotkit/src/tools/client_tool.dart';
 import 'package:copilotkit/src/tools/models/fallback_tool_result.dart';
+import 'package:copilotkit/src/tools/models/invalid_tool_arguments.dart';
 import 'package:copilotkit/src/tools/models/tool_call_outcome.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:copilotkit/src/tools/tool_responses.dart';
@@ -12,16 +13,6 @@ import 'package:copilotkit/src/tools/tool_responses.dart';
 class const ToolCallExecutor() {
   /// Creates an executor.
   this;
-
-  /// The root of a JSON Pointer path, e.g. `#` or the `#/` in `#/city`.
-  static final _rootPointer = RegExp('^#/?');
-
-  /// Ack's prefix on constraint errors; the path already says what failed.
-  static const _constraintsPrefix = 'Constraints not met: ';
-
-  static const _invalidArgumentsSummary =
-      "The tool didn't run: its arguments don't match its parameters. "
-      'Fix them and call it again.';
 
   /// Whether the arguments of [call] match the parameters of [tool].
   bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
@@ -47,7 +38,7 @@ class const ToolCallExecutor() {
       case Ok(:final value):
         args = Map.unmodifiable(value ?? const <String, Object?>{});
       case Fail(:final error):
-        final result = _invalidArgumentsResult(error);
+        final result = InvalidToolArguments(error).message;
         developer.log(
           'Invalid arguments for tool "${call.name}":\n$result',
           name: 'copilotkit',
@@ -78,28 +69,5 @@ class const ToolCallExecutor() {
         stackTrace: stackTrace,
       );
     }
-  }
-
-  /// Lists one problem of [error] per line, by argument path.
-  String _invalidArgumentsResult(SchemaError error) => [
-    _invalidArgumentsSummary,
-    for (final problem in _problems(error)) '- ${_describe(problem)}',
-  ].join('\n');
-
-  /// The innermost errors under [error].
-  Iterable<SchemaError> _problems(SchemaError error) => switch (error) {
-    SchemaNestedError(:final errors) when errors.isNotEmpty => errors.expand(
-      _problems,
-    ),
-    _ => [error],
-  };
-
-  /// Describes [error] as `path: message`, e.g. `unit.step: Expected
-  /// integer, got string.`; root errors have no path.
-  String _describe(SchemaError error) {
-    final path = error.path.replaceFirst(_rootPointer, '').replaceAll('/', '.');
-    var message = error.message.replaceFirst(_constraintsPrefix, '');
-    if (!message.endsWith('.')) message = '$message.';
-    return path.isEmpty ? message : '$path: $message';
   }
 }

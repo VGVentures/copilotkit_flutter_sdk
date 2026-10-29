@@ -57,9 +57,7 @@ class const AgentEventMapper({
       ag_ui.ToolCallEndEvent(:final toolCallId) => _updateToolCall(
         state,
         toolCallId,
-        (view) => view.status == ToolCallStatus.inProgress
-            ? view.copyWith(status: ToolCallStatus.executing)
-            : view,
+        (view) => view.markedExecuting(),
       ),
       ag_ui.ToolCallChunkEvent() => _applyToolChunk(state, event),
       ag_ui.ToolCallResultEvent(
@@ -128,11 +126,7 @@ class const AgentEventMapper({
           args: Map.unmodifiable(_parser.parse(call.arguments)),
         );
     return switch (results[call.id]) {
-      final result? => view.copyWith(
-        status: ToolCallStatus.complete,
-        result: () => result,
-        awaitingResponse: false,
-      ),
+      final result? => view.completed(result),
       null => view,
     };
   }
@@ -295,28 +289,18 @@ class const AgentEventMapper({
         ],
       ),
       toolCallId,
-      (view) => view.copyWith(
-        status: ToolCallStatus.complete,
-        result: () => content,
-        awaitingResponse: false,
-      ),
+      (view) => view.completed(content),
     );
   }
 
   /// Calls streamed as chunks have no End event; once the run finishes their
   /// arguments are complete.
   CopilotAgentState _finishToolArgs(CopilotAgentState state) {
-    if (!state.toolCalls.any((v) => v.status == ToolCallStatus.inProgress)) {
+    if (!state.toolCalls.any((view) => view.isInProgress)) {
       return state;
     }
     return state.copyWith(
-      toolCalls: [
-        for (final view in state.toolCalls)
-          if (view.status == ToolCallStatus.inProgress)
-            view.copyWith(status: ToolCallStatus.executing)
-          else
-            view,
-      ],
+      toolCalls: [for (final view in state.toolCalls) view.markedExecuting()],
     );
   }
 

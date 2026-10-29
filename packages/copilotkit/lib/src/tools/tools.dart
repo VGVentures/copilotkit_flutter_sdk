@@ -1,6 +1,7 @@
 export 'cancellation_signal.dart';
 export 'client_tool.dart';
 export 'models/fallback_tool_result.dart';
+export 'models/invalid_tool_arguments.dart';
 export 'models/tool_call_outcome.dart';
 export 'models/tool_call_status.dart';
 export 'models/tool_call_view.dart';

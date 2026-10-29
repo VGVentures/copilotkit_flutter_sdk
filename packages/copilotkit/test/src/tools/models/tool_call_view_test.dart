@@ -55,6 +55,88 @@ void main() {
       expect(view, isNot(view.copyWith(awaitingResponse: true)));
     });
 
+    group('status getters', () {
+      ToolCallView view(ToolCallStatus status) =>
+          ToolCallView(id: 'call-1', name: 'showWeather', status: status);
+
+      test('say which status the call is in', () {
+        expect(view(ToolCallStatus.inProgress).isInProgress, isTrue);
+        expect(view(ToolCallStatus.inProgress).isExecuting, isFalse);
+        expect(view(ToolCallStatus.executing).isExecuting, isTrue);
+        expect(view(ToolCallStatus.executing).isComplete, isFalse);
+        expect(view(ToolCallStatus.complete).isComplete, isTrue);
+        expect(view(ToolCallStatus.complete).isInProgress, isFalse);
+      });
+    });
+
+    group('markedExecuting', () {
+      test('moves a call in progress to executing', () {
+        const view = ToolCallView(
+          id: 'call-1',
+          name: 'showWeather',
+          status: ToolCallStatus.inProgress,
+        );
+
+        expect(
+          view.markedExecuting(),
+          view.copyWith(status: ToolCallStatus.executing),
+        );
+      });
+
+      test('keeps a call past in progress', () {
+        const view = ToolCallView(
+          id: 'call-1',
+          name: 'showWeather',
+          status: ToolCallStatus.complete,
+        );
+
+        expect(view.markedExecuting(), view);
+      });
+    });
+
+    group('markedAwaiting', () {
+      test('marks an executing call as awaiting a response', () {
+        const view = ToolCallView(
+          id: 'call-1',
+          name: 'confirmAction',
+          status: ToolCallStatus.executing,
+        );
+
+        expect(view.markedAwaiting().awaitingResponse, isTrue);
+      });
+
+      test('keeps a call that is not executing', () {
+        const view = ToolCallView(
+          id: 'call-1',
+          name: 'confirmAction',
+          status: ToolCallStatus.inProgress,
+        );
+
+        expect(view.markedAwaiting(), view);
+      });
+    });
+
+    group('completed', () {
+      test('completes the call with its result and stops awaiting', () {
+        const view = ToolCallView(
+          id: 'call-1',
+          name: 'confirmAction',
+          status: ToolCallStatus.executing,
+          awaitingResponse: true,
+        );
+
+        expect(
+          view.completed('yes'),
+          const ToolCallView(
+            id: 'call-1',
+            name: 'confirmAction',
+            status: ToolCallStatus.complete,
+            result: 'yes',
+          ),
+        );
+      });
+    });
+
     group('copyWith', () {
       const view = ToolCallView(
         id: 'call-1',
