@@ -41,7 +41,7 @@ class _TodoPanelState extends State<TodoPanel> {
     return AgentStateBuilder<SharedState?>(
       selector: (state) => state.sharedState,
       builder: (context, shared) {
-        final list = _decode(shared);
+        final list = TodoList.fromShared(shared);
         return Card(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Padding(
@@ -115,15 +115,5 @@ class _TodoPanelState extends State<TodoPanel> {
         );
       },
     );
-  }
-
-  /// The list in [shared], or an empty one when there is none or the agent
-  /// wrote something that isn't a todo list.
-  static TodoList _decode(SharedState? shared) {
-    try {
-      return shared?.decode(TodoList.fromJson) ?? const TodoList();
-    } on Object {
-      return const TodoList();
-    }
   }
 }

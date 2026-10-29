@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
+import 'package:json_annotation/json_annotation.dart';
 
 /// Placeholder weather lookups: a fake, offline forecast per city.
 class const WeatherService({
@@ -32,5 +33,22 @@ class const WeatherService({
       condition: _conditions[seed % _conditions.length],
     );
     return jsonEncode(forecast);
+  }
+
+  /// Decodes the JSON-encoded [Forecast] that [lookUp] returned in [result],
+  /// or returns `null` when it isn't one, e.g. a cancellation or error
+  /// message.
+  Forecast? decode(String? result) {
+    if (result == null) return null;
+    try {
+      return switch (jsonDecode(result)) {
+        final Map<String, Object?> json => Forecast.fromJson(json),
+        _ => null,
+      };
+    } on FormatException {
+      return null;
+    } on CheckedFromJsonException {
+      return null;
+    }
   }
 }

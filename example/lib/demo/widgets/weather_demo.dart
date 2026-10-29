@@ -41,7 +41,11 @@ class const WeatherDemo({
             decode: WeatherArgs.fromJson,
             handler: _service.lookUp,
           ),
-          builder: (context, call, args) => WeatherCard(call: call, args: args),
+          builder: (context, call, args) => WeatherCard(
+            call: call,
+            args: args,
+            forecast: _service.decode(call.result),
+          ),
           child: child,
         ),
       ),

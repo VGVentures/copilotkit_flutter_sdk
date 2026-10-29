@@ -1,10 +1,7 @@
-import 'dart:convert';
-
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
 import 'package:flutter/material.dart';
-import 'package:json_annotation/json_annotation.dart';
 
 /// Placeholder generative UI for `showWeather` calls.
 class const WeatherCard({
@@ -13,6 +10,10 @@ class const WeatherCard({
 
   /// The arguments of [call], or `null` while they can't be decoded yet.
   final WeatherArgs? args,
+
+  /// The forecast in the result of [call], or `null` when the call has no
+  /// result yet or its result isn't a forecast.
+  final Forecast? forecast,
   super.key,
 }) extends StatelessWidget {
   @override
@@ -29,7 +30,7 @@ class const WeatherCard({
         ],
       ),
       ToolCallStatus.executing => Text('Checking ${city ?? 'the city'}…'),
-      ToolCallStatus.complete => _forecast(call.result, textTheme),
+      ToolCallStatus.complete => _forecast(textTheme),
     };
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -46,9 +47,9 @@ class const WeatherCard({
     );
   }
 
-  Widget _forecast(String? result, TextTheme textTheme) {
-    final forecast = _forecastFrom(result);
-    if (forecast == null) return Text(result ?? '');
+  Widget _forecast(TextTheme textTheme) {
+    final forecast = this.forecast;
+    if (forecast == null) return Text(call.result ?? '');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -56,21 +57,5 @@ class const WeatherCard({
         Text('${forecast.temperatureC}°C · ${forecast.condition}'),
       ],
     );
-  }
-
-  /// Decodes the JSON-encoded forecast in [result], or returns `null` when
-  /// it isn't one, e.g. a cancellation or error message.
-  Forecast? _forecastFrom(String? result) {
-    if (result == null) return null;
-    try {
-      return switch (jsonDecode(result)) {
-        final Map<String, Object?> json => Forecast.fromJson(json),
-        _ => null,
-      };
-    } on FormatException {
-      return null;
-    } on CheckedFromJsonException {
-      return null;
-    }
   }
 }
