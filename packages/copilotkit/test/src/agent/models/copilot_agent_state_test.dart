@@ -1,3 +1,4 @@
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
 import 'package:test/test.dart';
 
@@ -155,6 +156,187 @@ void main() {
 
         expect(copy.sharedState, isNull);
         expect(copy.error, isNull);
+      });
+    });
+
+    group('tool call getters', () {
+      const call = ToolCall(id: 'c1', name: 'showWeather', arguments: '{}');
+      const view = ToolCallView(
+        id: 'c1',
+        name: 'showWeather',
+        status: ToolCallStatus.complete,
+        result: 'sunny',
+      );
+      const state = CopilotAgentState(
+        agentId: 'a',
+        threadId: 't',
+        messages: [
+          AssistantMessage(id: 'm1', toolCalls: [call]),
+          ToolMessage(id: 'r1', content: 'sunny', toolCallId: 'c1'),
+        ],
+        toolCalls: [view],
+      );
+
+      test('toolCallsById maps each view by id', () {
+        expect(state.toolCallsById, {'c1': view});
+      });
+
+      test('messageToolCalls lists the calls held by messages', () {
+        expect(state.messageToolCalls, [call]);
+      });
+
+      test('toolResults maps each result by tool call id', () {
+        expect(state.toolResults, {'c1': 'sunny'});
+      });
+    });
+
+    group('transitions', () {
+      const empty = CopilotAgentState(agentId: 'a', threadId: 't');
+
+      test('messageAdded appends a message', () {
+        const message = UserMessage(id: 'u1', content: 'Hi');
+
+        expect(empty.messageAdded(message).messages, [message]);
+      });
+
+      test('textAppended creates the message, then grows it', () {
+        final state = empty
+            .textAppended('m1', ag_ui.TextMessageRole.assistant, 'Hel')
+            .textAppended('m1', ag_ui.TextMessageRole.assistant, 'lo');
+
+        expect(state.messages, [
+          const AssistantMessage(id: 'm1', content: 'Hello'),
+        ]);
+      });
+
+      test('chunkAppended continues the last message of the same role', () {
+        final state = empty
+            .chunkAppended('m1', null, 'Hel')
+            .chunkAppended(null, null, 'lo');
+
+        expect(state.messages, [
+          const AssistantMessage(id: 'm1', content: 'Hello'),
+        ]);
+      });
+
+      test('chunkAppended drops a chunk with no message to continue', () {
+        final state = empty.messageAdded(
+          const UserMessage(id: 'u1', content: 'Hi'),
+        );
+
+        expect(state.chunkAppended(null, null, 'x'), state);
+      });
+
+      test('toolCallStarted adds the call to its parent message', () {
+        final state = empty
+            .messageAdded(const AssistantMessage(id: 'm1', content: 'Sure'))
+            .toolCallStarted('c1', 'showWeather', 'm1');
+
+        expect(state.messages, [
+          const AssistantMessage(
+            id: 'm1',
+            content: 'Sure',
+            toolCalls: [ToolCall(id: 'c1', name: 'showWeather', arguments: '')],
+          ),
+        ]);
+        expect(state.toolCalls, [
+          const ToolCallView(
+            id: 'c1',
+            name: 'showWeather',
+            status: ToolCallStatus.inProgress,
+          ),
+        ]);
+      });
+
+      test('toolCallStarted drops a repeated id', () {
+        final state = empty.toolCallStarted('c1', 'showWeather', null);
+
+        expect(state.toolCallStarted('c1', 'other', null), state);
+      });
+
+      test('toolArgumentsReplaced sets the raw and parsed arguments', () {
+        final state = empty
+            .toolCallStarted('c1', 'showWeather', null)
+            .toolArgumentsReplaced('c1', '{"city": "Lima"}', const {
+              'city': 'Lima',
+            });
+
+        expect(state.messageToolCalls.single.arguments, '{"city": "Lima"}');
+        expect(state.toolCalls.single.args, const {'city': 'Lima'});
+      });
+
+      test('toolArgumentsReplaced ignores an unknown call', () {
+        expect(empty.toolArgumentsReplaced('c1', '{}', const {}), empty);
+      });
+
+      test('toolCallCompleted adds the result once', () {
+        final state = empty
+            .toolCallStarted('c1', 'showWeather', null)
+            .toolCallCompleted('r1', 'c1', 'sunny');
+
+        expect(state.toolResults, {'c1': 'sunny'});
+        expect(state.toolCalls.single.isComplete, isTrue);
+        expect(state.toolCallCompleted('r1', 'c1', 'sunny'), state);
+      });
+
+      test('toolCallsMarkedExecuting moves calls in progress on', () {
+        final state = empty.toolCallStarted('c1', 'showWeather', null);
+
+        expect(
+          state.toolCallsMarkedExecuting().toolCalls.single.isExecuting,
+          isTrue,
+        );
+        expect(empty.toolCallsMarkedExecuting(), empty);
+      });
+
+      test('toolCallUpdated keeps the state when nothing changes', () {
+        final state = empty.toolCallStarted('c1', 'showWeather', null);
+
+        expect(state.toolCallUpdated('c1', (view) => view), state);
+        expect(
+          state.toolCallUpdated('c2', (view) => view.completed('')),
+          state,
+        );
+      });
+
+      test('messagesReplaced rebuilds the tool calls from the messages', () {
+        final state = empty.messagesReplaced(const [
+          AssistantMessage(
+            id: 'm1',
+            toolCalls: [
+              ToolCall(id: 'c1', name: 'a', arguments: '{"x": 1}'),
+              ToolCall(id: 'c2', name: 'b', arguments: ''),
+            ],
+          ),
+          ToolMessage(id: 'r1', content: 'done', toolCallId: 'c1'),
+        ], argsOf: (call) => {'raw': call.arguments});
+
+        expect(state.toolCalls, const [
+          ToolCallView(
+            id: 'c1',
+            name: 'a',
+            status: ToolCallStatus.complete,
+            args: {'raw': '{"x": 1}'},
+            result: 'done',
+          ),
+          ToolCallView(
+            id: 'c2',
+            name: 'b',
+            status: ToolCallStatus.executing,
+            args: {'raw': ''},
+          ),
+        ]);
+      });
+
+      test('sharedStateReplaced sets an unmodifiable state, or clears it', () {
+        final state = empty.sharedStateReplaced({'a': 1});
+
+        expect(state.sharedState, const SharedState({'a': 1}));
+        expect(
+          () => state.sharedState!.toJson()['b'] = 2,
+          throwsUnsupportedError,
+        );
+        expect(state.sharedStateReplaced(null).sharedState, isNull);
       });
     });
   });
