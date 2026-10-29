@@ -38,7 +38,7 @@ void main() {
         return 'sunny';
       });
 
-      final outcome = await executor.execute(
+      final outcome = await executor(
         tool,
         callWith({'city': 'Lima', 'days': 3}),
         signal,
@@ -60,7 +60,7 @@ void main() {
         handler: (_, {required signal}) async => 'sunny',
       );
 
-      await executor.execute(
+      await executor(
         tool,
         callWith({'city': 'Lima'}),
         signal,
@@ -74,7 +74,7 @@ void main() {
       final error = StateError('boom');
       final tool = weatherTool((_, {required signal}) => throw error);
 
-      final outcome = await executor.execute(
+      final outcome = await executor(
         tool,
         callWith({'city': 'Lima'}),
         signal,
@@ -95,7 +95,7 @@ void main() {
         handler: (_, {required signal}) async => 'never',
       );
 
-      final outcome = await executor.execute(
+      final outcome = await executor(
         tool,
         callWith({'city': 'Lima'}),
         signal,
@@ -123,19 +123,14 @@ void main() {
       test('waits for the answer', () async {
         final responses = ToolResponses();
 
-        final outcome = executor.execute(
-          approval,
-          call,
-          signal,
-          responses: responses,
-        );
+        final outcome = executor(approval, call, signal, responses: responses);
         responses.respond('c1', 'approved');
 
         expect(await outcome, const ToolCallOutcome(result: 'approved'));
       });
 
       test('answers invalid args without waiting', () async {
-        final outcome = await executor.execute(
+        final outcome = await executor(
           approval,
           callWith({'city': 'Lima'}),
           signal,
@@ -171,7 +166,7 @@ void main() {
       });
 
       Future<ToolCallOutcome> outcomeFor(Map<String, Object?> args) => executor
-          .execute(tool, callWith(args), signal, responses: ToolResponses());
+          .call(tool, callWith(args), signal, responses: ToolResponses());
 
       test('lists each problem by argument path, without running', () async {
         final outcome = await outcomeFor({'days': '3', 'extra': true});

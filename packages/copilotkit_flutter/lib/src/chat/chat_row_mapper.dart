@@ -11,7 +11,7 @@ class const ChatRowMapper() {
   /// User and assistant messages with text become [ChatMessageRow]s; each
   /// tool call on an assistant message follows it as a [ChatToolCallRow].
   /// Tool results, system, developer and unsupported messages are not shown.
-  List<ChatRow> rowsFor(CopilotAgentState agentState) {
+  List<ChatRow> call(CopilotAgentState agentState) {
     final calls = {for (final call in agentState.toolCalls) call.id: call};
     return [
       for (final message in agentState.messages) ..._rowsFor(message, calls),

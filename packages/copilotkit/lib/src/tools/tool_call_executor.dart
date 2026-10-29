@@ -36,7 +36,7 @@ class const ToolCallExecutor() {
   /// they are logged rather than reported, since the agent is at fault. A
   /// decoder or handler that throws gives a generic result and the error,
   /// since the app is at fault. Never throws.
-  Future<ToolCallOutcome> execute(
+  Future<ToolCallOutcome> call(
     ClientTool<Object?> tool,
     ToolCallView call,
     CancellationSignal signal, {

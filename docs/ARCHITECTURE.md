@@ -146,6 +146,11 @@ declarations. There are no extensions and no static helpers.
 - A function used by one class becomes a private method on it.
 - A function reused across files becomes a method of a class that is injected
   where it's needed.
+- An SDK class named after the one thing it does, like an executor, a
+  builder or a mapper, exposes that thing as `call`, so it is used as a
+  function: `executor(tool, call, signal, responses: responses)`. A
+  general-purpose library like `json_utils` keeps the verbs of its domain
+  instead: a parser parses, and a JSON Patch is applied.
 - A constant becomes a static field, or an enum when it is one of a set.
 - The only static methods are `of` / `maybeOf` lookups on inherited widgets.
 
