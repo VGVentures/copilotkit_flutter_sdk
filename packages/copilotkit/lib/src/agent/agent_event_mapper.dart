@@ -48,7 +48,7 @@ class const AgentEventMapper({
       ) =>
         state.toolCallStarted(toolCallId, toolCallName, parentMessageId),
       ag_ui.ToolCallArgsEvent(:final toolCallId, :final delta) =>
-        _appendToolArgs(state, toolCallId, delta),
+        state.toolArgumentsAppended(toolCallId, delta, parse: _parser.parse),
       ag_ui.ToolCallEndEvent(:final toolCallId) => state.toolCallUpdated(
         toolCallId,
         (view) => view.markedExecuting(),
@@ -82,29 +82,7 @@ class const AgentEventMapper({
   CopilotAgentState replaceMessages(
     CopilotAgentState state,
     List<Message> messages,
-  ) => state.messagesReplaced(
-    messages,
-    argsOf: (call) => Map.unmodifiable(_parser.parse(call.arguments)),
-  );
-
-  /// Appends [delta] to the raw arguments of the tool call [toolCallId] and
-  /// parses them for its view.
-  CopilotAgentState _appendToolArgs(
-    CopilotAgentState state,
-    String toolCallId,
-    String delta,
-  ) {
-    final call = state.messageToolCalls
-        .where((call) => call.id == toolCallId)
-        .lastOrNull;
-    if (call == null) return state;
-    final arguments = call.arguments + delta;
-    return state.toolArgumentsReplaced(
-      toolCallId,
-      arguments,
-      Map.unmodifiable(_parser.parse(arguments)),
-    );
-  }
+  ) => state.messagesReplaced(messages, parse: _parser.parse);
 
   /// Applies a tool call chunk: it starts the call when it is new, then
   /// appends its arguments. A chunk without an id continues the last call.
@@ -121,7 +99,9 @@ class const AgentEventMapper({
       next = next.toolCallStarted(id, name, event.parentMessageId);
     }
     final delta = event.delta;
-    return delta == null ? next : _appendToolArgs(next, id, delta);
+    return delta == null
+        ? next
+        : next.toolArgumentsAppended(id, delta, parse: _parser.parse);
   }
 
   /// Patches the shared state with the delta of [event].

@@ -65,7 +65,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= tool.followsUp;
+      followUp |= tool.hasFollowUp;
     }
     return followUp;
   }

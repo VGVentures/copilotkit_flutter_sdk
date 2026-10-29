@@ -41,7 +41,7 @@ void main() {
       );
     });
 
-    group('followsUp', () {
+    group('hasFollowUp', () {
       test('is always true for a frontend tool', () {
         final tool = FrontendTool(
           name: 'a',
@@ -51,7 +51,7 @@ void main() {
           handler: (_, {required signal}) async => '',
         );
 
-        expect(tool.followsUp, isTrue);
+        expect(tool.hasFollowUp, isTrue);
       });
 
       test('follows followUp for a human-in-the-loop tool', () {
@@ -65,8 +65,8 @@ void main() {
           followUp: followUp,
         );
 
-        expect(tool(followUp: true).followsUp, isTrue);
-        expect(tool(followUp: false).followsUp, isFalse);
+        expect(tool(followUp: true).hasFollowUp, isTrue);
+        expect(tool(followUp: false).hasFollowUp, isFalse);
       });
     });
 

@@ -153,6 +153,11 @@ declarations. There are no extensions and no static helpers.
 - Logic that needs an injected collaborator, like parsing or patching JSON,
   stays in the logic class that holds it, and that class passes the result
   to the model.
+- When a model needs a collaborator's operation for each item, it takes the
+  operation as a function parameter, and the logic class passes the
+  collaborator's method as a tear-off: `parse: _parser.parse`. There is no
+  private method in between that only adapts the operation to the model's
+  types, like `_argsOf(ToolCall call)`: the model does that adapting itself.
 - A function reused across files becomes a method of a class that is injected
   where it's needed.
 - An SDK class named after the one thing it does, like an executor, a
@@ -169,6 +174,7 @@ const _cancelledResult = 'Tool call cancelled.';
 String _randomId() => ...;
 extension RunAgentInputX on RunAgentInput { ... }
 static Map<String, Object?> apply(Map<String, Object?> document, ...) => ...;
+Map<String, Object?> _argsOf(ToolCall call) => _parser.parse(call.arguments);
 
 // Good
 enum FallbackToolResult {
@@ -187,6 +193,8 @@ class const JsonPatcher() {
     List<Map<String, Object?>> operations,
   ) => ...;
 }
+
+state.messagesReplaced(messages, parse: _parser.parse);
 ```
 
 ## State holders
@@ -339,7 +347,7 @@ app needs is public, since `@internal` doesn't cross packages.
 ToolCallView _viewOf(ToolCall call, ToolCallView? known, ...) => ...;
 
 // Good: the state rebuilds its own tool calls
-state.messagesReplaced(messages, argsOf: (call) => _parser.parse(call.arguments));
+state.messagesReplaced(messages, parse: _parser.parse);
 ```
 
 ### Nullable fields in `copyWith`

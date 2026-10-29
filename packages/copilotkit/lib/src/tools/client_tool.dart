@@ -61,7 +61,7 @@ sealed class ClientTool<T> extends Equatable {
   /// always for a [FrontendTool], and as [HumanInTheLoopTool.followUp] says
   /// for a human-in-the-loop tool.
   @internal
-  bool get followsUp => switch (this) {
+  bool get hasFollowUp => switch (this) {
     FrontendTool() => true,
     HumanInTheLoopTool(:final followUp) => followUp,
   };
