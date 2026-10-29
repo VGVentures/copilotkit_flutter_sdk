@@ -26,6 +26,9 @@ class const CopilotAgentState({
 
   /// Conversation messages, oldest first. The last assistant message grows
   /// while text streams in.
+  ///
+  /// Unmodifiable in every state the SDK produces; a list passed to this
+  /// constructor is kept as it is.
   final List<Message> messages = const [],
 
   /// State the agent shares with the app, or `null` if neither the agent nor
@@ -49,6 +52,9 @@ class const CopilotAgentState({
   final bool isRunning = false,
 
   /// Tool calls made by the agent, in call order.
+  ///
+  /// Unmodifiable in every state the SDK produces; a list passed to this
+  /// constructor is kept as it is.
   final List<ToolCallView> toolCalls = const [],
 
   /// Error that ended the most recent run, or `null`. Cleared when a new run
@@ -320,6 +326,10 @@ class const CopilotAgentState({
 
   /// Returns a copy with the given fields replaced.
   ///
+  /// The lists passed as [messages] and [toolCalls] are copied into
+  /// unmodifiable lists, so a state the SDK produces can't be changed in
+  /// place.
+  ///
   /// [sharedState] and [error] are getters so a caller can set a value
   /// (`error: () => e`), clear it (`error: () => null`) or leave it alone by
   /// not passing it.
@@ -333,10 +343,12 @@ class const CopilotAgentState({
     return CopilotAgentState(
       agentId: agentId,
       threadId: threadId,
-      messages: messages ?? this.messages,
+      messages: messages == null ? this.messages : List.unmodifiable(messages),
       sharedState: sharedState == null ? this.sharedState : sharedState(),
       isRunning: isRunning ?? this.isRunning,
-      toolCalls: toolCalls ?? this.toolCalls,
+      toolCalls: toolCalls == null
+          ? this.toolCalls
+          : List.unmodifiable(toolCalls),
       error: error == null ? this.error : error(),
     );
   }
