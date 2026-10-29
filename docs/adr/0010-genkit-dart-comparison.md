@@ -180,22 +180,21 @@ change.
    `copilotkit` and `copilotkit_flutter` when their files change, fails on
    any warning, and the warnings it finds today are fixed in the same pull
    request.
-3. **A4. Automated release workflows, with publishing off.** release-please
+3. **A4. Automated releases, with publishing off.** release-please
    opens one release pull request per package from Conventional Commits on
    `main`. Merging it bumps that package's version, writes its
    `CHANGELOG.md`, and tags the release; a maintainer merging it is the
    approval. Each package keeps its own version, and a semver policy goes
    in CONTRIBUTING: while a package is at 0.x, a minor release may break
-   the API. A publish workflow runs on each tag, but its publish step runs
-   only once publishing is turned on, so the packages stay
-   `publish_to: none`. Turning it on is a separate pull request: it
-   publishes `json_utils` first, because `copilotkit` depends on it, and
-   replaces the `dart pub add copilotkit` and
-   `dart pub add copilotkit_flutter` lines and the Mason badge in the
-   package READMEs; the `ack` install steps stay.
+   the API. Nothing is published: the packages stay `publish_to: none`.
+   Turning publishing on is a separate pull request: it adds a workflow
+   that publishes each tag to pub.dev, publishes `json_utils` first,
+   because `copilotkit` depends on it, and replaces the
+   `dart pub add copilotkit` and `dart pub add copilotkit_flutter` lines
+   and the Mason badge in the package READMEs; the `ack` install steps
+   stay.
    _Done when_ a merged release pull request tags its package without
-   manual edits to versions or changelogs, and a tag run of the publish
-   workflow ends without publishing.
+   manual edits to versions or changelogs.
 
 ### Evaluate
 
