@@ -4,7 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart' show BaseEvent;
-import 'package:copilotkit/src/agent/agent_event_reducer.dart';
+import 'package:copilotkit/src/agent/agent_event_mapper.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/agent/models/state_patch_operation.dart';
@@ -25,14 +25,14 @@ import 'package:uuid/uuid.dart';
 class CopilotAgent({
   required String agentId,
   String? threadId,
-  final AgentEventReducer _reducer = const AgentEventReducer(),
+  final AgentEventMapper _mapper = const AgentEventMapper(),
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
   /// Creates the agent [agentId].
   ///
   /// Internal: only [CopilotKitClient.agent] creates agents, so the client
   /// tracks every agent it runs. A random [threadId] is generated when none
-  /// is given. The reducer applies AG-UI events to the state, and the
+  /// is given. The mapper applies AG-UI events to the state, and the
   /// patcher applies the app's edits to the shared state.
   @internal
   this;
@@ -72,7 +72,7 @@ class CopilotAgent({
   /// dropped. Allowed while the agent is running; the events that stream in
   /// afterwards apply on top of [messages].
   void setMessages(List<Message> messages) =>
-      _update(_reducer.replaceMessages(_state, messages));
+      _update(_mapper.replaceMessages(_state, messages));
 
   /// Replaces the shared state with [state], or clears it with `null`.
   ///
@@ -110,7 +110,7 @@ class CopilotAgent({
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool
   /// result).
   @internal
-  void apply(BaseEvent event) => _update(_reducer.reduce(_state, event));
+  void apply(BaseEvent event) => _update(_mapper(_state, event));
 
   /// Marks the executing tool call [toolCallId] as waiting for the user's
   /// answer ([ToolCallView.awaitingResponse]), until it gets its result.

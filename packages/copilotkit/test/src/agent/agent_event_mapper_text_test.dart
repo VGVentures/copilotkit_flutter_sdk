@@ -1,5 +1,5 @@
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
-import 'package:copilotkit/src/agent/agent_event_reducer.dart';
+import 'package:copilotkit/src/agent/agent_event_mapper.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
@@ -11,28 +11,28 @@ import '../../helpers/fixtures.dart';
 import '../../helpers/messages.dart';
 
 void main() {
-  group('$AgentEventReducer reduces', () {
+  group('$AgentEventMapper maps', () {
     group('lifecycle', () {
       const user = UserMessage(id: 'u1', content: 'Hi');
 
       // The client owns isRunning for the whole turn (runs plus tool
       // handlers), so lifecycle events never toggle it.
       test('RunStarted clears the previous error, not isRunning', () {
-        final result = reduce([
+        final result = mapEvents([
           ag_ui.RunStartedEvent(threadId: 't', runId: 'r'),
         ], from: agentState.copyWith(isRunning: true, error: () => 'boom'));
         expect(result.states, [agentState.copyWith(isRunning: true)]);
       });
 
       test('RunFinished leaves isRunning to the client', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.RunFinishedEvent(threadId: 't', runId: 'r'),
         ], from: agentState.copyWith(isRunning: true));
         expect(result.states, const <CopilotAgentState>[]);
       });
 
       test('RunError keeps the error and leaves isRunning', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.RunErrorEvent(message: 'Bad key', code: 'AUTH'),
         ], from: agentState.copyWith(isRunning: true));
         expect(result.states, [
@@ -44,7 +44,7 @@ void main() {
       });
 
       test('steps leave the state unchanged', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.StepStartedEvent(stepName: 's'),
           ag_ui.StepFinishedEvent(stepName: 's'),
         ], from: agentState.copyWith(isRunning: true));
@@ -52,7 +52,7 @@ void main() {
       });
 
       test('keeps messages and state across the run', () {
-        final result = reduce(
+        final result = mapEvents(
           [
             ag_ui.RunStartedEvent(threadId: 't', runId: 'r'),
             const ag_ui.RunFinishedEvent(threadId: 't', runId: 'r'),
@@ -74,7 +74,7 @@ void main() {
 
     group('text messages', () {
       test('Start appends an empty message with the given role', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageStartEvent(messageId: 'm1'),
         ]);
         expect(result.states, [
@@ -89,7 +89,7 @@ void main() {
       });
 
       test('Content grows the message text on every delta', () {
-        final result = reduce([
+        final result = mapEvents([
           const ag_ui.TextMessageStartEvent(messageId: 'm1'),
           for (final delta in ['Hel', 'lo', ' there'])
             ag_ui.TextMessageContentEvent(messageId: 'm1', delta: delta),
@@ -109,14 +109,14 @@ void main() {
       );
 
       test('Content does not mutate earlier states', () {
-        reduce(const [
+        mapEvents(const [
           ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hi'),
         ], from: started);
         expect(textOf(started.messages.single), '');
       });
 
       test('Content appends to the right message by id', () {
-        final result = reduce(
+        final result = mapEvents(
           const [
             ag_ui.TextMessageStartEvent(messageId: 'm1'),
             ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'First'),
@@ -132,7 +132,7 @@ void main() {
       });
 
       test('Content without a Start creates an assistant message', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hi'),
         ]);
         expect(result.states, [
@@ -145,14 +145,14 @@ void main() {
       });
 
       test('End leaves the state unchanged', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageEndEvent(messageId: 'm1'),
         ], from: started);
         expect(result.states, const <CopilotAgentState>[]);
       });
 
       test('Start keeps non-assistant roles', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageStartEvent(
             messageId: 'u',
             role: ag_ui.TextMessageRole.user,
@@ -177,7 +177,7 @@ void main() {
       });
 
       test('Content aimed at a non-text message leaves it unchanged', () {
-        final result = reduce(
+        final result = mapEvents(
           const [ag_ui.TextMessageContentEvent(messageId: 'x', delta: 'Hi')],
           from: agentState.copyWith(
             messages: const [
@@ -192,7 +192,7 @@ void main() {
       });
 
       test('Content keeps the name of the message', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageStartEvent(messageId: 'm1', name: 'helper'),
           ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hi'),
         ]);
@@ -205,7 +205,7 @@ void main() {
 
     group('text message chunks', () {
       test('first chunk creates the message, later chunks grow it', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageChunkEvent(messageId: 'm1', delta: 'Hel'),
           ag_ui.TextMessageChunkEvent(delta: 'lo'),
           ag_ui.TextMessageChunkEvent(messageId: 'm1', delta: '!'),
@@ -219,7 +219,7 @@ void main() {
       });
 
       test('a chunk with a new id starts a new message', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageChunkEvent(messageId: 'm1', delta: 'One'),
           ag_ui.TextMessageChunkEvent(
             messageId: 'm2',
@@ -234,7 +234,7 @@ void main() {
       });
 
       test('a chunk without delta still creates the message', () {
-        final result = reduce(const [
+        final result = mapEvents(const [
           ag_ui.TextMessageChunkEvent(messageId: 'm1'),
         ]);
         expect(result.states, [
@@ -247,7 +247,7 @@ void main() {
       });
 
       test('a chunk without id never grows a message of another role', () {
-        final result = reduce(
+        final result = mapEvents(
           const [ag_ui.TextMessageChunkEvent(delta: 'x')],
           from: agentState.copyWith(
             messages: [const UserMessage(id: 'u1', content: 'Hi')],
@@ -258,7 +258,7 @@ void main() {
 
       for (final role in ag_ui.TextMessageRole.values) {
         test('a chunk without id grows the last ${role.name} message', () {
-          final result = reduce([
+          final result = mapEvents([
             ag_ui.TextMessageChunkEvent(
               messageId: 'm1',
               role: role,
@@ -271,13 +271,15 @@ void main() {
       }
 
       test('a chunk without id or prior message is ignored', () {
-        final result = reduce(const [ag_ui.TextMessageChunkEvent(delta: 'x')]);
+        final result = mapEvents(const [
+          ag_ui.TextMessageChunkEvent(delta: 'x'),
+        ]);
         expect(result.states, const <CopilotAgentState>[]);
       });
     });
 
     test('unknown events leave the state unchanged', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         ag_ui.CustomEvent(name: 'progress', value: 1),
       ], from: agentState.copyWith(isRunning: true));
       expect(result.states, const <CopilotAgentState>[]);
@@ -285,7 +287,7 @@ void main() {
 
     group('recorded fixtures', () {
       test('text_stream builds one assistant message', () {
-        final result = reduce(loadFixture('text_stream').events);
+        final result = mapEvents(loadFixture('text_stream').events);
         expect(
           result.state.messages.single,
           isA<AssistantMessage>().having(
@@ -298,7 +300,7 @@ void main() {
       });
 
       test('run_error keeps the runtime error', () {
-        final result = reduce(loadFixture('run_error').events);
+        final result = mapEvents(loadFixture('run_error').events);
         expect(result.state.messages, isEmpty);
         expect(
           result.state.error,
@@ -311,7 +313,7 @@ void main() {
       });
 
       test('dropped_connection keeps the partial reply', () {
-        final result = reduce(loadFixture('dropped_connection').events);
+        final result = mapEvents(loadFixture('dropped_connection').events);
         expect(textOf(result.state.messages.single), 'Hello! Wonderful to');
         expect(result.state.error, isNull);
       });
