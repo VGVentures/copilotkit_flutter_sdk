@@ -125,11 +125,13 @@ Run them from the repository root before you push:
    fvm dart run build_runner build
    ```
 
-6. If you changed doc comments, generate the docs of each package you
-   touched into a temporary folder and fix every warning:
+6. If you changed doc comments or a package README, generate the docs of
+   each package you touched into a temporary folder and fix every warning.
+   `dart doc` exits successfully even with warnings, but CI fails unless it
+   reports `Found 0 warnings and 0 errors`:
 
    ```sh
-   fvm dart doc -o "$(mktemp -d)"
+   fvm dart doc --validate-links -o "$(mktemp -d)"
    ```
 
 7. If you changed a package's public API, regenerate its `api.txt` in the
