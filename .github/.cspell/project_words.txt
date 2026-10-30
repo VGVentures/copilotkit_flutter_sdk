@@ -20,3 +20,6 @@ workstreams
 worktree
 jsonrepair
 mktemp
+dartdoc
+genkit
+schemantic
