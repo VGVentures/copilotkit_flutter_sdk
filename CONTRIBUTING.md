@@ -233,6 +233,62 @@ refactor(copilotkit)!: replace RunErrorEvent with a core RunError
 
 Put the same `!` in the pull request title.
 
+## Releases
+
+Each package (`json_utils`, `copilotkit` and `copilotkit_flutter`) has its
+own version, changelog and tags.
+[release-please](https://github.com/googleapis/release-please) reads the
+Conventional Commits merged to `main` and keeps one release pull request
+open per package that has releasable changes. Nobody edits versions or
+changelogs by hand.
+
+- **A release pull request** bumps the package's version in its
+  `pubspec.yaml` and adds the new entries to its `CHANGELOG.md`. It
+  updates itself as more commits land on `main`.
+- **Merging it is the approval.** A maintainer reviews the version and the
+  changelog and merges it. release-please then tags the merge commit as
+  `<package>-v<version>`, for example `json_utils-v0.1.1`, and creates a
+  GitHub release. release-please never merges its own pull requests.
+- **Publishing is off.** The packages are `publish_to: none`, and nothing
+  is published to pub.dev yet.
+
+### Versions
+
+While a package is at 0.x, a minor release may break its API:
+
+- A commit with `!` (see [Breaking changes](#breaking-changes)) bumps the
+  minor version: `0.1.3` becomes `0.2.0`.
+- `feat`, `fix` and `perf` commits bump the patch version: `0.1.0`
+  becomes `0.1.1`.
+- Other types (`docs`, `refactor`, `test`, `chore`, …) don't start a
+  release on their own.
+
+A commit belongs to each package whose folder it changes, so give it the
+scope of that package.
+
+`copilotkit` depends on `json_utils: ^0.1.0`, and `copilotkit_flutter` on
+`copilotkit: ^0.1.0`. A patch release keeps those constraints valid. After
+a breaking release, for example `json_utils` 0.2.0, `pub get` fails in CI
+on the release pull request. Raise the dependent's constraint
+(`json_utils: ^0.2.0` in `copilotkit`) in a commit on that pull request.
+Give the commit the dependent's scope so it queues a release of the
+dependent too.
+
+### The release token
+
+Tags and pull requests created with the default `GITHUB_TOKEN` don't
+start other workflows, so CI wouldn't run on release pull requests. The
+`release` workflow uses the `RELEASE_PLEASE_TOKEN` secret instead. Until
+the secret is set, the workflow skips release-please and leaves a warning
+on the run. The secret is a fine-grained personal access token that a
+maintainer creates:
+
+- **Repository access:** only this repository.
+- **Permissions:** read and write on contents, pull requests and issues
+  (for the release labels).
+- **Expiration:** at most a year. Before it expires, create a new token
+  and replace the secret.
+
 ## Need help?
 
 Open an [issue](https://github.com/VGVentures/copilotkit_flutter_sdk/issues)

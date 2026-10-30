@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "dart",
+  "include-component-in-tag": true,
+  "separate-pull-requests": true,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "bootstrap-sha": "fce93269e960c0d5dee8289f426dc57946c0e451",
+  "pull-request-title-pattern": "chore(${component}): release ${version}",
+  "component-no-space": true,
+  "packages": {
+    "packages/json_utils": {
+      "component": "json_utils"
+    },
+    "packages/copilotkit": {
+      "component": "copilotkit"
+    },
+    "packages/copilotkit_flutter": {
+      "component": "copilotkit_flutter"
+    }
+  }
+}
