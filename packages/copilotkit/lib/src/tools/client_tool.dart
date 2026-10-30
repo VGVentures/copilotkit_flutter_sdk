@@ -61,10 +61,14 @@ sealed class ClientTool<T> extends Equatable {
   /// always for a [FrontendTool], and as [HumanInTheLoopTool.followUp] says
   /// for a human-in-the-loop tool.
   @internal
-  bool get followsUp => switch (this) {
+  bool get hasFollowUp => switch (this) {
     FrontendTool() => true,
     HumanInTheLoopTool(:final followUp) => followUp,
   };
+
+  /// Whether [args] match [parameters].
+  @internal
+  bool accepts(Map<String, Object?> args) => parameters.safeParse(args) is Ok;
 
   /// Decodes [args] with [decode], or returns `null` when [decode] throws,
   /// e.g. for arguments that are still streaming in.

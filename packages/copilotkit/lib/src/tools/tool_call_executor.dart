@@ -14,12 +14,8 @@ class const ToolCallExecutor() {
   /// Creates an executor.
   this;
 
-  /// Whether the arguments of [call] match the parameters of [tool].
-  bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
-      tool.parameters.safeParse(call.args) is Ok;
-
-  /// Produces the result of [call] for [tool] within the turn [signal]
-  /// belongs to: runs the handler of a [FrontendTool], or waits in
+  /// Produces the result of the tool call [view] for [tool] within the turn
+  /// [signal] belongs to: runs the handler of a [FrontendTool], or waits in
   /// [responses] for the user to answer a [HumanInTheLoopTool].
   ///
   /// Arguments that don't match [ClientTool.parameters] never reach the
@@ -29,18 +25,18 @@ class const ToolCallExecutor() {
   /// since the app is at fault. Never throws.
   Future<ToolCallOutcome> call(
     ClientTool<Object?> tool,
-    ToolCallView call,
+    ToolCallView view,
     CancellationSignal signal, {
     required ToolResponses responses,
   }) async {
     final Map<String, Object?> args;
-    switch (tool.parameters.safeParse(call.args)) {
+    switch (tool.parameters.safeParse(view.args)) {
       case Ok(:final value):
         args = Map.unmodifiable(value ?? const <String, Object?>{});
       case Fail(:final error):
         final result = InvalidToolArguments(error).message;
         developer.log(
-          'Invalid arguments for tool "${call.name}":\n$result',
+          'Invalid arguments for tool "${view.name}":\n$result',
           name: 'copilotkit',
           level: 900, // WARNING
           error: error,
@@ -50,7 +46,7 @@ class const ToolCallExecutor() {
     return switch (tool) {
       FrontendTool() => await _run(tool, args, signal),
       HumanInTheLoopTool() => ToolCallOutcome(
-        result: await responses.wait(call.id, signal),
+        result: await responses.wait(view.id, signal),
       ),
     };
   }

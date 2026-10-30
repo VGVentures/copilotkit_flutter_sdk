@@ -65,7 +65,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= tool.followsUp;
+      followUp |= tool.hasFollowUp;
     }
     return followUp;
   }
@@ -144,7 +144,7 @@ class ToolCallRunner({
     List<(ToolCallView, ClientTool<Object?>)> pending,
   ) {
     for (final (call, tool) in pending) {
-      if (tool is HumanInTheLoopTool && _executor.accepts(tool, call)) {
+      if (tool is HumanInTheLoopTool && tool.accepts(call.args)) {
         agent.awaitResponse(call.id);
       }
     }
@@ -159,11 +159,12 @@ class ToolCallRunner({
   ) =>
       !_responses.isAnswered(toolCallId) &&
       agents.any(
-        (agent) => switch (agent.state.toolCallsById[toolCallId]) {
-          final call? =>
-            call.isExecuting && _tools[call.name] is HumanInTheLoopTool,
-          null => false,
-        },
+        (agent) => agent.state.toolCalls.any(
+          (call) =>
+              call.id == toolCallId &&
+              call.isExecuting &&
+              _tools[call.name] is HumanInTheLoopTool,
+        ),
       );
 
   /// A closed agent ignores the result.

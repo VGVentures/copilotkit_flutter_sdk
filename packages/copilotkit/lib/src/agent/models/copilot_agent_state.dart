@@ -82,7 +82,13 @@ class const CopilotAgentState({
     for (final call in toolCalls) call.id: call,
   };
 
+  /// Whether any of the [toolCalls] is the call [toolCallId].
+  @internal
+  bool anyToolCall(String toolCallId) =>
+      toolCalls.any((view) => view.id == toolCallId);
+
   /// The tool calls held by the assistant [messages], in order.
+  @internal
   List<ToolCall> get messageToolCalls => [
     for (final message in messages.whereType<AssistantMessage>())
       ...message.toolCalls,
@@ -90,6 +96,7 @@ class const CopilotAgentState({
 
   /// The results of the tool calls that have a tool message, by tool call
   /// id.
+  @internal
   Map<String, String> get toolResults => {
     for (final message in messages.whereType<ToolMessage>())
       message.toolCallId: message.content,
@@ -107,12 +114,12 @@ class const CopilotAgentState({
   /// A call with a tool message is complete, with the message's content as
   /// its result. A call without one keeps its current view (it is still
   /// streaming or executing); one without a view has its full arguments, so
-  /// it is executing with the arguments [argsOf] returns for it. Views that
-  /// no message holds anymore are dropped.
+  /// it is executing with the arguments [parse] returns for its raw JSON.
+  /// Views that no message holds anymore are dropped.
   @internal
   CopilotAgentState messagesReplaced(
     List<Message> messages, {
-    required Map<String, Object?> Function(ToolCall call) argsOf,
+    required Map<String, Object?> Function(String arguments) parse,
   }) {
     final known = toolCallsById;
     final replaced = copyWith(messages: messages);
@@ -124,7 +131,7 @@ class const CopilotAgentState({
           id: call.id,
           name: call.name,
           status: ToolCallStatus.executing,
-          args: argsOf(call),
+          args: Map.unmodifiable(parse(call.arguments)),
         );
 
     return replaced.copyWith(
@@ -162,27 +169,6 @@ class const CopilotAgentState({
     );
   }
 
-  /// Returns this state with the text chunk [delta] from [role] appended.
-  ///
-  /// A chunk without [messageId] continues the last message, but only when
-  /// it has the chunk's role, so assistant text never lands in a user
-  /// message; otherwise it is dropped. A chunk without [role] is from the
-  /// assistant.
-  @internal
-  CopilotAgentState chunkAppended(
-    String? messageId,
-    ag_ui.TextMessageRole? role,
-    String delta,
-  ) {
-    final chunkRole = role ?? ag_ui.TextMessageRole.assistant;
-    final last = messages.lastOrNull;
-    final id =
-        messageId ??
-        (last != null && last.textRole == chunkRole ? last.id : null);
-    if (id == null) return this;
-    return textAppended(id, chunkRole, delta);
-  }
-
   /// Returns this state with the new tool call [toolCallId] to the tool
   /// [name], in progress and with no arguments yet.
   ///
@@ -195,7 +181,7 @@ class const CopilotAgentState({
     String name,
     String? parentMessageId,
   ) {
-    if (toolCalls.any((view) => view.id == toolCallId)) return this;
+    if (anyToolCall(toolCallId)) return this;
     final call = ToolCall(id: toolCallId, name: name, arguments: '');
     final parentIndex = parentMessageId == null
         ? -1
@@ -213,7 +199,7 @@ class const CopilotAgentState({
           ...messages,
           AssistantMessage(
             id: parentMessageId ?? toolCallId,
-            toolCalls: [call],
+            toolCalls: List.unmodifiable([call]),
           ),
         ],
         toolCalls: [...toolCalls, view],
@@ -230,18 +216,18 @@ class const CopilotAgentState({
     );
   }
 
-  /// Returns this state with the raw [arguments] of the tool call
-  /// [toolCallId] replaced, and [args], the arguments parsed from them, on
+  /// Returns this state with [delta] appended to the raw arguments of the
+  /// tool call [toolCallId], and the arguments [parse] returns for them on
   /// its view.
   @internal
-  CopilotAgentState toolArgumentsReplaced(
+  CopilotAgentState toolArgumentsAppended(
     String toolCallId,
-    String arguments,
-    Map<String, Object?> args,
-  ) {
+    String delta, {
+    required Map<String, Object?> Function(String arguments) parse,
+  }) {
     final call = messageToolCalls.where((c) => c.id == toolCallId).lastOrNull;
     if (call == null) return this;
-    final updated = call.copyWith(arguments: arguments);
+    final updated = call.copyWith(arguments: call.arguments + delta);
     return copyWith(
       messages: [
         for (final message in messages)
@@ -250,7 +236,10 @@ class const CopilotAgentState({
           else
             message,
       ],
-    ).toolCallUpdated(toolCallId, (view) => view.copyWith(args: args));
+    ).toolCallUpdated(
+      toolCallId,
+      (view) => view.copyWith(args: Map.unmodifiable(parse(updated.arguments))),
+    );
   }
 
   /// Returns this state with the result [content] of the tool call
