@@ -696,10 +696,10 @@ void main() {
 
           await runner.run(agent);
 
-          final result = sentInputs().last.messages
-              .whereType<ag_ui.ToolMessage>();
+          final inputs = sentInputs();
+          final result = inputs.last.messages.whereType<ag_ui.ToolMessage>();
           expect(result.single.content, '');
-          expect(sentInputs(), hasLength(2));
+          expect(inputs, hasLength(2));
           expect(errors, isEmpty);
         });
 
