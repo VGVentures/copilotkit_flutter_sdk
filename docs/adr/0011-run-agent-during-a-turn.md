@@ -17,8 +17,8 @@ if (_turns.containsKey(agentId) || agent.state.isRunning) return;
 The doc comment says so, but the caller can't tell: `runAgent` returns a
 `Future<void>` that completes when the turn ends, or at once when the call
 was dropped. Both look the same to the caller, and nothing reaches `onError`
-or `CopilotAgentState.error`. The Genkit comparison (item F2 of #154) found
-this as a lost message.
+or `CopilotAgentState.error`. The comparison with another Dart SDK (item F2
+of #154) found this as a lost message.
 
 A call is dropped in three situations, all of them a second `runAgent` while
 the agent is `isRunning`:
