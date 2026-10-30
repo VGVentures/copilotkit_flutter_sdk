@@ -35,7 +35,7 @@ class const AgentEventMapper({
         state.copyWith(
           messages: [
             ...state.messages,
-            _textMessage(messageId, role, name, ''),
+            Message.fromRole(role, id: messageId, content: '', name: name),
           ],
         ),
       ag_ui.TextMessageContentEvent(:final messageId, :final delta) =>
@@ -196,7 +196,7 @@ class const AgentEventMapper({
       final parent = messages[parentIndex] as AssistantMessage;
       nextMessages = [
         ...messages.sublist(0, parentIndex),
-        parent.copyWith(toolCalls: [...parent.toolCalls, call]),
+        parent.toolCallAdded(call),
         ...messages.sublist(parentIndex + 1),
       ];
     }
@@ -228,33 +228,19 @@ class const AgentEventMapper({
     final updatedCall = call.copyWith(arguments: arguments);
     final args = Map<String, Object?>.unmodifiable(_parser.parse(arguments));
     return _updateToolCall(
-      state.copyWith(messages: _replaceToolCall(state.messages, updatedCall)),
+      state.copyWith(
+        messages: [
+          for (final message in state.messages)
+            if (message is AssistantMessage && message.anyToolCall(toolCallId))
+              message.toolCallReplaced(updatedCall)
+            else
+              message,
+        ],
+      ),
       toolCallId,
       (view) => view.copyWith(args: args),
     );
   }
-
-  /// [messages] with the call that has the id of [replacement] replaced by
-  /// it, in the assistant message that holds it.
-  ///
-  /// Matches by id: `_startToolCall` drops a repeated id, so no two calls
-  /// share one.
-  List<Message> _replaceToolCall(
-    List<Message> messages,
-    ToolCall replacement,
-  ) => [
-    for (final message in messages)
-      if (message is AssistantMessage &&
-          message.toolCalls.any((c) => c.id == replacement.id))
-        message.copyWith(
-          toolCalls: [
-            for (final c in message.toolCalls)
-              if (c.id == replacement.id) replacement else c,
-          ],
-        )
-      else
-        message,
-  ];
 
   CopilotAgentState _applyToolChunk(
     CopilotAgentState state,
@@ -335,18 +321,10 @@ class const AgentEventMapper({
     final last = state.messages.lastOrNull;
     final id =
         messageId ??
-        (last != null && _roleOf(last) == chunkRole ? last.id : null);
+        (last != null && last.textRole == chunkRole ? last.id : null);
     if (id == null) return state;
     return _appendText(state, id, chunkRole, delta);
   }
-
-  ag_ui.TextMessageRole? _roleOf(Message message) => switch (message) {
-    AssistantMessage() => ag_ui.TextMessageRole.assistant,
-    UserMessage() => ag_ui.TextMessageRole.user,
-    SystemMessage() => ag_ui.TextMessageRole.system,
-    DeveloperMessage() => ag_ui.TextMessageRole.developer,
-    _ => null,
-  };
 
   /// Appends [delta] to message [messageId], creating it with [role] when it
   /// doesn't exist yet.
@@ -360,94 +338,18 @@ class const AgentEventMapper({
     final index = messages.lastIndexWhere((m) => m.id == messageId);
     if (index == -1) {
       return state.copyWith(
-        messages: [...messages, _textMessage(messageId, role, null, delta)],
+        messages: [
+          ...messages,
+          Message.fromRole(role, id: messageId, content: delta),
+        ],
       );
     }
     return state.copyWith(
       messages: [
         ...messages.sublist(0, index),
-        _withDelta(messages[index], delta),
+        messages[index].appended(delta),
         ...messages.sublist(index + 1),
       ],
     );
-  }
-
-  Message _textMessage(
-    String id,
-    ag_ui.TextMessageRole role,
-    String? name,
-    String text,
-  ) {
-    return switch (role) {
-      ag_ui.TextMessageRole.assistant => AssistantMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
-      ag_ui.TextMessageRole.user => UserMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
-      ag_ui.TextMessageRole.system => SystemMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
-      ag_ui.TextMessageRole.developer => DeveloperMessage(
-        id: id,
-        content: text,
-        name: name,
-      ),
-    };
-  }
-
-  /// Returns [message] with [delta] appended to its text.
-  ///
-  /// Only text messages are created by the mapper, so other message kinds
-  /// are returned unchanged.
-  Message _withDelta(Message message, String delta) {
-    return switch (message) {
-      AssistantMessage(:final content) => message.copyWith(
-        content: () => '${content ?? ''}$delta',
-      ),
-      UserMessage(
-        :final id,
-        :final content,
-        :final name,
-        :final encryptedValue,
-      ) =>
-        UserMessage(
-          id: id,
-          content: '$content$delta',
-          name: name,
-          encryptedValue: encryptedValue,
-        ),
-      SystemMessage(
-        :final id,
-        :final content,
-        :final name,
-        :final encryptedValue,
-      ) =>
-        SystemMessage(
-          id: id,
-          content: '$content$delta',
-          name: name,
-          encryptedValue: encryptedValue,
-        ),
-      DeveloperMessage(
-        :final id,
-        :final content,
-        :final name,
-        :final encryptedValue,
-      ) =>
-        DeveloperMessage(
-          id: id,
-          content: '$content$delta',
-          name: name,
-          encryptedValue: encryptedValue,
-        ),
-      _ => message,
-    };
   }
 }

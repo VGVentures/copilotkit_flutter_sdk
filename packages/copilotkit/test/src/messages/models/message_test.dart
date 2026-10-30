@@ -519,5 +519,182 @@ void main() {
         });
       });
     });
+
+    group('text', () {
+      test('is the content of a text message', () {
+        expect(const UserMessage(id: 'u', content: 'hi').text, 'hi');
+        expect(
+          const SystemMessage(id: 's', content: 'be brief').text,
+          'be brief',
+        );
+        expect(
+          const DeveloperMessage(id: 'd', content: 'be kind').text,
+          'be kind',
+        );
+        expect(const AssistantMessage(id: 'a', content: 'hello').text, 'hello');
+      });
+
+      test('is null for an assistant message without content', () {
+        expect(const AssistantMessage(id: 'a').text, isNull);
+      });
+
+      test('is null for tool results and unsupported messages', () {
+        expect(
+          const ToolMessage(id: 't', content: 'ok', toolCallId: 'c').text,
+          isNull,
+        );
+        expect(const UnsupportedMessage(id: 'x', data: {}).text, isNull);
+      });
+    });
+
+    group('textRole', () {
+      test('is the role of the author of a text message', () {
+        expect(
+          const UserMessage(id: 'u', content: '').textRole,
+          ag_ui.TextMessageRole.user,
+        );
+        expect(
+          const AssistantMessage(id: 'a').textRole,
+          ag_ui.TextMessageRole.assistant,
+        );
+        expect(
+          const SystemMessage(id: 's', content: '').textRole,
+          ag_ui.TextMessageRole.system,
+        );
+        expect(
+          const DeveloperMessage(id: 'd', content: '').textRole,
+          ag_ui.TextMessageRole.developer,
+        );
+      });
+
+      test('is null for tool results and unsupported messages', () {
+        expect(
+          const ToolMessage(id: 't', content: 'ok', toolCallId: 'c').textRole,
+          isNull,
+        );
+        expect(const UnsupportedMessage(id: 'x', data: {}).textRole, isNull);
+      });
+    });
+
+    group('fromRole', () {
+      test('creates the text message of each role', () {
+        Message create(ag_ui.TextMessageRole role) =>
+            Message.fromRole(role, id: 'm', content: 'hi', name: 'n');
+
+        expect(
+          create(ag_ui.TextMessageRole.user),
+          const UserMessage(id: 'm', content: 'hi', name: 'n'),
+        );
+        expect(
+          create(ag_ui.TextMessageRole.assistant),
+          const AssistantMessage(id: 'm', content: 'hi', name: 'n'),
+        );
+        expect(
+          create(ag_ui.TextMessageRole.system),
+          const SystemMessage(id: 'm', content: 'hi', name: 'n'),
+        );
+        expect(
+          create(ag_ui.TextMessageRole.developer),
+          const DeveloperMessage(id: 'm', content: 'hi', name: 'n'),
+        );
+      });
+    });
+
+    group('appended', () {
+      test('appends to the text of a text message, keeping its fields', () {
+        expect(
+          const UserMessage(
+            id: 'u',
+            content: 'he',
+            name: 'n',
+            encryptedValue: 'e',
+          ).appended('llo'),
+          const UserMessage(
+            id: 'u',
+            content: 'hello',
+            name: 'n',
+            encryptedValue: 'e',
+          ),
+        );
+        expect(
+          const SystemMessage(id: 's', content: 'a').appended('b'),
+          const SystemMessage(id: 's', content: 'ab'),
+        );
+        expect(
+          const DeveloperMessage(id: 'd', content: 'a').appended('b'),
+          const DeveloperMessage(id: 'd', content: 'ab'),
+        );
+        expect(
+          const AssistantMessage(id: 'a', content: 'a').appended('b'),
+          const AssistantMessage(id: 'a', content: 'ab'),
+        );
+      });
+
+      test('starts the text of an assistant message without content', () {
+        expect(
+          const AssistantMessage(id: 'a').appended('hi'),
+          const AssistantMessage(id: 'a', content: 'hi'),
+        );
+      });
+
+      test('keeps tool results and unsupported messages', () {
+        const tool = ToolMessage(id: 't', content: 'ok', toolCallId: 'c');
+        const unsupported = UnsupportedMessage(id: 'x', data: {});
+
+        expect(tool.appended('!'), tool);
+        expect(unsupported.appended('!'), unsupported);
+      });
+    });
+
+    group('copyWith of text messages', () {
+      test('keeps every field when nothing is passed', () {
+        const user = UserMessage(
+          id: 'u',
+          content: 'hi',
+          name: 'n',
+          encryptedValue: 'e',
+        );
+        const system = SystemMessage(id: 's', content: 'hi', name: 'n');
+        const developer = DeveloperMessage(id: 'd', content: 'hi', name: 'n');
+
+        expect(user.copyWith(), user);
+        expect(system.copyWith(), system);
+        expect(developer.copyWith(), developer);
+      });
+
+      test('replaces the content', () {
+        expect(
+          const UserMessage(id: 'u', content: 'hi').copyWith(content: 'yo'),
+          const UserMessage(id: 'u', content: 'yo'),
+        );
+      });
+    });
+
+    group('tool calls of an assistant message', () {
+      const first = ToolCall(id: 'c1', name: 'a', arguments: '');
+      const second = ToolCall(id: 'c2', name: 'b', arguments: '');
+      const message = AssistantMessage(id: 'a', toolCalls: [first]);
+
+      test('anyToolCall says whether it has a call', () {
+        expect(message.anyToolCall('c1'), isTrue);
+        expect(message.anyToolCall('c2'), isFalse);
+      });
+
+      test('toolCallAdded appends a call', () {
+        expect(
+          message.toolCallAdded(second),
+          const AssistantMessage(id: 'a', toolCalls: [first, second]),
+        );
+      });
+
+      test('toolCallReplaced replaces the call with the same id', () {
+        const updated = ToolCall(id: 'c1', name: 'a', arguments: '{}');
+
+        expect(
+          message.toolCallAdded(second).toolCallReplaced(updated),
+          const AssistantMessage(id: 'a', toolCalls: [updated, second]),
+        );
+      });
+    });
   });
 }
