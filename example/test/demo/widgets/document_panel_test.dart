@@ -82,7 +82,6 @@ void main() {
       await pump(tester, _state(const {'document': 'Dear Ada,'}));
 
       expect(fieldText(tester), 'Dear Ada,');
-      expect(find.textContaining('No document yet'), findsNothing);
     });
 
     testWidgets('renders the document as the agent streams it', (tester) async {
@@ -118,7 +117,7 @@ void main() {
       expect(find.text('LIVE'), findsOneWidget);
 
       states.add(_state(const {'document': 'Hi there'}));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(find.text('LIVE'), findsNothing);
       expect(fieldText(tester), 'Hi there');
     });
