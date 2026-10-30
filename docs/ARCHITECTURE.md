@@ -119,6 +119,12 @@ them, and `copilotkit` exports neither:
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`.
 
+A test of a package against the outside world, not of one class, sits at the
+root of `test/` and is exempt from the mirror, like `fixtures_test.dart`. A
+live test that sends real runs to a Copilot Runtime is one: it runs only when
+`COPILOTKIT_RUNTIME_URL` is set, so CI skips it (see
+[ADR 0011](adr/0011-live-tests-behind-a-flag.md)).
+
 ## Logic lives in classes
 
 Logic lives in well-named classes whose collaborators are passed to the
