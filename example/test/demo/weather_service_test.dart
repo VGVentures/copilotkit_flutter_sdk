@@ -43,5 +43,28 @@ void main() {
 
       expect(result, 'Cancelled');
     });
+
+    group('decode', () {
+      test('decodes the forecast that lookUp returned', () async {
+        final result = await service.lookUp(
+          const WeatherArgs(city: 'Lima'),
+          signal: CancellationSignal(),
+        );
+
+        expect(service.decode(result)?.toJson(), jsonDecode(result));
+      });
+
+      for (final result in [
+        null,
+        'Cancelled',
+        '[1, 2]',
+        '{"city":"Lima"}',
+        '{"city":"Lima","temperatureC":"warm","condition":"Sunny"}',
+      ]) {
+        test('returns null for a result that is not a forecast: $result', () {
+          expect(service.decode(result), isNull);
+        });
+      }
+    });
   });
 }

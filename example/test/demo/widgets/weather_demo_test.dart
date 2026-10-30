@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:ack/ack.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/demo_user.dart';
+import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/widgets/weather_demo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +35,16 @@ void main() {
         CopilotKit.value(
           client: client,
           child: const MaterialApp(
-            home: WeatherDemo(child: ToolCallWidgetProbe()),
+            home: WeatherDemo(
+              child: ToolCallWidgetProbe(
+                call: ToolCallView(
+                  id: 'c1',
+                  name: 'showWeather',
+                  status: ToolCallStatus.executing,
+                  args: {'city': 'Lima'},
+                ),
+              ),
+            ),
           ),
         ),
       );
@@ -49,20 +61,42 @@ void main() {
       expect(entry.value, DemoUser.ada.toJson());
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
+
+    testWidgets('shows the forecast from a completed call', (tester) async {
+      await tester.pumpWidget(
+        CopilotKit.value(
+          client: _MockCopilotKitClient(),
+          child: MaterialApp(
+            home: WeatherDemo(
+              child: ToolCallWidgetProbe(
+                call: ToolCallView(
+                  id: 'c1',
+                  name: 'showWeather',
+                  status: ToolCallStatus.complete,
+                  args: const {'city': 'Lima'},
+                  result: jsonEncode(
+                    const Forecast(
+                      city: 'Lima',
+                      temperatureC: 21,
+                      condition: 'Sunny',
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('Lima'), findsOneWidget);
+      expect(find.text('21°C · Sunny'), findsOneWidget);
+    });
   });
 }
 
-/// Renders a showWeather call inside the demo's tool scope.
-class const ToolCallWidgetProbe({super.key}) extends StatelessWidget {
+/// Renders [call] inside the demo's tool scope.
+class const ToolCallWidgetProbe({required final ToolCallView call, super.key})
+    extends StatelessWidget {
   @override
-  Widget build(BuildContext context) {
-    return ToolCallWidget(
-      call: const ToolCallView(
-        id: 'c1',
-        name: 'showWeather',
-        status: ToolCallStatus.executing,
-        args: {'city': 'Lima'},
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ToolCallWidget(call: call);
 }

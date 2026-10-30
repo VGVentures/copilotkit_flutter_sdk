@@ -1,3 +1,4 @@
+import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/todo.dart';
 import 'package:example/demo/models/todo_list.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -20,6 +21,26 @@ void main() {
       };
 
       expect(TodoList.fromJson(json).toJson(), json);
+    });
+
+    group('fromShared', () {
+      test('decodes the list in the shared state', () {
+        expect(
+          TodoList.fromShared(SharedState(list.toJson())).toJson(),
+          list.toJson(),
+        );
+      });
+
+      test('is empty without shared state', () {
+        expect(TodoList.fromShared(null).todos, isEmpty);
+      });
+
+      test('is empty when the shared state is not a todo list', () {
+        expect(
+          TodoList.fromShared(const SharedState({'todos': 'nope'})).todos,
+          isEmpty,
+        );
+      });
     });
 
     test('is empty when the state has no todos', () {

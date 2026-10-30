@@ -1,5 +1,6 @@
 import 'package:ack/ack.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
+import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/models/weather_args.dart';
 import 'package:example/demo/widgets/weather_card.dart';
 import 'package:flutter/material.dart';
@@ -15,11 +16,19 @@ void main() {
       handler: (_, {required signal}) async => '',
     );
 
-    Future<void> pump(WidgetTester tester, ToolCallView call) {
+    Future<void> pump(
+      WidgetTester tester,
+      ToolCallView call, {
+      Forecast? forecast,
+    }) {
       return tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: WeatherCard(call: call, args: tool.tryDecode(call.args)),
+            body: WeatherCard(
+              call: call,
+              args: tool.tryDecode(call.args),
+              forecast: forecast,
+            ),
           ),
         ),
       );
@@ -92,13 +101,18 @@ void main() {
           args: {'city': 'Lima'},
           result: '{"city":"Lima","temperatureC":21,"condition":"Sunny"}',
         ),
+        forecast: const Forecast(
+          city: 'Lima',
+          temperatureC: 21,
+          condition: 'Sunny',
+        ),
       );
 
       expect(find.text('Lima'), findsOneWidget);
       expect(find.text('21°C · Sunny'), findsOneWidget);
     });
 
-    testWidgets('shows a non-forecast result as text', (tester) async {
+    testWidgets('shows the result as text without a forecast', (tester) async {
       await pump(
         tester,
         const ToolCallView(
@@ -111,28 +125,6 @@ void main() {
 
       expect(find.text('Tool call cancelled.'), findsOneWidget);
     });
-
-    for (final result in [
-      '[1, 2]',
-      '{"city":"Lima"}',
-      '{"city":"Lima","temperatureC":"warm","condition":"Sunny"}',
-    ]) {
-      testWidgets('shows a malformed forecast as text: $result', (
-        tester,
-      ) async {
-        await pump(
-          tester,
-          ToolCallView(
-            id: 'c1',
-            name: 'showWeather',
-            status: ToolCallStatus.complete,
-            result: result,
-          ),
-        );
-
-        expect(find.text(result), findsOneWidget);
-      });
-    }
 
     testWidgets('shows an empty text without a result', (tester) async {
       await pump(
