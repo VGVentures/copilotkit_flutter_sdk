@@ -55,7 +55,8 @@ void main() {
 
         expect(await toolCalls.runPending(turn), isTrue);
         expect(receivedArgs, const {'city': 'Lima'});
-        expect(receivedSignal, same(turn.signal));
+        expect(receivedSignal, isNot(same(turn.signal)));
+        expect(receivedSignal?.isCancelled, isFalse);
         final message = agent.state.messages.last as ToolMessage;
         expect(Uuid.isValidUUID(fromString: message.id), isTrue);
         expect(message.toolCallId, 'c1');
@@ -196,6 +197,62 @@ void main() {
 
         expect(await again, isFalse);
         expect(results(), {'c1': null});
+      });
+
+      test('a handler that cancels its signal ends only its call', () async {
+        final signals = <CancellationSignal>[];
+        tools.register(
+          weatherTool((args, {required signal}) async {
+            signals.add(signal);
+            if (signals.length == 1) {
+              signal.cancel();
+              return 'gave up';
+            }
+            return 'sunny';
+          }),
+        );
+        receive(
+          toolCallRun(threadId())..insertAll(4, const [
+            ag_ui.ToolCallStartEvent(
+              toolCallId: 'c2',
+              toolCallName: 'showWeather',
+              parentMessageId: 'a1',
+            ),
+            ag_ui.ToolCallArgsEvent(
+              toolCallId: 'c2',
+              delta: '{"city": "Quito"}',
+            ),
+            ag_ui.ToolCallEndEvent(toolCallId: 'c2'),
+          ]),
+        );
+
+        expect(await toolCalls.runPending(turn), isTrue);
+        expect(results(), {'c1': 'gave up', 'c2': 'sunny'});
+        expect(signals, hasLength(2));
+        expect(signals.last.isCancelled, isFalse);
+        expect(turn.signal.isCancelled, isFalse);
+      });
+
+      test("cancels each call's signal when the turn stops", () async {
+        final handlerDone = Completer<String>();
+        CancellationSignal? receivedSignal;
+        tools.register(
+          weatherTool((_, {required signal}) {
+            receivedSignal = signal;
+            return handlerDone.future;
+          }),
+        );
+        receive(toolCallRun(threadId()));
+
+        final again = toolCalls.runPending(turn);
+        await pumpEventQueue();
+        expect(receivedSignal?.isCancelled, isFalse);
+        turn.signal.cancel();
+        await pumpEventQueue();
+        expect(receivedSignal?.isCancelled, isTrue);
+        handlerDone.complete('late result');
+
+        expect(await again, isFalse);
       });
     });
 

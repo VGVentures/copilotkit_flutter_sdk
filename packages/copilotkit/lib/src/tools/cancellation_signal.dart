@@ -2,8 +2,10 @@ import 'dart:async';
 
 /// Tells a tool handler that its run was stopped.
 ///
-/// The client creates one per tool call and cancels it when the run stops.
-/// Handlers check [isCancelled] or await [whenCancelled] to stop early.
+/// The client creates one per tool call and cancels it when the run stops
+/// or the client closes. Handlers check [isCancelled] or await
+/// [whenCancelled] to stop early. A handler that calls [cancel] affects only
+/// its own call, whose result is still what the handler returns.
 class CancellationSignal() {
   /// Creates a signal that has not been cancelled yet.
   this;

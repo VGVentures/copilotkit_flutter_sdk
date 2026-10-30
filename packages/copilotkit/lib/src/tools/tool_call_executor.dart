@@ -27,8 +27,8 @@ class const ToolCallExecutor() {
   bool accepts(ClientTool<Object?> tool, ToolCallView call) =>
       tool.parameters.safeParse(call.args) is Ok;
 
-  /// Produces the result of [call] for [tool] within the turn [signal]
-  /// belongs to: runs the handler of a [FrontendTool], or waits in
+  /// Produces the result of [call] for [tool] until the call's [signal] is
+  /// cancelled: runs the handler of a [FrontendTool], or waits in
   /// [responses] for the user to answer a [HumanInTheLoopTool].
   ///
   /// Arguments that don't match [ClientTool.parameters] never reach the

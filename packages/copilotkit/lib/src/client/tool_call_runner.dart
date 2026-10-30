@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_streamer.dart';
@@ -37,11 +39,14 @@ class ToolCallRunner({
   /// registered tools, in call order, and returns whether the agent should
   /// run again with them.
   ///
-  /// Calls to tools that aren't registered get the unavailable result. The
-  /// human-in-the-loop calls are all marked as awaiting a response first, so
-  /// the user can answer them in any order. Returns `false` when there was
-  /// nothing to run, when [turn] was stopped meanwhile, or when every call
-  /// was to a human-in-the-loop tool with `followUp` set to `false`.
+  /// Each call gets its own [CancellationSignal], cancelled when the signal
+  /// of [turn] is, so a handler that cancels its signal ends only its own
+  /// call. Calls to tools that aren't registered get the unavailable result.
+  /// The human-in-the-loop calls are all marked as awaiting a response
+  /// first, so the user can answer them in any order. Returns `false` when
+  /// there was nothing to run, when [turn] was stopped meanwhile, or when
+  /// every call was to a human-in-the-loop tool with `followUp` set to
+  /// `false`.
   Future<bool> runPending(Turn turn) async {
     final agent = turn.agent;
     final pending = _pendingToolCalls(agent);
@@ -57,7 +62,7 @@ class ToolCallRunner({
       final outcome = await _executor(
         tool,
         call,
-        turn.signal,
+        _callSignal(turn),
         responses: _responses,
       );
       if (outcome.error case final error?) {
@@ -122,6 +127,13 @@ class ToolCallRunner({
 
   /// Forgets every answer.
   void clear() => _responses.clear();
+
+  /// A signal for one call of [turn], cancelled when the turn's signal is.
+  CancellationSignal _callSignal(Turn turn) {
+    final signal = CancellationSignal();
+    unawaited(turn.signal.whenCancelled.then((_) => signal.cancel()));
+    return signal;
+  }
 
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
