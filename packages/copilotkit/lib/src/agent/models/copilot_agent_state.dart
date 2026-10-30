@@ -3,11 +3,15 @@
 /// @docImport 'package:copilotkit/src/tools/tools.dart';
 library;
 
+import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/messages/models/message.dart';
+import 'package:copilotkit/src/messages/models/tool_call.dart';
+import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:copilotkit/src/tools/models/tool_call_view.dart';
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 /// Immutable view of an agent at one point in time.
 ///
@@ -66,6 +70,242 @@ class const CopilotAgentState({
     for (final call in toolCalls)
       if (call.awaitingResponse) call.id,
   ];
+
+  /// The [toolCalls] by id.
+  Map<String, ToolCallView> get toolCallsById => {
+    for (final call in toolCalls) call.id: call,
+  };
+
+  /// The tool calls held by the assistant [messages], in order.
+  List<ToolCall> get messageToolCalls => [
+    for (final message in messages.whereType<AssistantMessage>())
+      ...message.toolCalls,
+  ];
+
+  /// The results of the tool calls that have a tool message, by tool call
+  /// id.
+  Map<String, String> get toolResults => {
+    for (final message in messages.whereType<ToolMessage>())
+      message.toolCallId: message.content,
+  };
+
+  /// Returns this state with [message] after its [messages].
+  @internal
+  CopilotAgentState messageAdded(Message message) =>
+      copyWith(messages: [...messages, message]);
+
+  /// Returns this state with [messages] as its conversation, and its
+  /// [toolCalls] rebuilt from them, so calls that only exist in [messages]
+  /// (a loaded history, a resync) render like live ones.
+  ///
+  /// A call with a tool message is complete, with the message's content as
+  /// its result. A call without one keeps its current view (it is still
+  /// streaming or executing); one without a view has its full arguments, so
+  /// it is executing with the arguments [argsOf] returns for it. Views that
+  /// no message holds anymore are dropped.
+  @internal
+  CopilotAgentState messagesReplaced(
+    List<Message> messages, {
+    required Map<String, Object?> Function(ToolCall call) argsOf,
+  }) {
+    final known = toolCallsById;
+    final replaced = copyWith(messages: messages);
+    final results = replaced.toolResults;
+
+    ToolCallView viewFor(ToolCall call) =>
+        known[call.id] ??
+        ToolCallView(
+          id: call.id,
+          name: call.name,
+          status: ToolCallStatus.executing,
+          args: argsOf(call),
+        );
+
+    return replaced.copyWith(
+      toolCalls: [
+        for (final call in replaced.messageToolCalls)
+          if (results[call.id] case final result?)
+            viewFor(call).completed(result)
+          else
+            viewFor(call),
+      ],
+    );
+  }
+
+  /// Returns this state with [delta] appended to the text of the message
+  /// [messageId], or with a new message from [role] holding [delta] when
+  /// there is no such message yet.
+  @internal
+  CopilotAgentState textAppended(
+    String messageId,
+    ag_ui.TextMessageRole role,
+    String delta,
+  ) {
+    final index = messages.lastIndexWhere((m) => m.id == messageId);
+    if (index == -1) {
+      return messageAdded(
+        Message.fromRole(role, id: messageId, content: delta),
+      );
+    }
+    return copyWith(
+      messages: [
+        ...messages.sublist(0, index),
+        messages[index].appended(delta),
+        ...messages.sublist(index + 1),
+      ],
+    );
+  }
+
+  /// Returns this state with the text chunk [delta] from [role] appended.
+  ///
+  /// A chunk without [messageId] continues the last message, but only when
+  /// it has the chunk's role, so assistant text never lands in a user
+  /// message; otherwise it is dropped. A chunk without [role] is from the
+  /// assistant.
+  @internal
+  CopilotAgentState chunkAppended(
+    String? messageId,
+    ag_ui.TextMessageRole? role,
+    String delta,
+  ) {
+    final chunkRole = role ?? ag_ui.TextMessageRole.assistant;
+    final last = messages.lastOrNull;
+    final id =
+        messageId ??
+        (last != null && last.textRole == chunkRole ? last.id : null);
+    if (id == null) return this;
+    return textAppended(id, chunkRole, delta);
+  }
+
+  /// Returns this state with the new tool call [toolCallId] to the tool
+  /// [name], in progress and with no arguments yet.
+  ///
+  /// The call is added to the assistant message [parentMessageId], or to a
+  /// new assistant message when there is none. A repeated [toolCallId] is
+  /// dropped, so no two calls share an id.
+  @internal
+  CopilotAgentState toolCallStarted(
+    String toolCallId,
+    String name,
+    String? parentMessageId,
+  ) {
+    if (toolCalls.any((view) => view.id == toolCallId)) return this;
+    final call = ToolCall(id: toolCallId, name: name, arguments: '');
+    final parentIndex = parentMessageId == null
+        ? -1
+        : messages.lastIndexWhere(
+            (m) => m is AssistantMessage && m.id == parentMessageId,
+          );
+    final view = ToolCallView(
+      id: toolCallId,
+      name: name,
+      status: ToolCallStatus.inProgress,
+    );
+    if (parentIndex == -1) {
+      return copyWith(
+        messages: [
+          ...messages,
+          AssistantMessage(
+            id: parentMessageId ?? toolCallId,
+            toolCalls: [call],
+          ),
+        ],
+        toolCalls: [...toolCalls, view],
+      );
+    }
+    final parent = messages[parentIndex] as AssistantMessage;
+    return copyWith(
+      messages: [
+        ...messages.sublist(0, parentIndex),
+        parent.toolCallAdded(call),
+        ...messages.sublist(parentIndex + 1),
+      ],
+      toolCalls: [...toolCalls, view],
+    );
+  }
+
+  /// Returns this state with the raw [arguments] of the tool call
+  /// [toolCallId] replaced, and [args], the arguments parsed from them, on
+  /// its view.
+  @internal
+  CopilotAgentState toolArgumentsReplaced(
+    String toolCallId,
+    String arguments,
+    Map<String, Object?> args,
+  ) {
+    final call = messageToolCalls.where((c) => c.id == toolCallId).lastOrNull;
+    if (call == null) return this;
+    final updated = call.copyWith(arguments: arguments);
+    return copyWith(
+      messages: [
+        for (final message in messages)
+          if (message is AssistantMessage && message.anyToolCall(toolCallId))
+            message.toolCallReplaced(updated)
+          else
+            message,
+      ],
+    ).toolCallUpdated(toolCallId, (view) => view.copyWith(args: args));
+  }
+
+  /// Returns this state with the result [content] of the tool call
+  /// [toolCallId], as the tool message [messageId], and the call complete.
+  ///
+  /// A repeated [messageId] is dropped.
+  @internal
+  CopilotAgentState toolCallCompleted(
+    String messageId,
+    String toolCallId,
+    String content,
+  ) {
+    if (messages.any((m) => m is ToolMessage && m.id == messageId)) {
+      return this;
+    }
+    return messageAdded(
+      ToolMessage(id: messageId, toolCallId: toolCallId, content: content),
+    ).toolCallUpdated(toolCallId, (view) => view.completed(content));
+  }
+
+  /// Returns this state with every tool call in progress marked executing.
+  ///
+  /// Calls streamed as chunks have no end event; once the run finishes
+  /// their arguments are complete.
+  @internal
+  CopilotAgentState toolCallsMarkedExecuting() {
+    if (!toolCalls.any((view) => view.isInProgress)) return this;
+    return copyWith(
+      toolCalls: [for (final view in toolCalls) view.markedExecuting()],
+    );
+  }
+
+  /// Returns this state with the view of the tool call [toolCallId]
+  /// replaced by what [update] returns for it, or this state when there is
+  /// no such call or [update] doesn't change it.
+  @internal
+  CopilotAgentState toolCallUpdated(
+    String toolCallId,
+    ToolCallView Function(ToolCallView view) update,
+  ) {
+    final index = toolCalls.indexWhere((view) => view.id == toolCallId);
+    if (index == -1) return this;
+    final view = toolCalls[index];
+    final updated = update(view);
+    if (updated == view) return this;
+    return copyWith(
+      toolCalls: [
+        ...toolCalls.sublist(0, index),
+        updated,
+        ...toolCalls.sublist(index + 1),
+      ],
+    );
+  }
+
+  /// Returns this state with the shared state replaced by the JSON object
+  /// [json], or cleared when [json] is `null`.
+  @internal
+  CopilotAgentState sharedStateReplaced(Map<String, Object?>? json) => copyWith(
+    sharedState: () =>
+        json == null ? null : SharedState(Map.unmodifiable(json)),
+  );
 
   @override
   List<Object?> get props => [

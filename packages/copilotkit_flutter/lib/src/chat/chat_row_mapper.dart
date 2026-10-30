@@ -12,7 +12,7 @@ class const ChatRowMapper() {
   /// tool call on an assistant message follows it as a [ChatToolCallRow].
   /// Tool results, system, developer and unsupported messages are not shown.
   List<ChatRow> call(CopilotAgentState agentState) {
-    final calls = {for (final call in agentState.toolCalls) call.id: call};
+    final calls = agentState.toolCallsById;
     return [
       for (final message in agentState.messages) ...[
         if (message is UserMessage || message is AssistantMessage)

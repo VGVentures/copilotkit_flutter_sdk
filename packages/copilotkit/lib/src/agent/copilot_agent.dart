@@ -59,7 +59,7 @@ class CopilotAgent({
   /// Run the agent with [CopilotKitClient.runAgent], which can also add a
   /// message.
   void addMessage(Message message) {
-    _update(_state.copyWith(messages: [..._state.messages, message]));
+    _update(_state.messageAdded(message));
   }
 
   /// Replaces every message of the conversation with [messages].
@@ -80,13 +80,7 @@ class CopilotAgent({
   /// from the runtime replaces it again, and a `STATE_DELTA` patches it, so
   /// a local edit made during a run can be overwritten by the agent.
   void setSharedState(SharedState? state) {
-    _update(
-      _state.copyWith(
-        sharedState: () => state == null
-            ? null
-            : SharedState(Map.unmodifiable(state.toJson())),
-      ),
-    );
+    _update(_state.sharedStateReplaced(state?.toJson()));
   }
 
   /// Edits the shared state with [operations], the operations of an RFC 6902
@@ -100,11 +94,7 @@ class CopilotAgent({
     final patched = _patcher.apply(_state.sharedState?.toJson() ?? const {}, [
       for (final operation in operations) operation.toJson(),
     ]);
-    _update(
-      _state.copyWith(
-        sharedState: () => SharedState(Map.unmodifiable(patched)),
-      ),
-    );
+    _update(_state.sharedStateReplaced(patched));
   }
 
   /// Applies an AG-UI [event], from the runtime or produced locally (a tool
@@ -117,12 +107,7 @@ class CopilotAgent({
   @internal
   void awaitResponse(String toolCallId) {
     _update(
-      _state.copyWith(
-        toolCalls: [
-          for (final call in _state.toolCalls)
-            if (call.id == toolCallId) call.markedAwaiting() else call,
-        ],
-      ),
+      _state.toolCallUpdated(toolCallId, (call) => call.markedAwaiting()),
     );
   }
 

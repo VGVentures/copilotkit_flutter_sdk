@@ -143,7 +143,16 @@ class const AgentEventMapper({
 Nothing is declared at the top level except types, and that includes private
 declarations. There are no extensions and no static helpers.
 
-- A function used by one class becomes a private method on it.
+- Logic about a type lives on that type: what it derives from its data is a
+  getter, and a change to it is a method that returns a copy. The class that
+  happens to use the logic doesn't hold it (see
+  [ADR 0010](adr/0010-logic-lives-on-its-type.md)).
+- A private method is only a step of its own class's job, like
+  `AgUiTransport._ensureOpen`. A private helper that takes another type and
+  works out something about it belongs on that type.
+- Logic that needs an injected collaborator, like parsing or patching JSON,
+  stays in the logic class that holds it, and that class passes the result
+  to the model.
 - A function reused across files becomes a method of a class that is injected
   where it's needed.
 - An SDK class named after the one thing it does, like an executor, a
@@ -277,6 +286,33 @@ HTTP headers stay `Map<String, String>`: they aren't JSON.
 Every value model extends `Equatable` so that equal values compare equal and
 state holders and blocs skip unchanged states. Compare with `==`, never
 `identical`: a type that needs instance equality keeps the default `==`.
+
+### Getters and transitions
+
+A model exposes what it derives as getters (`CopilotAgentState.toolCallsById`,
+`ToolCallView.isComplete`, `Message.text`) and its changes as methods that
+return a copy, named for the change they make:
+
+- A past participle when the copy is in the new state: `messageAdded`,
+  `completed`, `toolCallReplaced`.
+- `marked<State>` when the copy moves into a state that is still going on:
+  `markedExecuting`, `markedAwaiting`. A past participle would read as
+  already done.
+- A boolean getter starts with `is` or `has`.
+- A query that wraps a collection operation is named after it:
+  `anyToolCall(id)` wraps `toolCalls.any`.
+
+A member that only the SDK calls is `@internal`, and a member that names an
+`ag_ui` type is always `@internal`. A member that `copilotkit_flutter` or an
+app needs is public, since `@internal` doesn't cross packages.
+
+```dart
+// Bad: the mapper works out the view of a call it doesn't own
+ToolCallView _viewOf(ToolCall call, ToolCallView? known, ...) => ...;
+
+// Good: the state rebuilds its own tool calls
+state.messagesReplaced(messages, argsOf: (call) => _parser.parse(call.arguments));
+```
 
 ### Nullable fields in `copyWith`
 

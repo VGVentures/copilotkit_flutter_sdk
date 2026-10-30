@@ -159,12 +159,11 @@ class ToolCallRunner({
   ) =>
       !_responses.isAnswered(toolCallId) &&
       agents.any(
-        (agent) => agent.state.toolCalls.any(
-          (call) =>
-              call.id == toolCallId &&
-              call.isExecuting &&
-              _tools[call.name] is HumanInTheLoopTool,
-        ),
+        (agent) => switch (agent.state.toolCallsById[toolCallId]) {
+          final call? =>
+            call.isExecuting && _tools[call.name] is HumanInTheLoopTool,
+          null => false,
+        },
       );
 
   /// A closed agent ignores the result.
