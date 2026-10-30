@@ -1,5 +1,5 @@
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
-import 'package:copilotkit/src/agent/agent_event_reducer.dart';
+import 'package:copilotkit/src/agent/agent_event_mapper.dart';
 import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/shared_state.dart';
 import 'package:copilotkit/src/messages/messages.dart';
@@ -8,9 +8,9 @@ import 'package:test/test.dart';
 import '../../helpers/agent.dart';
 
 void main() {
-  group('$AgentEventReducer reduces state', () {
+  group('$AgentEventMapper maps state', () {
     test('StateSnapshot replaces the state', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         ag_ui.StateSnapshotEvent(snapshot: {'count': 1}),
         ag_ui.StateSnapshotEvent(snapshot: {'items': <Object?>[]}),
       ]);
@@ -23,7 +23,7 @@ void main() {
     });
 
     test('StateSnapshot keeps an unmodifiable state', () {
-      final result = reduce([
+      final result = mapEvents([
         ag_ui.StateSnapshotEvent(snapshot: Map.of(const {'count': 1})),
       ]);
       final state = result.states.single.sharedState!;
@@ -32,7 +32,7 @@ void main() {
     });
 
     test('a null StateSnapshot clears the state', () {
-      final result = reduce(
+      final result = mapEvents(
         const [ag_ui.StateSnapshotEvent(snapshot: null)],
         from: agentState.copyWith(
           sharedState: () => const SharedState({'count': 1}),
@@ -43,7 +43,7 @@ void main() {
 
     test('a StateSnapshot that is not an object leaves the state '
         'unchanged', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           ag_ui.StateSnapshotEvent(snapshot: ['a']),
           ag_ui.StateSnapshotEvent(snapshot: 'text'),
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('StateDelta keeps an unmodifiable state', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         ag_ui.StateDeltaEvent(
           delta: [
             {'op': 'add', 'path': '/count', 'value': 1},
@@ -69,7 +69,7 @@ void main() {
     });
 
     test('StateDelta applies a JSON Patch to the state', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           ag_ui.StateDeltaEvent(
             delta: [
@@ -96,7 +96,7 @@ void main() {
     });
 
     test('StateDelta applies to an empty object when there is no state', () {
-      final result = reduce(const [
+      final result = mapEvents(const [
         ag_ui.StateDeltaEvent(
           delta: [
             {'op': 'add', 'path': '/count', 'value': 1},
@@ -115,7 +115,7 @@ void main() {
     );
 
     test('StateDelta does not mutate the previous state', () {
-      reduce(const [
+      mapEvents(const [
         ag_ui.StateDeltaEvent(
           delta: [
             {'op': 'add', 'path': '/items/-', 'value': 'b'},
@@ -131,7 +131,7 @@ void main() {
     });
 
     test('a StateDelta that does not apply leaves the state unchanged', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           ag_ui.StateDeltaEvent(
             delta: [
@@ -148,7 +148,7 @@ void main() {
 
     test('a StateDelta that replaces the state with a non-object is '
         'dropped', () {
-      final result = reduce(
+      final result = mapEvents(
         const [
           ag_ui.StateDeltaEvent(
             delta: [
@@ -164,7 +164,7 @@ void main() {
     });
 
     test('MessagesSnapshot replaces the messages', () {
-      final result = reduce(
+      final result = mapEvents(
         [
           ag_ui.MessagesSnapshotEvent(
             messages: [
@@ -189,7 +189,7 @@ void main() {
 
     test('MessagesSnapshot keeps messages it cannot model', () {
       const reasoning = ag_ui.ReasoningMessage(id: 'r1', content: 'Hmm');
-      final result = reduce([
+      final result = mapEvents([
         ag_ui.MessagesSnapshotEvent(messages: const [reasoning]),
       ]);
       expect(result.state.messages, [

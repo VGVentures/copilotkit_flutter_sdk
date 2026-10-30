@@ -129,14 +129,14 @@ which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
 which runs the tool calls between runs with a `ToolCallExecutor`.
 
 ```dart
-// Good: the reducer gets its JSON helpers injected
-class const AgentEventReducer({
+// Good: the mapper gets its JSON helpers injected
+class const AgentEventMapper({
   final PartialJsonParser _parser = const PartialJsonParser(),
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
   this;
 
-  CopilotAgentState reduce(CopilotAgentState state, BaseEvent event) => ...;
+  CopilotAgentState call(CopilotAgentState state, BaseEvent event) => ...;
 }
 ```
 

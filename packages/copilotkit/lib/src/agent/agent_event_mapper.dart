@@ -7,94 +7,88 @@ import 'package:copilotkit/src/tools/tools.dart';
 import 'package:json_utils/json_utils.dart';
 
 /// Applies AG-UI events to a [CopilotAgentState].
-class const AgentEventReducer({
+class const AgentEventMapper({
   /// Parses the streamed arguments of tool calls.
   final PartialJsonParser _parser = const PartialJsonParser(),
 
   /// Applies `StateDelta` patches to the shared state.
   final JsonPatcher _patcher = const JsonPatcher(),
 }) {
-  /// Creates a reducer.
+  /// Creates a mapper.
   this;
 
-  /// Applies an AG-UI [event] to [snapshot] and returns the resulting state.
+  /// Applies an AG-UI [event] to [state] and returns the resulting state.
   ///
   /// Doesn't touch `isRunning`: the client sets it for a whole turn, which
   /// spans several runs and the tool handlers between them.
   ///
-  /// Pure: no I/O, no clocks, and [snapshot] is never mutated. Events that
-  /// don't change the agent return [snapshot] itself.
-  CopilotAgentState reduce(CopilotAgentState snapshot, ag_ui.BaseEvent event) {
+  /// Pure: no I/O, no clocks, and [state] is never mutated. Events that
+  /// don't change the agent return [state] itself.
+  CopilotAgentState call(CopilotAgentState state, ag_ui.BaseEvent event) {
     return switch (event) {
-      ag_ui.RunStartedEvent() => snapshot.copyWith(error: () => null),
-      ag_ui.RunFinishedEvent() => _finishToolArgs(snapshot),
-      ag_ui.RunErrorEvent(:final message, :final code) => snapshot.copyWith(
+      ag_ui.RunStartedEvent() => state.copyWith(error: () => null),
+      ag_ui.RunFinishedEvent() => _finishToolArgs(state),
+      ag_ui.RunErrorEvent(:final message, :final code) => state.copyWith(
         error: () => RunError(message: message, code: code),
       ),
       ag_ui.TextMessageStartEvent(:final messageId, :final role, :final name) =>
-        snapshot.copyWith(
+        state.copyWith(
           messages: [
-            ...snapshot.messages,
+            ...state.messages,
             _textMessage(messageId, role, name, ''),
           ],
         ),
       ag_ui.TextMessageContentEvent(:final messageId, :final delta) =>
-        _appendText(
-          snapshot,
-          messageId,
-          ag_ui.TextMessageRole.assistant,
-          delta,
-        ),
+        _appendText(state, messageId, ag_ui.TextMessageRole.assistant, delta),
       ag_ui.TextMessageChunkEvent(
         :final messageId,
         :final role,
         :final delta,
       ) =>
-        _appendChunk(snapshot, messageId, role, delta ?? ''),
+        _appendChunk(state, messageId, role, delta ?? ''),
       ag_ui.ToolCallStartEvent(
         :final toolCallId,
         :final toolCallName,
         :final parentMessageId,
       ) =>
-        _startToolCall(snapshot, toolCallId, toolCallName, parentMessageId),
+        _startToolCall(state, toolCallId, toolCallName, parentMessageId),
       ag_ui.ToolCallArgsEvent(:final toolCallId, :final delta) =>
-        _appendToolArgs(snapshot, toolCallId, delta),
+        _appendToolArgs(state, toolCallId, delta),
       ag_ui.ToolCallEndEvent(:final toolCallId) => _updateToolCall(
-        snapshot,
+        state,
         toolCallId,
         (view) => view.status == ToolCallStatus.inProgress
             ? view.copyWith(status: ToolCallStatus.executing)
             : view,
       ),
-      ag_ui.ToolCallChunkEvent() => _applyToolChunk(snapshot, event),
+      ag_ui.ToolCallChunkEvent() => _applyToolChunk(state, event),
       ag_ui.ToolCallResultEvent(
         :final messageId,
         :final toolCallId,
         :final content,
       ) =>
-        _completeToolCall(snapshot, messageId, toolCallId, content),
-      ag_ui.StateSnapshotEvent(snapshot: final state) => _replaceState(
-        snapshot,
+        _completeToolCall(state, messageId, toolCallId, content),
+      ag_ui.StateSnapshotEvent(snapshot: final json) => _replaceState(
         state,
+        json,
       ),
-      ag_ui.StateDeltaEvent() => _applyStateDelta(snapshot, event),
-      ag_ui.MessagesSnapshotEvent(:final messages) => replaceMessages(
-        snapshot,
-        [for (final message in messages) Message.fromAgUi(message)],
-      ),
-      _ => snapshot,
+      ag_ui.StateDeltaEvent() => _applyStateDelta(state, event),
+      ag_ui.MessagesSnapshotEvent(:final messages) => replaceMessages(state, [
+        for (final message in messages) Message.fromAgUi(message),
+      ]),
+      _ => state,
     };
   }
 
-  /// [snapshot] with [messages] as its conversation, and its tool calls
+  /// [state] with [messages] as its conversation, and its tool calls
   /// rebuilt from them, so calls that only exist in [messages] (a loaded
   /// history, a resync) render like live ones.
   CopilotAgentState replaceMessages(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     List<Message> messages,
-  ) => snapshot.copyWith(
+  ) => state.copyWith(
     messages: messages,
-    toolCalls: _toolCallsOf(messages, snapshot.toolCalls),
+    toolCalls: _toolCallsOf(messages, state.toolCalls),
   );
 
   /// The tool calls held by the assistant messages in [messages], in order.
@@ -149,50 +143,50 @@ class const AgentEventReducer({
   /// Before any state exists the delta applies to an empty object, as in the
   /// AG-UI client, instead of being dropped.
   CopilotAgentState _applyStateDelta(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     ag_ui.StateDeltaEvent event,
   ) {
     try {
-      return snapshot.copyWith(
+      return state.copyWith(
         sharedState: () => SharedState(
           Map.unmodifiable(
             _patcher.apply(
-              snapshot.sharedState?.toJson() ?? const {},
+              state.sharedState?.toJson() ?? const {},
               event.delta,
             ),
           ),
         ),
       );
     } on FormatException {
-      return snapshot;
+      return state;
     }
   }
 
-  /// [snapshot] with the shared state replaced by [state], or cleared when
-  /// [state] is `null`.
+  /// [state] with the shared state replaced by [json], or cleared when
+  /// [json] is `null`.
   ///
   /// Shared state is always a JSON object, so a snapshot of any other JSON
   /// value is dropped, like a delta that doesn't apply.
-  CopilotAgentState _replaceState(CopilotAgentState snapshot, Object? state) =>
-      switch (state) {
-        null => snapshot.copyWith(sharedState: () => null),
-        final Map<String, Object?> json => snapshot.copyWith(
+  CopilotAgentState _replaceState(CopilotAgentState state, Object? json) =>
+      switch (json) {
+        null => state.copyWith(sharedState: () => null),
+        final Map<String, Object?> json => state.copyWith(
           sharedState: () => SharedState(Map.unmodifiable(json)),
         ),
-        _ => snapshot,
+        _ => state,
       };
 
   CopilotAgentState _startToolCall(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String toolCallId,
     String name,
     String? parentMessageId,
   ) {
-    if (snapshot.toolCalls.any((view) => view.id == toolCallId)) {
-      return snapshot;
+    if (state.toolCalls.any((view) => view.id == toolCallId)) {
+      return state;
     }
     final call = ToolCall(id: toolCallId, name: name, arguments: '');
-    final messages = snapshot.messages;
+    final messages = state.messages;
     final parentIndex = parentMessageId == null
         ? -1
         : messages.lastIndexWhere(
@@ -212,10 +206,10 @@ class const AgentEventReducer({
         ...messages.sublist(parentIndex + 1),
       ];
     }
-    return snapshot.copyWith(
+    return state.copyWith(
       messages: nextMessages,
       toolCalls: [
-        ...snapshot.toolCalls,
+        ...state.toolCalls,
         ToolCallView(
           id: toolCallId,
           name: name,
@@ -226,23 +220,21 @@ class const AgentEventReducer({
   }
 
   CopilotAgentState _appendToolArgs(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String toolCallId,
     String delta,
   ) {
-    final call = snapshot.messages
+    final call = state.messages
         .whereType<AssistantMessage>()
         .expand((message) => message.toolCalls)
         .where((call) => call.id == toolCallId)
         .lastOrNull;
-    if (call == null) return snapshot;
+    if (call == null) return state;
     final arguments = call.arguments + delta;
     final updatedCall = call.copyWith(arguments: arguments);
     final args = Map<String, Object?>.unmodifiable(_parser.parse(arguments));
     return _updateToolCall(
-      snapshot.copyWith(
-        messages: _replaceToolCall(snapshot.messages, updatedCall),
-      ),
+      state.copyWith(messages: _replaceToolCall(state.messages, updatedCall)),
       toolCallId,
       (view) => view.copyWith(args: args),
     );
@@ -271,15 +263,15 @@ class const AgentEventReducer({
   ];
 
   CopilotAgentState _applyToolChunk(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     ag_ui.ToolCallChunkEvent event,
   ) {
-    final id = event.toolCallId ?? snapshot.toolCalls.lastOrNull?.id;
-    if (id == null) return snapshot;
-    var next = snapshot;
+    final id = event.toolCallId ?? state.toolCalls.lastOrNull?.id;
+    if (id == null) return state;
+    var next = state;
     if (!next.toolCalls.any((view) => view.id == id)) {
       final name = event.toolCallName;
-      if (name == null) return snapshot;
+      if (name == null) return state;
       next = _startToolCall(next, id, name, event.parentMessageId);
     }
     final delta = event.delta;
@@ -287,18 +279,18 @@ class const AgentEventReducer({
   }
 
   CopilotAgentState _completeToolCall(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String messageId,
     String toolCallId,
     String content,
   ) {
-    if (snapshot.messages.any((m) => m is ToolMessage && m.id == messageId)) {
-      return snapshot;
+    if (state.messages.any((m) => m is ToolMessage && m.id == messageId)) {
+      return state;
     }
     return _updateToolCall(
-      snapshot.copyWith(
+      state.copyWith(
         messages: [
-          ...snapshot.messages,
+          ...state.messages,
           ToolMessage(id: messageId, toolCallId: toolCallId, content: content),
         ],
       ),
@@ -313,13 +305,13 @@ class const AgentEventReducer({
 
   /// Calls streamed as chunks have no End event; once the run finishes their
   /// arguments are complete.
-  CopilotAgentState _finishToolArgs(CopilotAgentState snapshot) {
-    if (!snapshot.toolCalls.any((v) => v.status == ToolCallStatus.inProgress)) {
-      return snapshot;
+  CopilotAgentState _finishToolArgs(CopilotAgentState state) {
+    if (!state.toolCalls.any((v) => v.status == ToolCallStatus.inProgress)) {
+      return state;
     }
-    return snapshot.copyWith(
+    return state.copyWith(
       toolCalls: [
-        for (final view in snapshot.toolCalls)
+        for (final view in state.toolCalls)
           if (view.status == ToolCallStatus.inProgress)
             view.copyWith(status: ToolCallStatus.executing)
           else
@@ -329,22 +321,20 @@ class const AgentEventReducer({
   }
 
   CopilotAgentState _updateToolCall(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String toolCallId,
     ToolCallView Function(ToolCallView view) update,
   ) {
-    final index = snapshot.toolCalls.indexWhere(
-      (view) => view.id == toolCallId,
-    );
-    if (index == -1) return snapshot;
-    final view = snapshot.toolCalls[index];
+    final index = state.toolCalls.indexWhere((view) => view.id == toolCallId);
+    if (index == -1) return state;
+    final view = state.toolCalls[index];
     final updated = update(view);
-    if (updated == view) return snapshot;
-    return snapshot.copyWith(
+    if (updated == view) return state;
+    return state.copyWith(
       toolCalls: [
-        ...snapshot.toolCalls.sublist(0, index),
+        ...state.toolCalls.sublist(0, index),
         updated,
-        ...snapshot.toolCalls.sublist(index + 1),
+        ...state.toolCalls.sublist(index + 1),
       ],
     );
   }
@@ -352,18 +342,18 @@ class const AgentEventReducer({
   /// A chunk without [messageId] continues the last message, but only when it
   /// has the chunk's role, so assistant text never lands in a user message.
   CopilotAgentState _appendChunk(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String? messageId,
     ag_ui.TextMessageRole? role,
     String delta,
   ) {
     final chunkRole = role ?? ag_ui.TextMessageRole.assistant;
-    final last = snapshot.messages.lastOrNull;
+    final last = state.messages.lastOrNull;
     final id =
         messageId ??
         (last != null && _roleOf(last) == chunkRole ? last.id : null);
-    if (id == null) return snapshot;
-    return _appendText(snapshot, id, chunkRole, delta);
+    if (id == null) return state;
+    return _appendText(state, id, chunkRole, delta);
   }
 
   ag_ui.TextMessageRole? _roleOf(Message message) => switch (message) {
@@ -377,19 +367,19 @@ class const AgentEventReducer({
   /// Appends [delta] to message [messageId], creating it with [role] when it
   /// doesn't exist yet.
   CopilotAgentState _appendText(
-    CopilotAgentState snapshot,
+    CopilotAgentState state,
     String messageId,
     ag_ui.TextMessageRole role,
     String delta,
   ) {
-    final messages = snapshot.messages;
+    final messages = state.messages;
     final index = messages.lastIndexWhere((m) => m.id == messageId);
     if (index == -1) {
-      return snapshot.copyWith(
+      return state.copyWith(
         messages: [...messages, _textMessage(messageId, role, null, delta)],
       );
     }
-    return snapshot.copyWith(
+    return state.copyWith(
       messages: [
         ...messages.sublist(0, index),
         _withDelta(messages[index], delta),
@@ -430,7 +420,7 @@ class const AgentEventReducer({
 
   /// Returns [message] with [delta] appended to its text.
   ///
-  /// Only text messages are created by the reducer, so other message kinds
+  /// Only text messages are created by the mapper, so other message kinds
   /// are returned unchanged.
   Message _withDelta(Message message, String delta) {
     return switch (message) {
