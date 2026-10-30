@@ -120,11 +120,7 @@ class CopilotAgent({
       _state.copyWith(
         toolCalls: [
           for (final call in _state.toolCalls)
-            if (call.id == toolCallId &&
-                call.status == ToolCallStatus.executing)
-              call.copyWith(awaitingResponse: true)
-            else
-              call,
+            if (call.id == toolCallId) call.markedAwaiting() else call,
         ],
       ),
     );

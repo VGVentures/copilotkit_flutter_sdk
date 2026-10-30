@@ -6,6 +6,7 @@ library;
 import 'package:ack/ack.dart';
 import 'package:copilotkit/src/tools/cancellation_signal.dart';
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 /// Handles a frontend tool call on the device.
 ///
@@ -55,6 +56,15 @@ sealed class ClientTool<T> extends Equatable {
 
   /// Decodes the validated arguments, e.g. a model's `fromJson`.
   final T Function(Map<String, Object?> json) decode;
+
+  /// Whether the agent runs again once a call to this tool has its result:
+  /// always for a [FrontendTool], and as [HumanInTheLoopTool.followUp] says
+  /// for a human-in-the-loop tool.
+  @internal
+  bool get followsUp => switch (this) {
+    FrontendTool() => true,
+    HumanInTheLoopTool(:final followUp) => followUp,
+  };
 
   /// Decodes [args] with [decode], or returns `null` when [decode] throws,
   /// e.g. for arguments that are still streaming in.

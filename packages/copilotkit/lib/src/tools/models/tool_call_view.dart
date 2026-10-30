@@ -4,6 +4,7 @@ library;
 
 import 'package:copilotkit/src/tools/models/tool_call_status.dart';
 import 'package:equatable/equatable.dart';
+import 'package:meta/meta.dart';
 
 /// A tool call made by the agent, shaped for rendering.
 class const ToolCallView({
@@ -34,6 +35,36 @@ class const ToolCallView({
 }) extends Equatable {
   /// Creates a view of a tool call.
   this;
+
+  /// Whether the agent is still streaming the arguments of the call.
+  bool get isInProgress => status == ToolCallStatus.inProgress;
+
+  /// Whether the call has its full arguments and waits for its result.
+  bool get isExecuting => status == ToolCallStatus.executing;
+
+  /// Whether the call has its result.
+  bool get isComplete => status == ToolCallStatus.complete;
+
+  /// Returns this call as executing once its arguments are complete, or
+  /// this call when it is past [ToolCallStatus.inProgress].
+  @internal
+  ToolCallView markedExecuting() =>
+      isInProgress ? copyWith(status: ToolCallStatus.executing) : this;
+
+  /// Returns this call as waiting for the user's answer, or this call when
+  /// it isn't executing.
+  @internal
+  ToolCallView markedAwaiting() =>
+      isExecuting ? copyWith(awaitingResponse: true) : this;
+
+  /// Returns this call complete with [result], no longer waiting for the
+  /// user.
+  @internal
+  ToolCallView completed(String result) => copyWith(
+    status: ToolCallStatus.complete,
+    result: () => result,
+    awaitingResponse: false,
+  );
 
   /// Returns a copy with the given fields replaced.
   ///

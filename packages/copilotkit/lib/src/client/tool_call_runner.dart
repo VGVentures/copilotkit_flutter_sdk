@@ -65,7 +65,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= _followsUp(tool);
+      followUp |= tool.followsUp;
     }
     return followUp;
   }
@@ -113,8 +113,7 @@ class ToolCallRunner({
     bool Function(ToolCallView call)? where,
   }) {
     for (final call in agent.state.toolCalls) {
-      if (call.status != ToolCallStatus.complete &&
-          (where?.call(call) ?? true)) {
+      if (!call.isComplete && (where?.call(call) ?? true)) {
         _addToolResult(agent, call, result.message);
       }
     }
@@ -151,12 +150,6 @@ class ToolCallRunner({
     }
   }
 
-  /// Whether the agent runs again after [tool] produced its result.
-  bool _followsUp(ClientTool<Object?> tool) => switch (tool) {
-    FrontendTool() => true,
-    HumanInTheLoopTool(:final followUp) => followUp,
-  };
-
   /// Whether [toolCallId] is a call of a registered [HumanInTheLoopTool]
   /// in one of [agents] with complete arguments, no result and no answer
   /// yet.
@@ -169,7 +162,7 @@ class ToolCallRunner({
         (agent) => agent.state.toolCalls.any(
           (call) =>
               call.id == toolCallId &&
-              call.status == ToolCallStatus.executing &&
+              call.isExecuting &&
               _tools[call.name] is HumanInTheLoopTool,
         ),
       );

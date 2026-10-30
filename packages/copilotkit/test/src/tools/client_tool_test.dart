@@ -41,6 +41,35 @@ void main() {
       );
     });
 
+    group('followsUp', () {
+      test('is always true for a frontend tool', () {
+        final tool = FrontendTool(
+          name: 'a',
+          description: 'A',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          handler: (_, {required signal}) async => '',
+        );
+
+        expect(tool.followsUp, isTrue);
+      });
+
+      test('follows followUp for a human-in-the-loop tool', () {
+        HumanInTheLoopTool<Map<String, Object?>> tool({
+          required bool followUp,
+        }) => HumanInTheLoopTool(
+          name: 'b',
+          description: 'B',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          followUp: followUp,
+        );
+
+        expect(tool(followUp: true).followsUp, isTrue);
+        expect(tool(followUp: false).followsUp, isFalse);
+      });
+    });
+
     group('tryDecode', () {
       HumanInTheLoopTool<_WeatherArgs> tool() => HumanInTheLoopTool(
         name: 'showWeather',
