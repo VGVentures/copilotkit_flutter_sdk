@@ -689,6 +689,33 @@ void main() {
           expect(errors, isEmpty);
         });
 
+        test('gives a tool without a handler an empty result', () async {
+          registerTool(componentTool());
+          queueRun(loadFixture('frontend_tool_call').events);
+          queueRun(loadFixture('text_stream').events);
+
+          await runner.run(agent);
+
+          final result = sentInputs().last.messages
+              .whereType<ag_ui.ToolMessage>();
+          expect(result.single.content, '');
+          expect(sentInputs(), hasLength(2));
+          expect(errors, isEmpty);
+        });
+
+        test('ends the turn after a tool without follow up', () async {
+          registerTool(componentTool(followUp: false));
+          queueRun(loadFixture('frontend_tool_call').events);
+
+          await runner.run(agent);
+
+          final call = agent.state.toolCalls.single;
+          expect(call.status, ToolCallStatus.complete);
+          expect(call.result, '');
+          expect(sentInputs(), hasLength(1));
+          expect(errors, isEmpty);
+        });
+
         test('leaves backend tool calls with a runtime result alone', () async {
           queueRun(loadFixture('state_snapshot_delta').events);
 

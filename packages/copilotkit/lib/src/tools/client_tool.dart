@@ -58,11 +58,11 @@ sealed class ClientTool<T> extends Equatable {
   final T Function(Map<String, Object?> json) decode;
 
   /// Whether the agent runs again once a call to this tool has its result:
-  /// always for a [FrontendTool], and as [HumanInTheLoopTool.followUp] says
-  /// for a human-in-the-loop tool.
+  /// as [FrontendTool.followUp] says for a [FrontendTool], and as
+  /// [HumanInTheLoopTool.followUp] says for a human-in-the-loop tool.
   @internal
   bool get followsUp => switch (this) {
-    FrontendTool() => true,
+    FrontendTool(:final followUp) => followUp,
     HumanInTheLoopTool(:final followUp) => followUp,
   };
 
@@ -85,29 +85,52 @@ sealed class ClientTool<T> extends Equatable {
 /// Register it with [CopilotKitClient.registerTool]. When the agent calls
 /// it, the arguments are validated with `parameters`, decoded with `decode`
 /// and passed to [handler]; its result is appended as a tool message, and
-/// the agent continues in the same turn.
+/// the agent continues in the same turn, unless [followUp] is `false`.
+///
+/// Without a [handler] the call only has the empty result `''`, e.g. for a
+/// tool whose widget just shows the arguments. The arguments are still
+/// validated.
 class const FrontendTool<T>({
   required super.name,
   required super.description,
   required super.parameters,
   required super.decode,
 
-  /// Runs the tool when the agent calls it.
-  required final FrontendToolHandler<T> handler,
+  /// Runs the tool when the agent calls it. When `null`, the result of a call
+  /// is `''`.
+  final FrontendToolHandler<T>? handler,
+
+  /// Whether the agent runs again with the result once the call has it. When
+  /// `false` and every call of the run to a tool has `followUp` set to
+  /// `false`, the turn ends without another run, e.g. for a tool that only
+  /// shows a widget.
+  final bool followUp = true,
 }) extends ClientTool<T> {
   /// Creates a tool the agent can call.
   this;
 
-  /// Decodes [args] and runs [handler] with them.
+  /// Decodes [args] and runs [handler] with them, or returns `''` without
+  /// decoding when there is no handler.
   ///
   /// Throws what `decode` or [handler] throw.
   Future<String> run(
     Map<String, Object?> args, {
     required CancellationSignal signal,
-  }) => handler(decode(args), signal: signal);
+  }) async {
+    final handler = this.handler;
+    if (handler == null) return '';
+    return await handler(decode(args), signal: signal);
+  }
 
   @override
-  List<Object?> get props => [name, description, parameters, decode, handler];
+  List<Object?> get props => [
+    name,
+    description,
+    parameters,
+    decode,
+    handler,
+    followUp,
+  ];
 }
 
 /// A tool whose result is the user's answer, not the result of code, with

@@ -42,7 +42,7 @@ void main() {
     });
 
     group('followsUp', () {
-      test('is always true for a frontend tool', () {
+      test('is true for a frontend tool by default', () {
         final tool = FrontendTool(
           name: 'a',
           description: 'A',
@@ -52,6 +52,18 @@ void main() {
         );
 
         expect(tool.followsUp, isTrue);
+      });
+
+      test('follows followUp for a frontend tool', () {
+        final tool = FrontendTool<Map<String, Object?>>(
+          name: 'a',
+          description: 'A',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          followUp: false,
+        );
+
+        expect(tool.followsUp, isFalse);
       });
 
       test('follows followUp for a human-in-the-loop tool', () {
@@ -114,6 +126,43 @@ void main() {
       expect(weather.parameters, same(parameters));
       expect(weather.decode, _WeatherArgs.fromJson);
       expect(weather.handler, handler);
+    });
+
+    test('has no handler and follows up by default', () {
+      final component = FrontendTool<Map<String, Object?>>(
+        name: 'a',
+        description: 'A',
+        parameters: Ack.object({}),
+        decode: Map<String, Object?>.of,
+      );
+
+      expect(component.handler, isNull);
+      expect(component.followUp, isTrue);
+      expect(
+        component,
+        isNot(
+          FrontendTool<Map<String, Object?>>(
+            name: 'a',
+            description: 'A',
+            parameters: component.parameters,
+            decode: component.decode,
+            followUp: false,
+          ),
+        ),
+      );
+    });
+
+    test('run without a handler returns an empty result', () async {
+      var decoded = false;
+      final component = FrontendTool<Object?>(
+        name: 'a',
+        description: 'A',
+        parameters: Ack.object({}),
+        decode: (_) => decoded = true,
+      );
+
+      expect(await component.run(const {}, signal: CancellationSignal()), '');
+      expect(decoded, isFalse);
     });
 
     test('run decodes the args and runs the handler', () async {

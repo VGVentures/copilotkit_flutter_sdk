@@ -8,9 +8,10 @@ import 'package:uuid/uuid.dart';
 /// Produces the results of the client tool calls of a turn and adds them to
 /// the agent.
 ///
-/// A [FrontendTool] call runs its handler; a [HumanInTheLoopTool] call waits
-/// for the user's answer (see [respond]). It keeps those answers, so it is
-/// mutable: a documented exception to the immutability rule (ADR 0009).
+/// A [FrontendTool] call runs its handler, if it has one; a
+/// [HumanInTheLoopTool] call waits for the user's answer (see [respond]). It
+/// keeps those answers, so it is mutable: a documented exception to the
+/// immutability rule (ADR 0009).
 class ToolCallRunner({
   /// The client tools that handle the calls.
   required final ToolRegistry _tools,
@@ -41,7 +42,7 @@ class ToolCallRunner({
   /// human-in-the-loop calls are all marked as awaiting a response first, so
   /// the user can answer them in any order. Returns `false` when there was
   /// nothing to run, when [turn] was stopped meanwhile, or when every call
-  /// was to a human-in-the-loop tool with `followUp` set to `false`.
+  /// had a tool with `followUp` set to `false`.
   Future<bool> runPending(Turn turn) async {
     final agent = turn.agent;
     final pending = _pendingToolCalls(agent);
