@@ -150,8 +150,8 @@ void main() {
 
       setUp(() {
         mapper = _MockChatRowMapper();
-        when(() => mapper.rowsFor(_agentState)).thenReturn(const []);
-        when(() => mapper.rowsFor(running)).thenReturn(rows);
+        when(() => mapper.call(_agentState)).thenReturn(const []);
+        when(() => mapper.call(running)).thenReturn(rows);
       });
 
       blocTest<CopilotChatBloc, CopilotChatState>(
@@ -169,8 +169,8 @@ void main() {
           const CopilotChatState(),
         ],
         verify: (_) {
-          verify(() => mapper.rowsFor(_agentState)).called(2);
-          verify(() => mapper.rowsFor(running)).called(1);
+          verify(() => mapper.call(_agentState)).called(2);
+          verify(() => mapper.call(running)).called(1);
         },
       );
     });

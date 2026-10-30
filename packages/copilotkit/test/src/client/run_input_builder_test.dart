@@ -39,7 +39,7 @@ void main() {
         content: 'Thinking',
         encryptedValue: 'secret',
       ).toJson();
-      final input = const RunInputBuilder().build(
+      final input = const RunInputBuilder().call(
         agent: agent.copyWith(
           messages: [
             user,
@@ -77,7 +77,7 @@ void main() {
       final uuid = _MockUuid();
       when(uuid.v4).thenReturn('run-1');
 
-      final input = RunInputBuilder(uuid: uuid).build(
+      final input = RunInputBuilder(uuid: uuid).call(
         agent: agent,
         tools: [tool],
         context: [entry],
@@ -104,7 +104,7 @@ void main() {
     });
 
     test('adds properties to empty object parameters', () {
-      final input = const RunInputBuilder().build(
+      final input = const RunInputBuilder().call(
         agent: agent,
         tools: [
           FrontendTool(
@@ -132,7 +132,7 @@ void main() {
     });
 
     test('keeps the context order and JSON-encodes each value', () {
-      final input = const RunInputBuilder().build(
+      final input = const RunInputBuilder().call(
         agent: agent,
         tools: const [],
         context: [
@@ -160,7 +160,7 @@ void main() {
     test('generates a new run id for every run by default', () {
       const builder = RunInputBuilder();
       ag_ui.RunAgentInput build() =>
-          builder.build(agent: agent, tools: const [], context: const []);
+          builder(agent: agent, tools: const [], context: const []);
 
       expect(build().runId, isNot(build().runId));
     });

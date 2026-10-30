@@ -16,7 +16,7 @@ void main() {
     const mapper = ChatRowMapper();
 
     test('hides tool, system, unsupported and empty messages', () {
-      final rows = mapper.rowsFor(
+      final rows = mapper(
         agentState.copyWith(
           messages: [
             const SystemMessage(id: 's', content: 'Be nice'),
@@ -50,7 +50,7 @@ void main() {
         ],
       );
 
-      final rows = mapper.rowsFor(
+      final rows = mapper(
         agentState.copyWith(messages: [callOnly], toolCalls: [call]),
       );
 

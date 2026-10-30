@@ -54,7 +54,7 @@ class ToolCallRunner({
     _markAwaitingResponse(agent, pending);
     var followUp = false;
     for (final (call, tool) in pending) {
-      final outcome = await _executor.execute(
+      final outcome = await _executor(
         tool,
         call,
         turn.signal,

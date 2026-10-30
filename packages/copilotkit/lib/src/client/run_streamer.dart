@@ -51,13 +51,13 @@ class const RunStreamer({
   /// While the run streams, `Turn.run` holds it so a stop can cancel it; it
   /// is cleared once the run ends. Never throws: a failure is recorded on
   /// the agent and goes to the error handler.
-  Future<RunResult> stream(Turn turn) async {
+  Future<RunResult> call(Turn turn) async {
     final agent = turn.agent;
     final RunAgentInput input;
     final Map<String, String> headers;
     final Stream<BaseEvent> events;
     try {
-      input = _inputBuilder.build(
+      input = _inputBuilder(
         agent: agent.state,
         tools: _tools.tools.values,
         context: _context.entries,

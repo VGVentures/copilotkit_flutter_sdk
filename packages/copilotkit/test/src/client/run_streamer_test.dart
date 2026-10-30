@@ -41,7 +41,7 @@ void main() {
     void queueRun(List<ag_ui.BaseEvent> events) =>
         runs.add(Stream.fromIterable(events));
 
-    Future<RunResult> stream() => harness.streamer.stream(turn);
+    Future<RunResult> stream() => harness.streamer(turn);
 
     test('sends the agent, tools, context, properties and headers', () async {
       useHarness(

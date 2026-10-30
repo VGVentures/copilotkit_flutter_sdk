@@ -129,7 +129,7 @@ class AgentRunner({
   /// successfully and wasn't stopped; a failed run closes the open tool
   /// calls, so the next run sends a valid conversation.
   Future<bool> _runOnce(Turn turn) async {
-    switch (await _streamer.stream(turn)) {
+    switch (await _streamer(turn)) {
       case RunResult.finished:
         return true;
       case RunResult.failed:

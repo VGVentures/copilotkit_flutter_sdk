@@ -21,7 +21,7 @@ final class const CopilotChatState({
     CopilotAgentState agentState, {
     ChatRowMapper mapper = const ChatRowMapper(),
   }) => CopilotChatState(
-    rows: mapper.rowsFor(agentState),
+    rows: mapper(agentState),
     isRunning: agentState.isRunning,
     error: agentState.error,
   );
