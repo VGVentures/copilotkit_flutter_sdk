@@ -65,6 +65,21 @@ void main() {
       expect(list.toggled(1).todos.map((todo) => todo.done), [false, false]);
     });
 
+    test('replaces the todos of a state and keeps the rest of it', () {
+      final shared = list.toShared(
+        const SharedState({'document': 'Dear Ada,', 'todos': <Object?>[]}),
+      );
+
+      expect(shared.toJson(), {
+        'document': 'Dear Ada,',
+        'todos': [
+          {'title': 'Buy milk', 'done': false},
+          {'title': 'Call Ada', 'done': true},
+        ],
+      });
+      expect(list.toShared(null).toJson().keys, ['todos']);
+    });
+
     test('removes the todo at the index', () {
       expect(list.removed(0).todos.map((todo) => todo.title), ['Call Ada']);
     });

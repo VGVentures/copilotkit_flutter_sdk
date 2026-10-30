@@ -5,7 +5,10 @@ CopilotKit Flutter SDK demo app.
 ## Local Copilot Runtime
 
 The app talks to a Copilot Runtime server, the same one the CopilotKit React
-Native quickstart uses. A local copy lives in `tool/runtime/`.
+Native quickstart uses. A local copy lives in `tool/runtime/`. Its `default` agent is a custom
+`StreamedDocumentAgent` (a subclass of the built-in agent) that streams the
+`write_document` tool argument into the shared state. The built-in agent alone
+doesn't emit state for tool arguments.
 
 **Requirements:** Node.js 20+ and an API key for the model provider.
 
@@ -133,7 +136,8 @@ demo in `lib/demo/widgets/weather_demo.dart` registers a `showWeather`
 frontend tool and a `confirmAction` human-in-the-loop tool
 (`lib/demo/widgets/approval_demo.dart`),
 shows a todo list kept in the agent's shared state
-(`lib/demo/widgets/todo_panel.dart`), and shares a current user
+(`lib/demo/widgets/todo_panel.dart`) and a document the agent streams into
+that state (`lib/demo/widgets/document_panel.dart`), and shares a current user
 (`{name: Ada, homeCity: Lima}`) as context.
 
 <!-- prettier-ignore -->
@@ -198,6 +202,26 @@ it started before this demo: its prompt tells the agent about the list.
 - Tick Buy milk, then ask "What's left to do?" The agent leaves it out.
 - Ask "Remove everything I finished." The ticked item disappears.
 - Tap the **×** of an item. It disappears.
+
+### Streamed document
+
+These checks cover the document below the todo list. The runtime's `default`
+agent is a `StreamedDocumentAgent` (`tool/runtime/streamed_document_agent.ts`):
+it wraps the built-in agent and turns the arguments of the `write_document`
+tool into a `STATE_SNAPSHOT` for every chunk, so the app sees the document
+grow. Restart the runtime first if it started before this demo.
+
+- The panel starts empty with **No document yet**, and no **LIVE** badge.
+- Ask "Write a short note thanking Ada." The **LIVE** badge shows and the text
+  grows token by token while the agent writes. The badge goes away when the run
+  ends and the full note stays.
+- While **LIVE** shows, the text can't be edited.
+- Edit the note, for example change a word. Ask "Read my document back to me."
+  The agent repeats your edit. This confirms that it reached the runtime.
+- Ask "Make it shorter." The note is replaced by a shorter version of your
+  edited text, and the todo list is unchanged.
+- Tap **Stop** while the note streams. The partial text stays and the badge
+  goes away.
 
 ### Stop
 
