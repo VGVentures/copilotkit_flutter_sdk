@@ -37,7 +37,7 @@ sealed class Message extends Equatable {
         AssistantMessage(
           id: id,
           content: message.content,
-          toolCalls: [...?toolCalls?.map(ToolCall.fromAgUi)],
+          toolCalls: List.unmodifiable([...?toolCalls?.map(ToolCall.fromAgUi)]),
           name: message.name,
           encryptedValue: message.encryptedValue,
         ),
@@ -192,6 +192,9 @@ final class const AssistantMessage({
   final String? content,
 
   /// Calls to tools the assistant made in this message, in order.
+  ///
+  /// Unmodifiable in every message the SDK produces; a list passed to this
+  /// constructor is kept as it is.
   final List<ToolCall> toolCalls = const [],
 
   /// Name of the author, if the runtime sets one.
@@ -205,6 +208,9 @@ final class const AssistantMessage({
 
   /// Returns a copy with the given fields replaced.
   ///
+  /// The list passed as [toolCalls] is copied into an unmodifiable list, so
+  /// a message the SDK produces can't be changed in place.
+  ///
   /// [content] is a getter so a caller can set it (`content: () => text`),
   /// clear it (`content: () => null`) or leave it alone by not passing it.
   AssistantMessage copyWith({
@@ -213,7 +219,9 @@ final class const AssistantMessage({
   }) => AssistantMessage(
     id: id,
     content: content == null ? this.content : content(),
-    toolCalls: toolCalls ?? this.toolCalls,
+    toolCalls: toolCalls == null
+        ? this.toolCalls
+        : List.unmodifiable(toolCalls),
     name: name,
     encryptedValue: encryptedValue,
   );

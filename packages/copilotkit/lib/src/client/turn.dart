@@ -20,6 +20,17 @@ class Turn(
   /// Cancelled when the turn is stopped or the runner is closed.
   final CancellationSignal signal = CancellationSignal();
 
+  ActiveRun? _run;
+
   /// The run being streamed, or `null` between runs.
-  ActiveRun? run;
+  ActiveRun? get run => _run;
+
+  /// Records [run] as the run being streamed, so a stop can cancel it.
+  // A method, not a setter: the run is never set from outside the turn's
+  // lifecycle, and `detach` is its counterpart.
+  // ignore: use_setters_to_change_properties
+  void attach(ActiveRun run) => _run = run;
+
+  /// Clears the run being streamed, once it has ended.
+  void detach() => _run = null;
 }

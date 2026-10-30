@@ -141,6 +141,28 @@ void main() {
         expect(copy.error, 'boom');
       });
 
+      test('makes the lists it is given unmodifiable', () {
+        final state = const CopilotAgentState(
+          agentId: 'a',
+          threadId: 't',
+        ).copyWith(messages: [], toolCalls: []);
+
+        expect(
+          () => state.messages.add(const UserMessage(id: 'u', content: '')),
+          throwsUnsupportedError,
+        );
+        expect(
+          () => state.toolCalls.add(
+            const ToolCallView(
+              id: 'c',
+              name: 'n',
+              status: ToolCallStatus.executing,
+            ),
+          ),
+          throwsUnsupportedError,
+        );
+      });
+
       test('can reset state and error to null', () {
         const snapshot = CopilotAgentState(
           agentId: 'a',

@@ -38,7 +38,7 @@ class ToolRegistry() {
     final registration = index < 0
         ? _Registration(tool)
         : registrations.removeAt(index);
-    registrations.add(registration..count += 1);
+    registrations.add(registration.incremented());
     _tools[tool.name] = registration.tool;
   }
 
@@ -54,7 +54,11 @@ class ToolRegistry() {
     if (registrations == null) return false;
     final index = registrations.indexWhere((r) => r.tool == tool);
     if (index < 0) return false;
-    if (--registrations[index].count > 0) return false;
+    final registration = registrations[index].decremented();
+    if (registration.count > 0) {
+      registrations[index] = registration;
+      return false;
+    }
     registrations.removeAt(index);
     if (registrations.isNotEmpty) {
       _tools[tool.name] = registrations.last.tool;
@@ -67,6 +71,13 @@ class ToolRegistry() {
 }
 
 /// A distinct tool under a name and how many times it is registered.
-class _Registration(final ClientTool<Object?> tool) {
-  int count = 0;
+class const _Registration(
+  final ClientTool<Object?> tool, [
+  final int count = 0,
+]) {
+  /// Returns this registration counted once more.
+  _Registration incremented() => _Registration(tool, count + 1);
+
+  /// Returns this registration counted once less.
+  _Registration decremented() => _Registration(tool, count - 1);
 }

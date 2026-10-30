@@ -48,7 +48,7 @@ class const RunStreamer({
 
   /// Streams one run of the agent of [turn] and returns how it ended.
   ///
-  /// While the run streams, `Turn.run` holds it so a stop can cancel it; it
+  /// While the run streams, the turn holds it so a stop can cancel it; it
   /// is cleared once the run ends. Never throws: a failure is recorded on
   /// the agent and goes to the error handler.
   Future<RunResult> call(Turn turn) async {
@@ -84,43 +84,45 @@ class const RunStreamer({
 
     // Whether the runtime sent RUN_FINISHED or RUN_ERROR.
     var ended = false;
-    turn.run = ActiveRun(
-      runId: input.runId,
-      headers: headers,
-      // Cancelled on error (cancelOnError), by a stop and by close().
-      subscription: events.listen(
-        (event) {
-          if (event is RunFinishedEvent || event is RunErrorEvent) {
-            ended = true;
-          }
-          agent.apply(event);
-          if (event case RunErrorEvent(:final message, :final code)) {
-            _onError(
-              RunError(message: message, code: code),
-              StackTrace.current,
-            );
-          }
-        },
-        onError: (Object error, StackTrace stackTrace) {
-          _fail(agent, error, stackTrace);
-          finish();
-        },
-        onDone: () {
-          if (!ended) {
-            _fail(
-              agent,
-              StateError('The connection closed before the run finished.'),
-              StackTrace.current,
-            );
-          }
-          finish();
-        },
-        cancelOnError: true,
+    turn.attach(
+      ActiveRun(
+        runId: input.runId,
+        headers: headers,
+        // Cancelled on error (cancelOnError), by a stop and by close().
+        subscription: events.listen(
+          (event) {
+            if (event is RunFinishedEvent || event is RunErrorEvent) {
+              ended = true;
+            }
+            agent.apply(event);
+            if (event case RunErrorEvent(:final message, :final code)) {
+              _onError(
+                RunError(message: message, code: code),
+                StackTrace.current,
+              );
+            }
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            _fail(agent, error, stackTrace);
+            finish();
+          },
+          onDone: () {
+            if (!ended) {
+              _fail(
+                agent,
+                StateError('The connection closed before the run finished.'),
+                StackTrace.current,
+              );
+            }
+            finish();
+          },
+          cancelOnError: true,
+        ),
       ),
     );
     await Future.any([streamDone.future, turn.signal.whenCancelled]);
     if (turn.signal.isCancelled) return RunResult.stopped;
-    turn.run = null;
+    turn.detach();
     return agent.state.error == null ? RunResult.finished : RunResult.failed;
   }
 

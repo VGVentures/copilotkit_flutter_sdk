@@ -215,6 +215,34 @@ Classes that track things that come and go, like `ToolRegistry`,
 `ToolResponses`, `Turn` or `AgentRunner`, are the other mutable classes. Each
 says so in its doc comment. Everything else is immutable.
 
+A mutable class keeps its fields private. It exposes read-only getters (an
+unmodifiable view or a copy of a collection) and methods named after what
+they do, never a field that can be set from outside: `turn.attach(run)`, not
+`turn.run = run`. It gets a `state` and a `stream` only when something
+listens for its changes; today only `CopilotAgent` does.
+
+Collections in a model the SDK produces are unmodifiable, so a state can't
+be changed in place: `CopilotAgentState.copyWith` and
+`AssistantMessage.copyWith` wrap the lists they are given, and maps the SDK
+builds are `Map.unmodifiable`.
+
+```dart
+// Bad
+class Turn {
+  ActiveRun? run;
+}
+agent.state.messages.add(message); // changes the state in place
+
+// Good
+class Turn {
+  ActiveRun? _run;
+  ActiveRun? get run => _run;
+  void attach(ActiveRun run) => _run = run;
+  void detach() => _run = null;
+}
+agent.addMessage(message);
+```
+
 ## Blocs
 
 Blocs live only in `copilotkit_flutter`. A bloc is a thin adapter between a
