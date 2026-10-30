@@ -12,7 +12,7 @@ check against a real runtime is `tool/round_trip.dart`, a command-line probe
 that prints what comes back and asserts nothing.
 
 [ADR 0010](https://github.com/VGVentures/copilotkit_flutter_sdk/blob/docs/genkit-comparison/docs/adr/0010-genkit-dart-comparison.md)
-(item E6) notes that Genkit Dart has tests that send real calls and are
+(item E6) notes that another Dart SDK has tests that send real calls and are
 skipped without an API key. The same idea fits here: a run needs a Copilot
 Runtime, which needs a model provider key and costs money, so CI can't run
 it and a contributor with a runtime should be able to.
