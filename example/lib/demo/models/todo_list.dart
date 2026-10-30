@@ -24,6 +24,11 @@ class const TodoList({final List<Todo> todos = const []}) {
 
   Map<String, Object?> toJson() => _$TodoListToJson(this);
 
+  /// Returns [current] with this list in place of its `todos`, and
+  /// everything else in it (the document, for example) kept.
+  SharedState toShared(SharedState? current) =>
+      SharedState({...?current?.toJson(), ...toJson()});
+
   /// Returns this list with a new, open todo [title] at the end.
   TodoList added(String title) => TodoList(
     todos: [
