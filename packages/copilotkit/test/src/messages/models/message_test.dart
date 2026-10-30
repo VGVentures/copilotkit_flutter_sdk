@@ -102,6 +102,22 @@ void main() {
         test('can clear the content', () {
           expect(message.copyWith(content: () => null).content, isNull);
         });
+
+        test('keeps the given tool calls unmodifiable', () {
+          final toolCalls = [
+            const ToolCall(id: 'c2', name: 'show', arguments: '{}'),
+          ];
+          final copy = message.copyWith(toolCalls: toolCalls);
+          toolCalls.clear();
+
+          expect(copy.toolCalls, hasLength(1));
+          expect(
+            () => copy.toolCalls.add(
+              const ToolCall(id: 'c3', name: 'show', arguments: '{}'),
+            ),
+            throwsUnsupportedError,
+          );
+        });
       });
     });
 
@@ -365,6 +381,14 @@ void main() {
               encryptedValue: 'secret',
             ),
           );
+        });
+
+        test('keeps the tool calls of an assistant message unmodifiable', () {
+          final message = Message.fromAgUi(
+            agUiMessages['assistant with tool calls']!,
+          ) as AssistantMessage;
+
+          expect(message.toolCalls.clear, throwsUnsupportedError);
         });
 
         test('creates an assistant message without tool calls', () {

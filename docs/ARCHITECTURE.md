@@ -222,8 +222,9 @@ they do, never a field that can be set from outside: `turn.attach(run)`, not
 listens for its changes; today only `CopilotAgent` does.
 
 Collections in a model the SDK produces are unmodifiable, so a state can't
-be changed in place: `CopilotAgentState.copyWith` wraps the lists it is
-given, and maps the SDK builds are `Map.unmodifiable`.
+be changed in place: `CopilotAgentState.copyWith` and
+`AssistantMessage.copyWith` wrap the lists they are given, and maps the SDK
+builds are `Map.unmodifiable`.
 
 ```dart
 // Bad
