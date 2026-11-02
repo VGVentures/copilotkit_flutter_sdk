@@ -105,7 +105,7 @@ answers the call as cancelled, so a stop always ends the turn. So does
 unregistering the tool while a call waits. Several calls can wait together
 and be answered in any order. An answer for an unknown, already answered or
 non-human-in-the-loop call is ignored. See
-[ADR 0009](../../docs/adr/0009-human-in-the-loop-responses.md).
+[ADR 0009](https://github.com/VGVentures/copilotkit_flutter_sdk/blob/main/docs/adr/0009-human-in-the-loop-responses.md).
 
 ## Web and CORS
 
