@@ -131,7 +131,9 @@ Run them from the repository root before you push:
    reports `Found 0 warnings and 0 errors`:
 
    ```sh
-   fvm dart doc --validate-links -o "$(mktemp -d)"
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/json_utils
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit_flutter
    ```
 
 7. Regenerate the `api.txt` of each package whose `test/api_test.dart`
