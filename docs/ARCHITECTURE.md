@@ -117,7 +117,10 @@ them, and `copilotkit` exports neither:
   name `ag_ui` types.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
-by `test/src/tools/models/tool_call_view_test.dart`.
+by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
+whole sit at the top of `test/`, outside the mirror: `test/api_test.dart`
+checks the public API against the package's `api.txt`, and
+`test/fixtures_test.dart` checks the wire fixtures.
 
 ## Logic lives in classes
 
