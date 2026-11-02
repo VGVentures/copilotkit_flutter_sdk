@@ -41,6 +41,51 @@ never `Object?`. It has a single feature, so its classes sit directly in
 `lib/src/` and its barrel, `lib/json_utils.dart`, is the only library other
 packages import.
 
+## Layers
+
+The SDK's features stack in five layers, and the example app sits on top. A
+feature imports only features in its own layer or the layers below it, and
+only along the edges in the [feature table](#layout):
+
+```text
+example                 the app: pages and views built on the SDK
+  ▼
+copilotkit_flutter      Presentation: widgets, and blocs that adapt a
+                        state holder to a widget tree
+  ▼
+client                  Client: CopilotKitClient, which runs agents over
+                        the transport and runs their tool calls between runs
+  ▼
+agent                   State: CopilotAgent, a state holder, and the mapper
+                        that applies AG-UI events to its state
+  ▼
+messages, tools,        Domain: the SDK's models and the registries over
+context                 them, with no I/O
+  ▼
+transport, json_utils   Data: the wire and JSON, with no SDK logic
+```
+
+These are VGV's layers fitted to an SDK. The data layer is the same: it
+talks to the outside and knows nothing of the SDK's domain. Domain, state and
+client together do the repository's job: they turn wire data into the SDK's
+models and keep `ag_ui` from leaking out. State lives in plain state holders
+rather than blocs, so the core depends on neither Flutter nor bloc, and the
+blocs in `copilotkit_flutter` only adapt a holder to a widget tree.
+
+A few other differences are deliberate:
+
+- Logic classes create their collaborators by default (see
+  [Logic lives in classes](#logic-lives-in-classes)), so an app doesn't wire
+  the SDK's internals. Tests still pass their own.
+- `transport` is a feature of `copilotkit`, not a package of its own. The
+  message models convert to and from `ag_ui` themselves
+  ([ADR 0010](adr/0010-logic-lives-on-its-type.md)), so a transport package
+  would carry `ag_ui` types across a package boundary.
+- Local packages depend on each other by version, like `copilotkit: ^0.1.0`,
+  not with `path:`. The root `pubspec.yaml` is a pub workspace, so they
+  resolve to the copies in this repository.
+- Widgets live in `widgets/`, not `view/`.
+
 ## Layout
 
 Every package except `json_utils` has one folder per feature in `lib/src/`,
@@ -71,24 +116,25 @@ packages have `client`, `agent`, `tools` and `context` features, so a feature
 in the table is one of its own package, and "the core" is the `copilotkit`
 barrel:
 
-| Package | Feature | May import |
-| --- | --- | --- |
-| `copilotkit` | `transport` | — |
-| | `tools` | — |
-| | `context` | — |
-| | `messages` | — |
-| | `agent` | `messages`, `tools`, `json_utils` |
-| | `client` | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
-| `copilotkit_flutter` | `client` | the core |
-| | `agent`, `tools`, `context` | `client`, the core |
-| | `chat` | `client`, the core |
+| Package | Feature | Layer | May import |
+| --- | --- | --- | --- |
+| `copilotkit` | `transport` | Data | — |
+| | `tools` | Domain | — |
+| | `context` | Domain | — |
+| | `messages` | Domain | — |
+| | `agent` | State | `messages`, `tools`, `json_utils` |
+| | `client` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
+| `copilotkit_flutter` | `client` | Presentation | the core |
+| | `agent`, `tools`, `context` | Presentation | `client`, the core |
+| | `chat` | Presentation | `client`, the core |
 
 A feature imports another feature only through its barrel
 (`package:copilotkit/src/tools/tools.dart`), never one of its files; a model may
 import another feature's model directly. The package barrel
 (`lib/copilotkit.dart`) exports only feature barrels, and uses `show` / `hide`
 to keep internal types private. A new feature, or a new edge between
-features, is a design change: add it to this table in the same pull request.
+features, is a design change: add it to this table in the same pull request,
+in the lowest layer it fits.
 
 A `/// @docImport` on a `library;` directive, used only to link a symbol in
 a doc comment, isn't a feature edge and doesn't go in the table. It imports
@@ -117,13 +163,15 @@ them, and `copilotkit` exports neither:
   `@internal` members (`Message.fromAgUi`, `Message.toAgUi`). A public
   signature names an `ag_ui` type only on an `@internal` or
   `@visibleForTesting` member, and public doc comments and READMEs don't
-  name `ag_ui` types. In a package's `api.txt`, the `ag_ui` types it
-  names are listed under `package:ag_ui/...`, and every member that names
-  one ends in `internal` or `visible for testing`. `api_summary` doesn't
-  show annotations on parameters, so a `@visibleForTesting` parameter reads
-  like any other. A member that isn't marked but names a `(non-public)`
-  type, like the `AgentTransport? transport` parameter of
-  `CopilotKitClient.new`, needs a reviewer to check it.
+  name `ag_ui` types. Only `transport`, `messages`, `agent` and `client`
+  import it; `tools` and `context` never do. In a package's `api.txt`, the
+  `ag_ui` types it names are listed under `package:ag_ui/...`, and every
+  member that names one ends in `internal` or `visible for testing`.
+  `api_summary` doesn't show annotations on parameters, so a
+  `@visibleForTesting` parameter reads like any other. A member that isn't
+  marked but names a `(non-public)` type, like the
+  `AgentTransport? transport` parameter of `CopilotKitClient.new`, needs a
+  reviewer to check it.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
@@ -132,6 +180,59 @@ checks the public API against the package's `api.txt` (the summary of what
 its library exports, from `package:api_summary`), and
 `test/fixtures_test.dart` checks the wire fixtures.
 
+## Data flow
+
+A message the user sends goes down the layers to the runtime, and the
+agent's reply comes back up as state:
+
+```text
+chat widget          adds a ChatMessageSent event
+  ▼
+CopilotChatBloc      calls CopilotKitClient.runAgent
+  ▼
+CopilotKitClient     hands the agent to its AgentRunner
+  ▼
+AgentRunner          opens a Turn and streams runs until no tool call is left
+  ▼
+RunStreamer          builds the run's input with RunInputBuilder
+  ▼
+AgUiTransport        sends the run and streams AG-UI events back
+  ▲
+CopilotAgent.apply   folds each event into the state with AgentEventMapper
+  ▲
+CopilotAgent.stream  emits each new state
+  ▲
+CopilotChatBloc      mirrors it with emit.forEach as a CopilotChatState
+  ▲
+chat widget          rebuilds
+```
+
+When a run ends with tool calls, `AgentRunner` hands the turn to its
+`ToolCallRunner`, which runs each call with a `ToolCallExecutor`. A
+`FrontendTool` handler returns its result. A `HumanInTheLoopTool` waits in
+`ToolResponses` until the app calls `CopilotKitClient.respondToToolCall`
+([ADR 0009](adr/0009-human-in-the-loop-responses.md)). Each result is applied
+to the agent as an event, and `AgentRunner` starts the next run.
+
+## The example app
+
+`example/` is an app built on the SDK. It follows the rules for a package,
+with its features in `lib/` instead of `lib/src/`:
+
+- `main.dart` reads the runtime URL and runs `App`, which provides the
+  `CopilotKit` client to the widget tree.
+- Each feature (`app`, `chat`, `demo`) has a barrel and only the folders it
+  needs: `models/` for the app's JSON models, logic classes like
+  `WeatherService` at its root, and `widgets/`. Features import each other
+  only through their barrels.
+- A page provides what its view reads: `ChatPage` wraps `ChatView` in a
+  `CopilotChatProvider`.
+- It imports the SDK only through the `copilotkit_flutter` barrel, and `ack`
+  to build tool schemas. It doesn't declare `copilotkit` in its
+  `pubspec.yaml`.
+- Tests mirror `lib/`: `lib/demo/weather_service.dart` is covered by
+  `test/demo/weather_service_test.dart`.
+
 ## Logic lives in classes
 
 Logic lives in well-named classes whose collaborators are passed to the
@@ -139,7 +240,8 @@ constructor, with production defaults, so tests can replace each one. The
 facade composes them: `CopilotKitClient` builds a `ToolRegistry`, an
 `AgentContextStore` and an `AgentRunner`. The runner takes a `RunStreamer`,
 which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
-which runs the tool calls between runs with a `ToolCallExecutor`.
+which runs the tool calls between runs with a `ToolCallExecutor` (see
+[Data flow](#data-flow)).
 
 ```dart
 // Good: the mapper gets its JSON helpers injected
@@ -527,8 +629,8 @@ layering, so each change keeps them by design and each review checks them.
 
 Before you change code:
 
-1. Find the package and the feature the change belongs to, using the
-   [feature table](#layout).
+1. Find the package, the feature and the layer the change belongs to, using
+   the [feature table](#layout) and the [layers](#layers).
 2. Put each new type in the folder its kind calls for: `models/`, a logic
    class at the feature root, `bloc/` or `widgets/`.
 3. Import other features only through their barrels, and only along the
@@ -544,9 +646,11 @@ exception. Make it on purpose:
   obvious from the change: its context, the decision, and its consequences.
 
 These commands check the package boundaries before you push. The first one
-lists only the `copilotkit_flutter` barrel, and the second finds nothing:
+lists only the `copilotkit_flutter` barrel, and the others find nothing:
 
 ```sh
 rg -n "^export 'package:" packages/*/lib
 rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example
+rg -l "package:ag_ui/" packages/copilotkit/lib/src \
+  -g '!**/src/{transport,messages,agent,client}/**'
 ```
