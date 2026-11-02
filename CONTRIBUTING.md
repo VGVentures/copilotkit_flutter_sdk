@@ -132,9 +132,11 @@ Run them from the repository root before you push:
    fvm dart doc -o "$(mktemp -d)"
    ```
 
-7. If you changed a package's public API, regenerate its `api.txt` in the
-   package's folder and commit it. `test/api_test.dart` fails until the
-   file matches the code, and the diff shows reviewers what changed:
+7. If you changed a package's public API or its SDK constraint, regenerate
+   its `api.txt` in the package's folder and commit it. The file also
+   records the pubspec's `environment` section, so an SDK upgrade fails
+   `test/api_test.dart` even when the API is the same. The test fails until
+   the file matches, and the diff shows reviewers what changed:
 
    ```sh
    fvm dart run api_summary --write
