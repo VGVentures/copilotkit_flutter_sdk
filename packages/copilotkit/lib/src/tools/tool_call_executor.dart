@@ -14,8 +14,8 @@ class const ToolCallExecutor() {
   /// Creates an executor.
   this;
 
-  /// Produces the result of the tool call [view] for [tool] within the turn
-  /// [signal] belongs to: runs the handler of a [FrontendTool], or waits in
+  /// Produces the result of the tool call [view] for [tool] until the call's
+  /// [signal] is cancelled: runs the handler of a [FrontendTool], or waits in
   /// [responses] for the user to answer a [HumanInTheLoopTool].
   ///
   /// Arguments that don't match [ClientTool.parameters] never reach the

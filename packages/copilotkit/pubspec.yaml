@@ -19,6 +19,7 @@ dependencies:
   uuid: ^4.6.0
 
 dev_dependencies:
+  api_summary: ^1.2.0
   build_runner: ^2.16.1
   json_serializable: ^6.15.2
   mocktail: ^1.0.5
