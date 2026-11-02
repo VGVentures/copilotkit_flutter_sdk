@@ -254,6 +254,24 @@ void main() {
 
         expect(await again, isFalse);
       });
+
+      test(
+        "starts each call's signal cancelled when the turn has stopped",
+        () async {
+          bool? cancelledOnEntry;
+          tools.register(
+            weatherTool((_, {required signal}) async {
+              cancelledOnEntry = signal.isCancelled;
+              return 'sunny';
+            }),
+          );
+          receive(toolCallRun(threadId()));
+          turn.signal.cancel();
+
+          expect(await toolCalls.runPending(turn), isFalse);
+          expect(cancelledOnEntry, isTrue);
+        },
+      );
     });
 
     group('closeOpen', () {

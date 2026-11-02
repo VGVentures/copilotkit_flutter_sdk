@@ -130,7 +130,11 @@ class ToolCallRunner({
   /// A signal for one call of [turn], cancelled when the turn's signal is.
   CancellationSignal _callSignal(Turn turn) {
     final signal = CancellationSignal();
-    unawaited(turn.signal.whenCancelled.then((_) => signal.cancel()));
+    if (turn.signal.isCancelled) {
+      signal.cancel();
+    } else {
+      unawaited(turn.signal.whenCancelled.then((_) => signal.cancel()));
+    }
     return signal;
   }
 
