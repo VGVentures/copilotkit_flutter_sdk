@@ -132,16 +132,19 @@ Run them from the repository root before you push:
    fvm dart doc -o "$(mktemp -d)"
    ```
 
-7. If you changed a package's public API or its SDK constraint, regenerate
-   its `api.txt` in the package's folder and commit it. The file also
-   records the pubspec's `environment` section, so an SDK upgrade fails
-   `test/api_test.dart` even when the API is the same. The test fails until
-   the file matches, and the diff shows reviewers what changed.
-   `copilotkit_flutter` re-exports `copilotkit`, so a change to the core's
-   API also changes `copilotkit_flutter/api.txt`:
+7. Regenerate the `api.txt` of each package whose `test/api_test.dart`
+   fails, and commit it. The file lists everything the package's library
+   exports, including `@internal` members, the non-public types they name
+   and the pubspec's `environment` section. So an internal change, an SDK
+   upgrade or a rebase onto newer code can make the test fail even when
+   the public API is the same, and the diff shows reviewers what changed.
+   `copilotkit_flutter` re-exports `copilotkit`, so a change to the core
+   also changes `copilotkit_flutter/api.txt`:
 
    ```sh
-   fvm dart run api_summary --write
+   fvm dart run api_summary --write -p packages/json_utils
+   fvm dart run api_summary --write -p packages/copilotkit
+   fvm dart run api_summary --write -p packages/copilotkit_flutter
    ```
 
 CI also builds the example app for the web with WebAssembly.
