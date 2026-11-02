@@ -1,9 +1,9 @@
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/models/run_result.dart';
-import 'package:copilotkit/src/client/run_streamer.dart';
-import 'package:copilotkit/src/client/tool_call_runner.dart';
-import 'package:copilotkit/src/client/turn.dart';
 import 'package:copilotkit/src/messages/messages.dart';
+import 'package:copilotkit/src/run/models/run_result.dart';
+import 'package:copilotkit/src/run/run_streamer.dart';
+import 'package:copilotkit/src/run/tool_call_runner.dart';
+import 'package:copilotkit/src/run/turn.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 
