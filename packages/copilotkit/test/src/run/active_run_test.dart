@@ -1,5 +1,5 @@
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
-import 'package:copilotkit/src/client/client.dart';
+import 'package:copilotkit/src/run/run.dart';
 import 'package:test/test.dart';
 
 void main() {

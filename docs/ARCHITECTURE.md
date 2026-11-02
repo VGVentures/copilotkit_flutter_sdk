@@ -20,6 +20,8 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
   context     the app data shared with the agent
   messages    the conversation's messages and their AG-UI mapping
   agent       CopilotAgent: one conversation, its state and stream
+  run         AgentRunner: streams a turn's runs and runs the tool calls
+              between them (internal)
   client      CopilotKitClient: agents, tools, context and runs
 packages/copilotkit_flutter   Flutter, re-exports copilotkit
   client      CopilotKit: provides the client to the widget tree
@@ -53,8 +55,9 @@ example                 the app: pages and views built on the SDK
 copilotkit_flutter      Presentation: widgets, and blocs that adapt a
                         state holder to a widget tree
   ▼
-client                  Client: CopilotKitClient, which runs agents over
-                        the transport and runs their tool calls between runs
+client, run             Client: CopilotKitClient, the facade, and run, the
+                        machinery that streams runs over the transport and
+                        runs the tool calls between them
   ▼
 agent                   State: CopilotAgent, a state holder, and the mapper
                         that applies AG-UI events to its state
@@ -123,7 +126,8 @@ barrel:
 | | `context` | Domain | — |
 | | `messages` | Domain | — |
 | | `agent` | State | `messages`, `tools`, `json_utils` |
-| | `client` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
+| | `run` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
+| | `client` | Client | `run`, `transport`, `messages`, `agent`, `tools`, `context` |
 | `copilotkit_flutter` | `client` | Presentation | the core |
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |
@@ -163,13 +167,13 @@ them, and `copilotkit` exports neither:
   `@internal` members (`Message.fromAgUi`, `Message.toAgUi`). A public
   signature names an `ag_ui` type only on an `@internal` or
   `@visibleForTesting` member, and public doc comments and READMEs don't
-  name `ag_ui` types. Only `transport`, `messages`, `agent` and `client`
-  import it; `tools` and `context` never do. In a package's `api.txt`, the
-  `ag_ui` types it names are listed under `package:ag_ui/...`, and every
-  member that names one ends in `internal` or `visible for testing`.
-  `api_summary` doesn't show annotations on parameters, so a
-  `@visibleForTesting` parameter reads like any other. A member that isn't
-  marked but names a `(non-public)` type, like the
+  name `ag_ui` types. Only `transport`, `messages`, `agent` and `run`
+  import it; `tools`, `context` and `client` never do. In a package's
+  `api.txt`, the `ag_ui` types it names are listed under
+  `package:ag_ui/...`, and every member that names one ends in `internal`
+  or `visible for testing`. `api_summary` doesn't show annotations on
+  parameters, so a `@visibleForTesting` parameter reads like any other. A
+  member that isn't marked but names a `(non-public)` type, like the
   `AgentTransport? transport` parameter of `CopilotKitClient.new`, needs a
   reviewer to check it.
 
@@ -652,5 +656,5 @@ lists only the `copilotkit_flutter` barrel, and the others find nothing:
 rg -n "^export 'package:" packages/*/lib
 rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example
 rg -l "package:ag_ui/" packages/copilotkit/lib/src \
-  -g '!**/src/{transport,messages,agent,client}/**'
+  -g '!**/src/{transport,messages,agent,run}/**'
 ```
