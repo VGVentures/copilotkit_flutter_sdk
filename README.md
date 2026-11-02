@@ -131,8 +131,9 @@ The repository is a Dart pub workspace with three packages.
 ## Development
 
 To set up the repository, run the checks CI runs, and open a pull request,
-see [`CONTRIBUTING.md`](CONTRIBUTING.md). The architecture and the project
-conventions are in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+see [`CONTRIBUTING.md`](CONTRIBUTING.md). The architecture is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and the project conventions
+are in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 
 ## Security and conduct
 
