@@ -116,7 +116,7 @@ them, and `copilotkit` exports neither:
   `@visibleForTesting` member, and public doc comments and READMEs don't
   name `ag_ui` types. In a package's `api.txt`, the `ag_ui` types it
   names are listed under `package:ag_ui/...`, and every member that names
-  one ends in `internal`.
+  one ends in `internal` or `visible for testing`.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
 by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
