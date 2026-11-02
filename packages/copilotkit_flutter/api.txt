@@ -21,8 +21,11 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     name (getter: String?)
     props (getter: List<Object?>)
     toolCalls (getter: List<ToolCall@1>)
+    anyToolCall (method: bool Function(String), internal)
     copyWith (method: AssistantMessage Function({String? Function()? content, List<ToolCall@1>? toolCalls}))
     toAgUi (method: Message@2 Function(), internal)
+    toolCallAdded (method: AssistantMessage Function(ToolCall@1), internal)
+    toolCallReplaced (method: AssistantMessage Function(ToolCall@1), internal)
   CancellationSignal (class extends Object):
     new (constructor: CancellationSignal Function())
     isCancelled (getter: bool)
@@ -39,7 +42,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
   ChatRow (class extends Equatable, sealed (immediate subtypes: ChatMessageRow, ChatToolCallRow))
   ChatRowMapper (class extends Object):
     new (const constructor: ChatRowMapper Function())
-    rowsFor (method: List<ChatRow> Function(CopilotAgentState))
+    call (method: List<ChatRow> Function(CopilotAgentState))
   ChatStopRequested (class extends CopilotChatEvent, final):
     new (const constructor: ChatStopRequested Function())
   ChatSubscriptionRequested (class extends CopilotChatEvent, final):
@@ -51,11 +54,12 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
   ClientTool (class<T> extends Equatable, sealed (immediate subtypes: FrontendTool, HumanInTheLoopTool)):
     decode (getter: T Function(Map<String, Object?>))
     description (getter: String)
+    followsUp (getter: bool, internal)
     name (getter: String)
     parameters (getter: ObjectSchema)
     tryDecode (method: T? Function(Map<String, Object?>))
   CopilotAgent (class extends Object):
-    new (constructor: CopilotAgent Function({required String agentId, JsonPatcher patcher, AgentEventReducer reducer, String? threadId}), internal)
+    new (constructor: CopilotAgent Function({required String agentId, AgentEventMapper mapper, JsonPatcher patcher, String? threadId}), internal)
     isClosed (getter: bool)
     state (getter: CopilotAgentState)
     stream (getter: Stream<CopilotAgentState>)
@@ -82,12 +86,25 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     awaitingResponseIds (getter: List<String>)
     error (getter: Object?)
     isRunning (getter: bool)
+    messageToolCalls (getter: List<ToolCall@1>)
     messages (getter: List<Message@1>)
     props (getter: List<Object?>)
     sharedState (getter: SharedState?)
     threadId (getter: String)
     toolCalls (getter: List<ToolCallView>)
+    toolCallsById (getter: Map<String, ToolCallView>)
+    toolResults (getter: Map<String, String>)
+    chunkAppended (method: CopilotAgentState Function(String?, TextMessageRole?, String), internal)
     copyWith (method: CopilotAgentState Function({Object? Function()? error, bool? isRunning, List<Message@1>? messages, SharedState? Function()? sharedState, List<ToolCallView>? toolCalls}))
+    messageAdded (method: CopilotAgentState Function(Message@1), internal)
+    messagesReplaced (method: CopilotAgentState Function(List<Message@1>, {required Map<String, Object?> Function(ToolCall@1) argsOf}), internal)
+    sharedStateReplaced (method: CopilotAgentState Function(Map<String, Object?>?), internal)
+    textAppended (method: CopilotAgentState Function(String, TextMessageRole, String), internal)
+    toolArgumentsReplaced (method: CopilotAgentState Function(String, String, Map<String, Object?>), internal)
+    toolCallCompleted (method: CopilotAgentState Function(String, String, String), internal)
+    toolCallStarted (method: CopilotAgentState Function(String, String, String?), internal)
+    toolCallUpdated (method: CopilotAgentState Function(String, ToolCallView Function(ToolCallView)), internal)
+    toolCallsMarkedExecuting (method: CopilotAgentState Function(), internal)
   CopilotChatBloc (class extends Bloc<CopilotChatEvent, CopilotChatState>):
     new (constructor: CopilotChatBloc Function({required String agentId, required CopilotKitClient client, ChatRowMapper mapper, Uuid uuid}))
   CopilotChatEvent (class extends Equatable, sealed (immediate subtypes: ChatMessageSent, ChatStopRequested, ChatSubscriptionRequested)):
@@ -150,6 +167,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     encryptedValue (getter: String?)
     name (getter: String?)
     props (getter: List<Object?>)
+    copyWith (method: DeveloperMessage Function({String? content}))
     toAgUi (method: Message@2 Function(), internal)
   FrontendTool (class<T> extends ClientTool<T>):
     new (const constructor: FrontendTool<T> Function({required T Function(Map<String, Object?>) decode, required String description, required Future<String> Function(T, {required CancellationSignal signal}) handler, required String name, required ObjectSchema parameters}))
@@ -162,7 +180,11 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     props (getter: List<Object?>)
   Message@1 (class extends Equatable, sealed (immediate subtypes: AssistantMessage, DeveloperMessage, SystemMessage, ToolMessage, UnsupportedMessage, UserMessage)):
     fromAgUi (constructor: Message@1 Function(Message@2), internal)
+    fromRole (constructor: Message@1 Function(TextMessageRole, {required String content, required String id, String? name}), internal)
     id (getter: String)
+    text (getter: String?)
+    textRole (getter: TextMessageRole?, internal)
+    appended (method: Message@1 Function(String), internal)
     toAgUi (method: Message@2 Function(), internal)
   RunError (class extends Equatable implements Exception):
     new (const constructor: RunError Function({String? code, required String message}))
@@ -218,6 +240,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     encryptedValue (getter: String?)
     name (getter: String?)
     props (getter: List<Object?>)
+    copyWith (method: SystemMessage Function({String? content}))
     toAgUi (method: Message@2 Function(), internal)
   ToolCall@1 (class extends Equatable):
     new (const constructor: ToolCall@1 Function({required String arguments, String? encryptedValue, required String id, required String name}))
@@ -239,11 +262,17 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     args (getter: Map<String, Object?>)
     awaitingResponse (getter: bool)
     id (getter: String)
+    isComplete (getter: bool)
+    isExecuting (getter: bool)
+    isInProgress (getter: bool)
     name (getter: String)
     props (getter: List<Object?>)
     result (getter: String?)
     status (getter: ToolCallStatus)
+    completed (method: ToolCallView Function(String), internal)
     copyWith (method: ToolCallView Function({Map<String, Object?>? args, bool? awaitingResponse, String? Function()? result, ToolCallStatus? status}))
+    markedAwaiting (method: ToolCallView Function(), internal)
+    markedExecuting (method: ToolCallView Function(), internal)
   ToolCallWidget (class extends StatefulWidget):
     new (constructor: ToolCallWidget Function({required ToolCallView call}))
     call (getter: ToolCallView)
@@ -275,6 +304,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     encryptedValue (getter: String?)
     name (getter: String?)
     props (getter: List<Object?>)
+    copyWith (method: UserMessage Function({String? content}))
     toAgUi (method: Message@2 Function(), internal)
   AgentStateWidgetBuilder (type alias<T> for Widget Function(BuildContext, T))
   CopilotErrorHandler (type alias for void Function(Object, StackTrace))
@@ -300,14 +330,15 @@ package:ack/src/schemas/schema.dart:
   ObjectSchema (referenced)
 package:ag_ui/src/events/events.dart:
   BaseEvent (referenced)
+  TextMessageRole (referenced)
 package:ag_ui/src/types/message.dart:
   Message@2 (referenced)
 package:ag_ui/src/types/tool.dart:
   ToolCall@2 (referenced)
 package:bloc/src/bloc.dart:
   Bloc (referenced)
-package:copilotkit/src/agent/agent_event_reducer.dart:
-  AgentEventReducer (referenced)
+package:copilotkit/src/agent/agent_event_mapper.dart:
+  AgentEventMapper (referenced)
 package:copilotkit/src/transport/agent_transport.dart:
   AgentTransport (referenced)
 package:equatable/src/equatable.dart:
