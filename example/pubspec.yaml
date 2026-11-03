@@ -11,7 +11,6 @@ resolution: workspace
 
 dependencies:
   ack: ^1.7.0
-  copilotkit: ^0.1.0
   copilotkit_flutter: ^0.1.0
   equatable: ^3.0.0
   flutter:

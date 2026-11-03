@@ -66,7 +66,10 @@ Inside a feature, dependencies point one way: `widgets` → `bloc` → logic →
 `models`. A model imports only other models, never I/O, streams or state
 management.
 
-Between features, dependencies form a fixed graph with no cycles:
+Between features, dependencies form a fixed graph with no cycles. Both
+packages have `client`, `agent`, `tools` and `context` features, so a feature
+in the table is one of its own package, and "the core" is the `copilotkit`
+barrel:
 
 | Package | Feature | May import |
 | --- | --- | --- |
@@ -78,7 +81,7 @@ Between features, dependencies form a fixed graph with no cycles:
 | | `client` | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
 | `copilotkit_flutter` | `client` | the core |
 | | `agent`, `tools`, `context` | `client`, the core |
-| | `chat` | `client`, `tools`, the core |
+| | `chat` | `client`, the core |
 
 A feature imports another feature only through its barrel
 (`package:copilotkit/src/tools/tools.dart`), never one of its files; a model may
