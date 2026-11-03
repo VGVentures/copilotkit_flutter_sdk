@@ -5,17 +5,10 @@
 library;
 
 export 'src/agent/agent.dart';
-export 'src/client/client.dart'
-    hide
-        ActiveRun,
-        AgentRunner,
-        RunInputBuilder,
-        RunResult,
-        RunStreamer,
-        ToolCallRunner,
-        Turn;
+export 'src/client/client.dart';
 export 'src/context/context.dart' hide AgentContextStore;
 export 'src/messages/messages.dart';
+export 'src/run/run.dart' show CopilotErrorHandler, HeadersBuilder;
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
