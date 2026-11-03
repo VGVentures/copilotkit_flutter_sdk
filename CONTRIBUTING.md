@@ -31,8 +31,9 @@ The docs live in this repository, next to the code they describe:
 - `README.md` gets you from a fresh clone to the demo app.
 - Each package's `README.md` shows how to use that package.
 - Doc comments in `lib/` are the API reference.
-- `docs/ARCHITECTURE.md` describes how the SDK is built, and `docs/adr/`
-  records architecture decisions.
+- `docs/ARCHITECTURE.md` describes how the SDK is built,
+  `docs/CONVENTIONS.md` holds the rules for code, tests and doc comments, and
+  `docs/adr/` records architecture decisions.
 
 A docs change goes through the same pull request process as a code change.
 
@@ -82,11 +83,13 @@ git checkout -b <type>/<short-description>
 
 ### Step 4: Make your changes
 
-Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) before you change code.
-It describes the packages and their layers, the layout of each package, and
-the conventions for code, tests and doc comments. They apply to every change,
-whether an agent or a person writes it. If you use a coding agent, it reads
-[`AGENTS.md`](AGENTS.md), which points it to the same document.
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and
+[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) before you change code. The
+first describes the packages and their layers, the layout of each package,
+and how data flows through them. The second holds the conventions for code,
+tests and doc comments. They apply to every change, whether an agent or a
+person writes it. If you use a coding agent, it reads
+[`AGENTS.md`](AGENTS.md), which points it to the same documents.
 
 ### Step 5: Run the checks
 
