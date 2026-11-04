@@ -164,6 +164,7 @@ final class const UserMessage({
   this;
 
   /// Returns a copy with [content] replaced.
+  @internal
   UserMessage copyWith({String? content}) => UserMessage(
     id: id,
     content: content ?? this.content,
@@ -280,6 +281,7 @@ final class const SystemMessage({
   this;
 
   /// Returns a copy with [content] replaced.
+  @internal
   SystemMessage copyWith({String? content}) => SystemMessage(
     id: id,
     content: content ?? this.content,
@@ -317,6 +319,7 @@ final class const DeveloperMessage({
   this;
 
   /// Returns a copy with [content] replaced.
+  @internal
   DeveloperMessage copyWith({String? content}) => DeveloperMessage(
     id: id,
     content: content ?? this.content,

@@ -90,7 +90,7 @@ class AgUiTransport({
                 // ag_ui reports each event it can't decode (unknown types,
                 // missing fields, bad JSON) and keeps streaming. Skip them so
                 // newer runtimes never break a run.
-                if (_isDecodeError(error)) {
+                if (error case DecodingError() || AGUIValidationError()) {
                   return _reportSkipped(error, stackTrace);
                 }
                 controller.addError(error, stackTrace);
@@ -169,10 +169,6 @@ class AgUiTransport({
     context: input.context,
     forwardedProps: input.forwardedProps,
   );
-
-  /// Whether [error] is `ag_ui` reporting an event it could not decode.
-  bool _isDecodeError(Object error) =>
-      error is DecodingError || error is AGUIValidationError;
 
   /// Logs an event skipped because it couldn't be decoded and reports it to
   /// `onSkippedEvent`, which must not break the run if it throws.

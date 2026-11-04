@@ -41,7 +41,7 @@ class _TodoPanelState extends State<TodoPanel> {
     return AgentStateBuilder<SharedState?>(
       selector: (state) => state.sharedState,
       builder: (context, shared) {
-        final list = TodoList.fromShared(shared);
+        final list = TodoList.fromShared(shared?.toJson());
         return Card(
           margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Padding(
