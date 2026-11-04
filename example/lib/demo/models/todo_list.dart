@@ -1,4 +1,3 @@
-import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/todo.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -12,12 +11,13 @@ part 'todo_list.g.dart';
 class const TodoList({final List<Todo> todos = const []}) {
   factory fromJson(Map<String, Object?> json) => _$TodoListFromJson(json);
 
-  /// The list in [shared], or an empty one when there is none or the agent
-  /// wrote something that isn't a todo list.
-  factory fromShared(SharedState? shared) {
+  /// The list in the JSON of the [shared] state, or an empty one when there
+  /// is none or the agent wrote something that isn't a todo list.
+  factory fromShared(Map<String, Object?>? shared) {
+    if (shared == null) return const TodoList();
     try {
-      return shared?.decode(TodoList.fromJson) ?? const TodoList();
-    } on Object {
+      return TodoList.fromJson(shared);
+    } on CheckedFromJsonException {
       return const TodoList();
     }
   }

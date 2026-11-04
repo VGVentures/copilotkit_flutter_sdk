@@ -1,0 +1,17 @@
+environment:
+  sdk: ^3.13.0
+package:json_utils/json_utils.dart:
+  JsonPatcher (class extends Object):
+    new (const constructor: JsonPatcher Function())
+    apply (method: Map<String, Object?> Function(Map<String, Object?>, List<Map<String, Object?>>))
+  JsonSchemaNormalizer (class extends Object):
+    new (const constructor: JsonSchemaNormalizer Function())
+    normalize (method: Map<String, Object?> Function(Map<String, Object?>))
+  PartialJsonParser (class extends Object):
+    new (const constructor: PartialJsonParser Function())
+    parse (method: Map<String, Object?> Function(String))
+dart:core:
+  List (referenced)
+  Map (referenced)
+  Object (referenced)
+  String (referenced)

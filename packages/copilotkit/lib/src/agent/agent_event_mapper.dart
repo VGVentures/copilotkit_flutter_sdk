@@ -3,6 +3,7 @@ import 'package:copilotkit/src/agent/models/copilot_agent_state.dart';
 import 'package:copilotkit/src/agent/models/run_error.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:json_utils/json_utils.dart';
+import 'package:meta/meta.dart';
 
 /// Applies AG-UI events to a [CopilotAgentState].
 class const AgentEventMapper({
@@ -35,12 +36,7 @@ class const AgentEventMapper({
         ),
       ag_ui.TextMessageContentEvent(:final messageId, :final delta) =>
         state.textAppended(messageId, ag_ui.TextMessageRole.assistant, delta),
-      ag_ui.TextMessageChunkEvent(
-        :final messageId,
-        :final role,
-        :final delta,
-      ) =>
-        state.chunkAppended(messageId, role, delta ?? ''),
+      ag_ui.TextMessageChunkEvent() => _appendTextChunk(state, event),
       ag_ui.ToolCallStartEvent(
         :final toolCallId,
         :final toolCallName,
@@ -48,7 +44,7 @@ class const AgentEventMapper({
       ) =>
         state.toolCallStarted(toolCallId, toolCallName, parentMessageId),
       ag_ui.ToolCallArgsEvent(:final toolCallId, :final delta) =>
-        _appendToolArgs(state, toolCallId, delta),
+        state.toolArgumentsAppended(toolCallId, delta, parse: _parser.parse),
       ag_ui.ToolCallEndEvent(:final toolCallId) => state.toolCallUpdated(
         toolCallId,
         (view) => view.markedExecuting(),
@@ -75,35 +71,33 @@ class const AgentEventMapper({
     };
   }
 
-  /// [state] with [messages] as its conversation, and its tool calls
-  /// rebuilt from them; see [CopilotAgentState.messagesReplaced]. Calls
-  /// that only exist in [messages] get the arguments parsed from their raw
-  /// JSON.
+  /// Returns [state] with [messages] as its conversation, and its tool
+  /// calls rebuilt from them; see [CopilotAgentState.messagesReplaced].
+  /// Calls that only exist in [messages] get the arguments parsed from
+  /// their raw JSON.
+  @internal
   CopilotAgentState replaceMessages(
     CopilotAgentState state,
     List<Message> messages,
-  ) => state.messagesReplaced(
-    messages,
-    argsOf: (call) => Map.unmodifiable(_parser.parse(call.arguments)),
-  );
+  ) => state.messagesReplaced(messages, parse: _parser.parse);
 
-  /// Appends [delta] to the raw arguments of the tool call [toolCallId] and
-  /// parses them for its view.
-  CopilotAgentState _appendToolArgs(
+  /// Applies a text chunk: its text is appended to the message it names.
+  ///
+  /// A chunk without a message id continues the last message, but only
+  /// when it has the chunk's role, so assistant text never lands in a user
+  /// message; otherwise it is dropped. A chunk without a role is from the
+  /// assistant.
+  CopilotAgentState _appendTextChunk(
     CopilotAgentState state,
-    String toolCallId,
-    String delta,
+    ag_ui.TextMessageChunkEvent event,
   ) {
-    final call = state.messageToolCalls
-        .where((call) => call.id == toolCallId)
-        .lastOrNull;
-    if (call == null) return state;
-    final arguments = call.arguments + delta;
-    return state.toolArgumentsReplaced(
-      toolCallId,
-      arguments,
-      Map.unmodifiable(_parser.parse(arguments)),
-    );
+    final role = event.role ?? ag_ui.TextMessageRole.assistant;
+    final last = state.messages.lastOrNull;
+    final id =
+        event.messageId ??
+        (last != null && last.textRole == role ? last.id : null);
+    if (id == null) return state;
+    return state.textAppended(id, role, event.delta ?? '');
   }
 
   /// Applies a tool call chunk: it starts the call when it is new, then
@@ -115,13 +109,15 @@ class const AgentEventMapper({
     final id = event.toolCallId ?? state.toolCalls.lastOrNull?.id;
     if (id == null) return state;
     var next = state;
-    if (!next.toolCallsById.containsKey(id)) {
+    if (!next.anyToolCall(id)) {
       final name = event.toolCallName;
       if (name == null) return state;
       next = next.toolCallStarted(id, name, event.parentMessageId);
     }
     final delta = event.delta;
-    return delta == null ? next : _appendToolArgs(next, id, delta);
+    return delta == null
+        ? next
+        : next.toolArgumentsAppended(id, delta, parse: _parser.parse);
   }
 
   /// Patches the shared state with the delta of [event].

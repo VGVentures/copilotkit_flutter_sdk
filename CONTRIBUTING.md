@@ -125,11 +125,30 @@ Run them from the repository root before you push:
    fvm dart run build_runner build
    ```
 
-6. If you changed doc comments, generate the docs of each package you
-   touched into a temporary folder and fix every warning:
+6. If you changed doc comments or a package README, generate the docs of
+   each package you touched into a temporary folder and fix every warning.
+   `dart doc` exits successfully even with warnings, but CI fails unless it
+   reports `Found 0 warnings and 0 errors`:
 
    ```sh
-   fvm dart doc -o "$(mktemp -d)"
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/json_utils
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit_flutter
+   ```
+
+7. Regenerate the `api.txt` of each package whose `test/api_test.dart`
+   fails, and commit it. The file lists everything the package's library
+   exports, including `@internal` members, the non-public types they name
+   and the pubspec's `environment` section. So an internal change, an SDK
+   upgrade or a rebase onto newer code can make the test fail even when
+   the public API is the same, and the diff shows reviewers what changed.
+   `copilotkit_flutter` re-exports `copilotkit`, so a change to the core
+   also changes `copilotkit_flutter/api.txt`:
+
+   ```sh
+   fvm dart run api_summary --write -p packages/json_utils
+   fvm dart run api_summary --write -p packages/copilotkit
+   fvm dart run api_summary --write -p packages/copilotkit_flutter
    ```
 
 CI also builds the example app for the web with WebAssembly.
