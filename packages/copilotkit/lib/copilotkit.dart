@@ -19,7 +19,6 @@ export 'src/messages/messages.dart';
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
-        InvalidToolArguments,
         ToolCallExecutor,
         ToolCallOutcome,
         ToolRegistry,
