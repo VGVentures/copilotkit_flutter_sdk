@@ -21,7 +21,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 ///
 /// This class is mutable: it tracks the socket and the pushes waiting for a
 /// reply. Call [close] when done.
-class PhoenixClient({
+class PhoenixChannelsClient({
   /// The URL of the socket, without the `/websocket` transport path.
   required Uri clientUrl,
 
@@ -73,8 +73,12 @@ class PhoenixClient({
   /// Throws when the handshake fails, for example when the server refuses the
   /// parameters, and a [StateError] when the client is open or closed.
   Future<void> open() async {
-    if (_closed) throw StateError('PhoenixClient is closed.');
-    if (_channel != null) throw StateError('PhoenixClient is already open.');
+    if (_closed) {
+      throw StateError('PhoenixChannelsClient is closed.');
+    }
+    if (_channel != null) {
+      throw StateError('PhoenixChannelsClient is already open.');
+    }
     final channel = _connect(_socketUrl);
     await channel.ready;
     _channel = channel;
@@ -128,7 +132,7 @@ class PhoenixClient({
   }) async {
     if (_ended) throw const PhoenixClosedException();
     final channel = _channel;
-    if (channel == null) throw StateError('PhoenixClient is not open.');
+    if (channel == null) throw StateError('PhoenixChannelsClient is not open.');
     final ref = '${++_lastRef}';
     final reply = Completer<Object?>();
     _pending[ref] = reply;
