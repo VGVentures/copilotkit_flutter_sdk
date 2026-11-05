@@ -119,13 +119,10 @@ nothing re-exports a file under `copilotkit`'s `lib/src/`.
 it, so every package or app that builds a schema declares `ack` in its
 `pubspec.yaml` and imports `package:ack/ack.dart` itself.
 
-`ag_ui`, `json_utils` and `phoenix_channels` are implementation details of
-`copilotkit`. No other package imports them, declares them in its
-`pubspec.yaml` or exports them, and `copilotkit` exports none of them:
+`ag_ui` and `json_utils` are implementation details of `copilotkit`. No
+other package imports them, declares them in its `pubspec.yaml` or exports
+them, and `copilotkit` exports neither:
 
-- `phoenix_channels` is imported under `tool/` for the Intelligence round
-  trip, and by the Intelligence transport once it exists. Its types stay
-  inside that transport.
 - `json_utils` is imported under `lib/src/` and `tool/` through
   `package:json_utils/json_utils.dart`, and features convert to and from
   `Map<String, Object?>` at the call site.
@@ -575,5 +572,5 @@ lists only the `copilotkit_flutter` barrel, and the second finds nothing:
 
 ```sh
 rg -n "^export 'package:" packages/*/lib
-rg -l "package:(ag_ui|json_utils|phoenix_channels)/" packages/copilotkit_flutter example
+rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example
 ```
