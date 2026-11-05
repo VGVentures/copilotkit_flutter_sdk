@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
-import 'package:phoenix_channels/src/phoenix_frame.dart';
+import 'package:phoenix_channels_client/src/phoenix_frame.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class MockWebSocketChannel extends Mock implements WebSocketChannel;
