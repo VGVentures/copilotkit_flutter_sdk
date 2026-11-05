@@ -9,7 +9,7 @@ replies, and streams what the server pushes. A heartbeat detects a connection
 that went silent.
 
 ```dart
-final client = PhoenixClient(
+final client = PhoenixChannelsClient(
   clientUrl: Uri.parse('wss://example.com/socket'),
   params: {'token': token},
 );

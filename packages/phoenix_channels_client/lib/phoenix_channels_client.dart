@@ -7,7 +7,7 @@
 /// do, because only the caller knows how to get new credentials.
 library;
 
-export 'src/phoenix_client.dart';
+export 'src/phoenix_channels_client.dart';
 export 'src/phoenix_closed_exception.dart';
 export 'src/phoenix_event.dart';
 export 'src/phoenix_reply_exception.dart';

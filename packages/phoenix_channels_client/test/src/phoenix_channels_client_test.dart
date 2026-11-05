@@ -8,16 +8,16 @@ import 'package:test/test.dart';
 import '../helpers/fake_socket.dart';
 
 void main() {
-  group(PhoenixClient, () {
+  group(PhoenixChannelsClient, () {
     late FakeSocket socket;
 
     setUp(() => socket = FakeSocket());
 
-    PhoenixClient createClient({
+    PhoenixChannelsClient createClient({
       Duration heartbeatInterval = const Duration(minutes: 1),
       Duration replyTimeout = const Duration(seconds: 1),
     }) {
-      final client = PhoenixClient(
+      final client = PhoenixChannelsClient(
         clientUrl: Uri.parse('wss://example.test/client'),
         params: const {'join_token': 'token'},
         heartbeatInterval: heartbeatInterval,
@@ -30,7 +30,7 @@ void main() {
 
     /// Collects what [client.events] reports.
     ({List<PhoenixEvent> events, List<Object> errors, Future<void> done})
-    listenTo(PhoenixClient client) {
+    listenTo(PhoenixChannelsClient client) {
       final events = <PhoenixEvent>[];
       final errors = <Object>[];
       final done = Completer<void>();
