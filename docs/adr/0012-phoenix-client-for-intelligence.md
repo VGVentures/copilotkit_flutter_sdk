@@ -85,7 +85,7 @@ ways a tunnel only approximates.
 ## Decision
 
 Write the Phoenix v2 client ourselves, on `web_socket_channel`, as a package of
-its own, `phoenix_channels`, beside `json_utils`: `docs/ARCHITECTURE.md` says
+its own, `phoenix_channels_client`, beside `json_utils`: `docs/ARCHITECTURE.md` says
 code that does not depend on the SDK is a package of its own. `copilotkit`
 depends on it and does not export it, the same way `ag_ui` is wrapped by
 `AgUiTransport`. The package opens the socket, joins,
@@ -142,6 +142,6 @@ Reasons:
   which is long for a phone that just left a tunnel.
 - The package stays behind the transport of `copilotkit`, so swapping in
   `phoenix_socket` is a change inside the transport.
-- One new package, `phoenix_channels`, with its own CI job and release
+- One new package, `phoenix_channels_client`, with its own CI job and release
   component. It depends on `web_socket_channel` only, which the workspace
   already resolves. The spike's client is what the package grows from.
