@@ -8,4 +8,5 @@ workspace:
   - packages/copilotkit
   - packages/copilotkit_flutter
   - packages/json_utils
+  - packages/phoenix_channels
   - example

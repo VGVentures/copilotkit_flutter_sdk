@@ -12,6 +12,9 @@
     "packages/json_utils": {
       "component": "json_utils"
     },
+    "packages/phoenix_channels": {
+      "component": "phoenix_channels"
+    },
     "packages/copilotkit": {
       "component": "copilotkit"
     },
