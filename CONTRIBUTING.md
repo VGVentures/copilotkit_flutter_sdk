@@ -132,6 +132,7 @@ Run them from the repository root before you push:
 
    ```sh
    fvm dart doc --validate-links -o "$(mktemp -d)" packages/json_utils
+   fvm dart doc --validate-links -o "$(mktemp -d)" packages/phoenix_channels
    fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit
    fvm dart doc --validate-links -o "$(mktemp -d)" packages/copilotkit_flutter
    ```
@@ -147,6 +148,7 @@ Run them from the repository root before you push:
 
    ```sh
    fvm dart run api_summary --write -p packages/json_utils
+   fvm dart run api_summary --write -p packages/phoenix_channels
    fvm dart run api_summary --write -p packages/copilotkit
    fvm dart run api_summary --write -p packages/copilotkit_flutter
    ```
@@ -212,7 +214,8 @@ fix(copilotkit): keep the partial reply when a run is stopped
 ```
 
 The scope is the package the change is in: `copilotkit`,
-`copilotkit_flutter`, `json_utils` or `example`. Leave it out when a change
+`copilotkit_flutter`, `json_utils`, `phoenix_channels` or `example`. Leave
+it out when a change
 spans the repository.
 
 ### Types
@@ -242,7 +245,8 @@ Put the same `!` in the pull request title.
 
 ## Releases
 
-Each package (`json_utils`, `copilotkit` and `copilotkit_flutter`) has its
+Each package (`json_utils`, `phoenix_channels`, `copilotkit` and
+`copilotkit_flutter`) has its
 own version, changelog and tags.
 [release-please](https://github.com/googleapis/release-please) reads the
 Conventional Commits merged to `main` and keeps one release pull request

@@ -23,5 +23,6 @@ dev_dependencies:
   build_runner: ^2.16.1
   json_serializable: ^6.15.2
   mocktail: ^1.0.5
+  phoenix_channels: ^0.1.0
   test: ^1.31.0
   very_good_analysis: ^11.0.0
