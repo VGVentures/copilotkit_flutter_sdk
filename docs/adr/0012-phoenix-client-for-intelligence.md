@@ -27,9 +27,10 @@ one `TEXT_MESSAGE_CONTENT` with an empty `delta`.
 The recordings and the experiments below ran from throwaway scripts that are
 not kept, because they sat in no layer of the SDK. So nothing in the repo
 records the fixtures again or re-runs the experiments, and the numbers here
-can't be reproduced from it. Recording from `tool/round_trip.dart` would fix
-the first; no issue tracks that yet, and it matters when `@copilotkit/runtime`
-is bumped, because the protocol is internal upstream.
+can't be reproduced from it. That is deliberate: a recorder for one runtime
+mode doesn't belong in the SDK's probe, `tool/round_trip.dart`. The protocol is
+internal upstream, so bumping `@copilotkit/runtime` may change the frames, and
+the fixtures would then be recorded again by hand.
 
 It also tried to reconnect, because that is where a Phoenix client is most
 likely to go wrong:
