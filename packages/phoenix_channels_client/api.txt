@@ -1,8 +1,8 @@
 environment:
   sdk: ^3.13.0
 package:phoenix_channels_client/phoenix_channels_client.dart:
-  PhoenixClient (class extends Object):
-    new (constructor: PhoenixClient Function({required Uri clientUrl, WebSocketChannel Function(Uri)? connect, Duration heartbeatInterval, Map<String, String> params, Duration replyTimeout}))
+  PhoenixChannelsClient (class extends Object):
+    new (constructor: PhoenixChannelsClient Function({required Uri clientUrl, WebSocketChannel Function(Uri)? connect, Duration heartbeatInterval, Map<String, String> params, Duration replyTimeout}))
     events (getter: Stream<PhoenixEvent>)
     heartbeatInterval (getter: Duration)
     replyTimeout (getter: Duration)
