@@ -19,12 +19,17 @@ The spike ran against a real Intelligence runtime (`@copilotkit/runtime`
 `web_socket_channel`, which the workspace already resolves. It covered a text
 run, a frontend-tool run, a run on a locked thread, and a stop over the
 channel and over REST. The recordings are in
-`packages/copilotkit/test/fixtures/intelligence_*.jsonl`. They were made with
-throwaway scripts that are not kept, because they sat in no layer of the SDK;
-support for the Intelligence runtime in `tool/round_trip.dart` can record them
-again. All 42 recorded events decode with the `ag_ui` decoder the SDK already uses, including the
+`packages/copilotkit/test/fixtures/intelligence_*.jsonl`. All 42 recorded
+events decode with the `ag_ui` decoder the SDK already uses, including the
 extra `organization_id`, `project_id` and `metadata` fields on every event and
 one `TEXT_MESSAGE_CONTENT` with an empty `delta`.
+
+The recordings and the experiments below ran from throwaway scripts that are
+not kept, because they sat in no layer of the SDK. So nothing in the repo
+records the fixtures again or re-runs the experiments, and the numbers here
+can't be reproduced from it. Recording from `tool/round_trip.dart` would fix
+the first; no issue tracks that yet, and it matters when `@copilotkit/runtime`
+is bumped, because the protocol is internal upstream.
 
 It also tried to reconnect, because that is where a Phoenix client is most
 likely to go wrong:
