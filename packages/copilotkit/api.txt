@@ -97,8 +97,9 @@ package:copilotkit/copilotkit.dart:
     copyWith (method: DeveloperMessage Function({String? content}), internal)
     toAgUi (method: Message@2 Function(), internal)
   FrontendTool (class<T> extends ClientTool<T>):
-    new (const constructor: FrontendTool<T> Function({required T Function(Map<String, Object?>) decode, required String description, required Future<String> Function(T, {required CancellationSignal signal}) handler, required String name, required ObjectSchema parameters}))
-    handler (getter: Future<String> Function(T, {required CancellationSignal signal}))
+    new (const constructor: FrontendTool<T> Function({required T Function(Map<String, Object?>) decode, required String description, bool followUp, Future<String> Function(T, {required CancellationSignal signal})? handler, required String name, required ObjectSchema parameters}))
+    followUp (getter: bool)
+    handler (getter: Future<String> Function(T, {required CancellationSignal signal})?)
     props (getter: List<Object?>)
     run (method: Future<String> Function(Map<String, Object?>, {required CancellationSignal signal}))
   HumanInTheLoopTool (class<T> extends ClientTool<T>):

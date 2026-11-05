@@ -41,6 +41,41 @@ void main() {
     };
 
     group('runPending', () {
+      test('gives a tool without a handler an empty result', () async {
+        tools.register(componentTool());
+        receive(toolCallRun(threadId()));
+
+        expect(await toolCalls.runPending(turn), isTrue);
+        expect(results(), {'c1': ''});
+        expect(errors, isEmpty);
+      });
+
+      test('returns false when every tool has no follow up', () async {
+        tools.register(componentTool(followUp: false));
+        receive(toolCallRun(threadId()));
+
+        expect(await toolCalls.runPending(turn), isFalse);
+        expect(results(), {'c1': ''});
+      });
+
+      test('validates the arguments of a tool without a handler', () async {
+        tools.register(componentTool(followUp: false));
+        receive([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r1'),
+          const ag_ui.ToolCallStartEvent(
+            toolCallId: 'c1',
+            toolCallName: 'showWeather',
+            parentMessageId: 'a1',
+          ),
+          const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
+          const ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+        ]);
+
+        await toolCalls.runPending(turn);
+
+        expect(results()['c1'], isNotEmpty);
+      });
+
       test('runs the handler and adds its result', () async {
         Map<String, Object?>? receivedArgs;
         CancellationSignal? receivedSignal;

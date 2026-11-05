@@ -19,6 +19,20 @@ FrontendTool<Map<String, Object?>> weatherTool(
   );
 }
 
+/// A `showWeather` tool without a handler, like a render-only component.
+FrontendTool<Map<String, Object?>> componentTool({bool followUp = true}) {
+  return FrontendTool(
+    name: 'showWeather',
+    description: 'Show the weather for a city',
+    parameters: Ack.object({
+      'city': Ack.string().describe('City name'),
+      'days': Ack.integer().optional(),
+    }),
+    decode: Map<String, Object?>.of,
+    followUp: followUp,
+  );
+}
+
 /// A run that calls the [name] tool with `{"city": "Lima"}` as call `c1`.
 List<ag_ui.BaseEvent> toolCallRun(
   String threadId, {
