@@ -1,9 +1,12 @@
 // Minimal Phoenix channels v2 client for the Intelligence spike (#72).
 //
 // Candidate for replacing `phoenix_socket`: it covers what the Intelligence
-// run needs (join, heartbeat, push/reply, server events, leave) in one class
-// on top of `web_socket_channel`. Reconnect with backoff is NOT here yet; see
-// the spike notes.
+// run needs (join, heartbeat with a reply timeout, push/reply, server events,
+// close) in one class on top of `web_socket_channel`.
+//
+// It does not reconnect. The join token is single-use, so a reconnect needs
+// fresh credentials from the runtime and a cursor to resume from, which is the
+// transport's job (docs/adr/0012).
 //
 // Wire format (vsn=2.0.0): every frame is the JSON array
 //   [join_ref, ref, topic, event, payload]
@@ -70,7 +73,13 @@ class PhoenixClient({
           event: 'heartbeat',
           payload: const {},
           joinRef: null,
-        ).catchError((Object _) => null),
+        ).catchError((Object error) {
+          // No answer in time: the connection is half-open, so report it and
+          // drop it, the way a closed socket is reported.
+          if (!_events.isClosed) _events.addError(error);
+          unawaited(_channel?.sink.close());
+          return null;
+        }),
       );
     });
   }
