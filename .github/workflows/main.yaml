@@ -90,6 +90,37 @@ jobs:
       flutter_version_file: .fvmrc
       min_coverage: 100
 
+  docs:
+    needs: changes
+    if: ${{ needs.changes.outputs.json_utils == 'true' || needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.copilotkit_flutter == 'true' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [json_utils, copilotkit, copilotkit_flutter]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: 📚 Git Checkout
+        uses: actions/checkout@v7
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+
+      - name: 📦 Install Dependencies
+        run: flutter pub get
+
+      - name: 📝 Check Docs
+        if: ${{ needs.changes.outputs[matrix.package] == 'true' }}
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          dart doc --validate-links -o "$RUNNER_TEMP/docs" 2>&1 | tee "$RUNNER_TEMP/docs.log"
+          grep -q 'Found 0 warnings and 0 errors' "$RUNNER_TEMP/docs.log"
+
   web:
     needs: changes
     if: ${{ needs.changes.outputs.example == 'true' }}

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/run_streamer.dart';
@@ -8,9 +10,10 @@ import 'package:uuid/uuid.dart';
 /// Produces the results of the client tool calls of a turn and adds them to
 /// the agent.
 ///
-/// A [FrontendTool] call runs its handler; a [HumanInTheLoopTool] call waits
-/// for the user's answer (see [respond]). It keeps those answers, so it is
-/// mutable: a documented exception to the immutability rule (ADR 0009).
+/// A [FrontendTool] call runs its handler, if it has one; a
+/// [HumanInTheLoopTool] call waits for the user's answer (see [respond]). It
+/// keeps those answers, so it is mutable: a documented exception to the
+/// immutability rule (ADR 0009).
 class ToolCallRunner({
   /// The client tools that handle the calls.
   required final ToolRegistry _tools,
@@ -37,11 +40,13 @@ class ToolCallRunner({
   /// registered tools, in call order, and returns whether the agent should
   /// run again with them.
   ///
-  /// Calls to tools that aren't registered get the unavailable result. The
-  /// human-in-the-loop calls are all marked as awaiting a response first, so
-  /// the user can answer them in any order. Returns `false` when there was
-  /// nothing to run, when [turn] was stopped meanwhile, or when every call
-  /// was to a human-in-the-loop tool with `followUp` set to `false`.
+  /// Each call gets its own [CancellationSignal], cancelled when the signal
+  /// of [turn] is, so a handler that cancels its signal ends only its own
+  /// call. Calls to tools that aren't registered get the unavailable result.
+  /// The human-in-the-loop calls are all marked as awaiting a response
+  /// first, so the user can answer them in any order. Returns `false` when
+  /// there was nothing to run, when [turn] was stopped meanwhile, or when
+  /// every call had a tool with `followUp` set to `false`.
   Future<bool> runPending(Turn turn) async {
     final agent = turn.agent;
     final pending = _pendingToolCalls(agent);
@@ -57,7 +62,7 @@ class ToolCallRunner({
       final outcome = await _executor(
         tool,
         call,
-        turn.signal,
+        _callSignal(turn),
         responses: _responses,
       );
       if (outcome.error case final error?) {
@@ -65,7 +70,7 @@ class ToolCallRunner({
       }
       if (turn.signal.isCancelled) return false;
       _addToolResult(agent, call, outcome.result);
-      followUp |= tool.followsUp;
+      followUp |= tool.hasFollowUp;
     }
     return followUp;
   }
@@ -122,6 +127,17 @@ class ToolCallRunner({
   /// Forgets every answer.
   void clear() => _responses.clear();
 
+  /// A signal for one call of [turn], cancelled when the turn's signal is.
+  CancellationSignal _callSignal(Turn turn) {
+    final signal = CancellationSignal();
+    if (turn.signal.isCancelled) {
+      signal.cancel();
+    } else {
+      unawaited(turn.signal.whenCancelled.then((_) => signal.cancel()));
+    }
+    return signal;
+  }
+
   /// Executing calls to registered tools that have no result yet, with the
   /// tool that handles each.
   List<(ToolCallView, ClientTool<Object?>)> _pendingToolCalls(
@@ -144,7 +160,7 @@ class ToolCallRunner({
     List<(ToolCallView, ClientTool<Object?>)> pending,
   ) {
     for (final (call, tool) in pending) {
-      if (tool is HumanInTheLoopTool && _executor.accepts(tool, call)) {
+      if (tool is HumanInTheLoopTool && tool.accepts(call.args)) {
         agent.awaitResponse(call.id);
       }
     }
@@ -159,11 +175,12 @@ class ToolCallRunner({
   ) =>
       !_responses.isAnswered(toolCallId) &&
       agents.any(
-        (agent) => switch (agent.state.toolCallsById[toolCallId]) {
-          final call? =>
-            call.isExecuting && _tools[call.name] is HumanInTheLoopTool,
-          null => false,
-        },
+        (agent) => agent.state.toolCalls.any(
+          (call) =>
+              call.id == toolCallId &&
+              call.isExecuting &&
+              _tools[call.name] is HumanInTheLoopTool,
+        ),
       );
 
   /// A closed agent ignores the result.

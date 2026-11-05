@@ -11,7 +11,7 @@ void main() {
       'tags': Ack.list(Ack.string()).optional(),
     });
 
-    InvalidToolArguments invalid(Map<String, Object?> args) =>
+    InvalidToolArguments invalid(Object? args) =>
         switch (parameters.safeParse(args)) {
           Fail(:final error) => InvalidToolArguments(error),
           Ok() => throw StateError('$args are valid'),
@@ -55,6 +55,13 @@ void main() {
           '\n- unit.step: Expected integer, got string.'
           '\n- tags.1: Expected string, got integer.',
         ),
+      );
+    });
+
+    test('describes a problem at the root without a path', () {
+      expect(
+        invalid('Lima').message,
+        endsWith('\n- Expected object, got string.'),
       );
     });
 

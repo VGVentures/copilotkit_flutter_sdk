@@ -66,7 +66,10 @@ Inside a feature, dependencies point one way: `widgets` → `bloc` → logic →
 `models`. A model imports only other models, never I/O, streams or state
 management.
 
-Between features, dependencies form a fixed graph with no cycles:
+Between features, dependencies form a fixed graph with no cycles. Both
+packages have `client`, `agent`, `tools` and `context` features, so a feature
+in the table is one of its own package, and "the core" is the `copilotkit`
+barrel:
 
 | Package | Feature | May import |
 | --- | --- | --- |
@@ -78,7 +81,7 @@ Between features, dependencies form a fixed graph with no cycles:
 | | `client` | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
 | `copilotkit_flutter` | `client` | the core |
 | | `agent`, `tools`, `context` | `client`, the core |
-| | `chat` | `client`, `tools`, the core |
+| | `chat` | `client`, the core |
 
 A feature imports another feature only through its barrel
 (`package:copilotkit/src/tools/tools.dart`), never one of its files; a model may
@@ -114,10 +117,20 @@ them, and `copilotkit` exports neither:
   `@internal` members (`Message.fromAgUi`, `Message.toAgUi`). A public
   signature names an `ag_ui` type only on an `@internal` or
   `@visibleForTesting` member, and public doc comments and READMEs don't
-  name `ag_ui` types.
+  name `ag_ui` types. In a package's `api.txt`, the `ag_ui` types it
+  names are listed under `package:ag_ui/...`, and every member that names
+  one ends in `internal` or `visible for testing`. `api_summary` doesn't
+  show annotations on parameters, so a `@visibleForTesting` parameter reads
+  like any other. A member that isn't marked but names a `(non-public)`
+  type, like the `AgentTransport? transport` parameter of
+  `CopilotKitClient.new`, needs a reviewer to check it.
 
 Tests mirror `lib/src/`: `lib/src/tools/models/tool_call_view.dart` is covered
-by `test/src/tools/models/tool_call_view_test.dart`.
+by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
+whole sit at the top of `test/`, outside the mirror: `test/api_test.dart`
+checks the public API against the package's `api.txt` (the summary of what
+its library exports, from `package:api_summary`), and
+`test/fixtures_test.dart` checks the wire fixtures.
 
 ## Logic lives in classes
 
@@ -153,13 +166,20 @@ declarations. There are no extensions and no static helpers.
 - Logic that needs an injected collaborator, like parsing or patching JSON,
   stays in the logic class that holds it, and that class passes the result
   to the model.
+- When a model needs a collaborator's operation for each item, it takes the
+  operation as a function parameter, and the logic class passes the
+  collaborator's method as a tear-off: `parse: _parser.parse`. There is no
+  private method in between that only adapts the operation to the model's
+  types, like `_argsOf(ToolCall call)`: the model does that adapting itself.
 - A function reused across files becomes a method of a class that is injected
   where it's needed.
 - An SDK class named after the one thing it does, like an executor, a
   builder or a mapper, exposes that thing as `call`, so it is used as a
   function: `executor(tool, call, signal, responses: responses)`. A
   general-purpose library like `json_utils` keeps the verbs of its domain
-  instead: a parser parses, and a JSON Patch is applied.
+  instead: a parser parses, and a JSON Patch is applied. Any other method
+  it has is `@internal`, like `AgentEventMapper.replaceMessages`, which
+  lends the mapper's parser to `CopilotAgent.setMessages`.
 - A constant becomes a static field, or an enum when it is one of a set.
 - The only static methods are `of` / `maybeOf` lookups on inherited widgets.
 
@@ -169,6 +189,7 @@ const _cancelledResult = 'Tool call cancelled.';
 String _randomId() => ...;
 extension RunAgentInputX on RunAgentInput { ... }
 static Map<String, Object?> apply(Map<String, Object?> document, ...) => ...;
+Map<String, Object?> _argsOf(ToolCall call) => _parser.parse(call.arguments);
 
 // Good
 enum FallbackToolResult {
@@ -187,6 +208,8 @@ class const JsonPatcher() {
     List<Map<String, Object?>> operations,
   ) => ...;
 }
+
+state.messagesReplaced(messages, parse: _parser.parse);
 ```
 
 ## State holders
@@ -339,7 +362,7 @@ app needs is public, since `@internal` doesn't cross packages.
 ToolCallView _viewOf(ToolCall call, ToolCallView? known, ...) => ...;
 
 // Good: the state rebuilds its own tool calls
-state.messagesReplaced(messages, argsOf: (call) => _parser.parse(call.arguments));
+state.messagesReplaced(messages, parse: _parser.parse);
 ```
 
 ### Nullable fields in `copyWith`

@@ -41,8 +41,8 @@ void main() {
       );
     });
 
-    group('followsUp', () {
-      test('is always true for a frontend tool', () {
+    group('hasFollowUp', () {
+      test('is true for a frontend tool by default', () {
         final tool = FrontendTool(
           name: 'a',
           description: 'A',
@@ -51,7 +51,19 @@ void main() {
           handler: (_, {required signal}) async => '',
         );
 
-        expect(tool.followsUp, isTrue);
+        expect(tool.hasFollowUp, isTrue);
+      });
+
+      test('follows followUp for a frontend tool', () {
+        final tool = FrontendTool<Map<String, Object?>>(
+          name: 'a',
+          description: 'A',
+          parameters: Ack.object({}),
+          decode: Map<String, Object?>.of,
+          followUp: false,
+        );
+
+        expect(tool.hasFollowUp, isFalse);
       });
 
       test('follows followUp for a human-in-the-loop tool', () {
@@ -65,8 +77,25 @@ void main() {
           followUp: followUp,
         );
 
-        expect(tool(followUp: true).followsUp, isTrue);
-        expect(tool(followUp: false).followsUp, isFalse);
+        expect(tool(followUp: true).hasFollowUp, isTrue);
+        expect(tool(followUp: false).hasFollowUp, isFalse);
+      });
+    });
+
+    group('accepts', () {
+      final tool = HumanInTheLoopTool(
+        name: 'showWeather',
+        description: 'Show the weather for a city',
+        parameters: Ack.object({'city': Ack.string()}),
+        decode: Map<String, Object?>.of,
+      );
+
+      test('is true when the args match the parameters', () {
+        expect(tool.accepts({'city': 'Lima'}), isTrue);
+      });
+
+      test('is false when they do not', () {
+        expect(tool.accepts({'days': 3}), isFalse);
       });
     });
 
@@ -114,6 +143,43 @@ void main() {
       expect(weather.parameters, same(parameters));
       expect(weather.decode, _WeatherArgs.fromJson);
       expect(weather.handler, handler);
+    });
+
+    test('has no handler and follows up by default', () {
+      final component = FrontendTool<Map<String, Object?>>(
+        name: 'a',
+        description: 'A',
+        parameters: Ack.object({}),
+        decode: Map<String, Object?>.of,
+      );
+
+      expect(component.handler, isNull);
+      expect(component.followUp, isTrue);
+      expect(
+        component,
+        isNot(
+          FrontendTool<Map<String, Object?>>(
+            name: 'a',
+            description: 'A',
+            parameters: component.parameters,
+            decode: component.decode,
+            followUp: false,
+          ),
+        ),
+      );
+    });
+
+    test('run without a handler returns an empty result', () async {
+      var decoded = false;
+      final component = FrontendTool<Object?>(
+        name: 'a',
+        description: 'A',
+        parameters: Ack.object({}),
+        decode: (_) => decoded = true,
+      );
+
+      expect(await component.run(const {}, signal: CancellationSignal()), '');
+      expect(decoded, isFalse);
     });
 
     test('run decodes the args and runs the handler', () async {

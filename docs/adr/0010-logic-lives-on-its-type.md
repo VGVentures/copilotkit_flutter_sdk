@@ -41,7 +41,9 @@ the rule against extensions stands.
 ## Consequences
 
 - `AgentEventMapper` is a switch from each event to a state transition. Its
-  only private methods are the ones that use its parser and patcher.
+  only private methods are the ones that use its parser and patcher, and
+  the ones that work out which message or call a chunk continues, since
+  that is an AG-UI event rule rather than logic about the state.
 - Each transition is tested once, on its model, and the mapper tests check
   the events end to end.
 - Models carry more members. Members only the SDK calls are `@internal`, so

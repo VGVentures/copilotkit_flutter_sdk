@@ -199,6 +199,11 @@ void main() {
         toolCalls: [view],
       );
 
+      test('anyToolCall says whether it has a call', () {
+        expect(state.anyToolCall('c1'), isTrue);
+        expect(state.anyToolCall('c2'), isFalse);
+      });
+
       test('toolCallsById maps each view by id', () {
         expect(state.toolCallsById, {'c1': view});
       });
@@ -231,24 +236,6 @@ void main() {
         ]);
       });
 
-      test('chunkAppended continues the last message of the same role', () {
-        final state = empty
-            .chunkAppended('m1', null, 'Hel')
-            .chunkAppended(null, null, 'lo');
-
-        expect(state.messages, [
-          const AssistantMessage(id: 'm1', content: 'Hello'),
-        ]);
-      });
-
-      test('chunkAppended drops a chunk with no message to continue', () {
-        final state = empty.messageAdded(
-          const UserMessage(id: 'u1', content: 'Hi'),
-        );
-
-        expect(state.chunkAppended(null, null, 'x'), state);
-      });
-
       test('toolCallStarted adds the call to its parent message', () {
         final state = empty
             .messageAdded(const AssistantMessage(id: 'm1', content: 'Sure'))
@@ -270,25 +257,67 @@ void main() {
         ]);
       });
 
+      test('toolCallStarted adds a message named after a parent it lacks', () {
+        final state = empty.toolCallStarted('c1', 'showWeather', 'm1');
+
+        expect(state.messages, [
+          const AssistantMessage(
+            id: 'm1',
+            toolCalls: [ToolCall(id: 'c1', name: 'showWeather', arguments: '')],
+          ),
+        ]);
+        expect(state.toolCalls, [
+          const ToolCallView(
+            id: 'c1',
+            name: 'showWeather',
+            status: ToolCallStatus.inProgress,
+          ),
+        ]);
+        final message = state.messages.single as AssistantMessage;
+        expect(
+          () => message.toolCalls.add(message.toolCalls.single),
+          throwsUnsupportedError,
+        );
+      });
+
       test('toolCallStarted drops a repeated id', () {
         final state = empty.toolCallStarted('c1', 'showWeather', null);
 
         expect(state.toolCallStarted('c1', 'other', null), state);
       });
 
-      test('toolArgumentsReplaced sets the raw and parsed arguments', () {
+      test('toolArgumentsAppended appends the raw and sets the parsed '
+          'arguments', () {
+        final parsed = <String>[];
         final state = empty
             .toolCallStarted('c1', 'showWeather', null)
-            .toolArgumentsReplaced('c1', '{"city": "Lima"}', const {
-              'city': 'Lima',
-            });
+            .toolArgumentsAppended(
+              'c1',
+              '{"city": ',
+              parse: (arguments) {
+                parsed.add(arguments);
+                return const {};
+              },
+            )
+            .toolArgumentsAppended(
+              'c1',
+              '"Lima"}',
+              parse: (arguments) {
+                parsed.add(arguments);
+                return const {'city': 'Lima'};
+              },
+            );
 
         expect(state.messageToolCalls.single.arguments, '{"city": "Lima"}');
         expect(state.toolCalls.single.args, const {'city': 'Lima'});
+        expect(parsed, ['{"city": ', '{"city": "Lima"}']);
       });
 
-      test('toolArgumentsReplaced ignores an unknown call', () {
-        expect(empty.toolArgumentsReplaced('c1', '{}', const {}), empty);
+      test('toolArgumentsAppended ignores an unknown call', () {
+        expect(
+          empty.toolArgumentsAppended('c1', '{}', parse: (_) => const {}),
+          empty,
+        );
       });
 
       test('toolCallCompleted adds the result once', () {
@@ -331,7 +360,7 @@ void main() {
             ],
           ),
           ToolMessage(id: 'r1', content: 'done', toolCallId: 'c1'),
-        ], argsOf: (call) => {'raw': call.arguments});
+        ], parse: (arguments) => {'raw': arguments});
 
         expect(state.toolCalls, const [
           ToolCallView(

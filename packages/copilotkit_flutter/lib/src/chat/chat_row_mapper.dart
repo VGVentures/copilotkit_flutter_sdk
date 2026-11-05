@@ -15,12 +15,12 @@ class const ChatRowMapper() {
     final calls = agentState.toolCallsById;
     return [
       for (final message in agentState.messages) ...[
-        if (message is UserMessage || message is AssistantMessage)
-          if (message.text case final text? when text.isNotEmpty)
-            ChatMessageRow(message),
+        if ((message is UserMessage || message is AssistantMessage) &&
+            (message.text?.isNotEmpty ?? false))
+          ChatMessageRow(message),
         if (message is AssistantMessage)
           for (final toolCall in message.toolCalls)
-            if (calls[toolCall.id] case final call?) ChatToolCallRow(call),
+            if (calls[toolCall.id] case final view?) ChatToolCallRow(view),
       ],
     ];
   }
