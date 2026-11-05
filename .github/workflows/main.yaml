@@ -21,6 +21,7 @@ jobs:
       copilotkit_flutter: ${{ steps.filter.outputs.copilotkit_flutter }}
       example: ${{ steps.filter.outputs.example }}
       json_utils: ${{ steps.filter.outputs.json_utils }}
+      phoenix_channels: ${{ steps.filter.outputs.phoenix_channels }}
     steps:
       - name: 📚 Git Checkout
         uses: actions/checkout@v7
@@ -38,10 +39,12 @@ jobs:
             copilotkit:
               - *shared
               - packages/json_utils/**
+              - packages/phoenix_channels/**
               - packages/copilotkit/**
             copilotkit_flutter:
               - *shared
               - packages/json_utils/**
+              - packages/phoenix_channels/**
               - packages/copilotkit/**
               - packages/copilotkit_flutter/**
             example:
@@ -51,6 +54,9 @@ jobs:
             json_utils:
               - *shared
               - packages/json_utils/**
+            phoenix_channels:
+              - *shared
+              - packages/phoenix_channels/**
 
   copilotkit:
     needs: changes
@@ -90,14 +96,23 @@ jobs:
       flutter_version_file: .fvmrc
       min_coverage: 100
 
+  phoenix_channels:
+    needs: changes
+    if: ${{ needs.changes.outputs.phoenix_channels == 'true' }}
+    uses: VeryGoodOpenSource/very_good_workflows/.github/workflows/flutter_package.yml@v2
+    with:
+      working_directory: packages/phoenix_channels
+      flutter_version_file: .fvmrc
+      min_coverage: 100
+
   docs:
     needs: changes
-    if: ${{ needs.changes.outputs.json_utils == 'true' || needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.copilotkit_flutter == 'true' }}
+    if: ${{ needs.changes.outputs.json_utils == 'true' || needs.changes.outputs.phoenix_channels == 'true' || needs.changes.outputs.copilotkit == 'true' || needs.changes.outputs.copilotkit_flutter == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        package: [json_utils, copilotkit, copilotkit_flutter]
+        package: [json_utils, phoenix_channels, copilotkit, copilotkit_flutter]
     defaults:
       run:
         shell: bash

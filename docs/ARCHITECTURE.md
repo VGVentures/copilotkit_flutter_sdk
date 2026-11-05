@@ -8,12 +8,16 @@ against it.
 
 ## Packages
 
-The SDK has three packages, layered from the network up:
+The SDK has four packages, layered from the network up:
 
 ```text
 packages/json_utils           pure Dart, only package:collection: partial
                               JSON parsing, JSON Patch and JSON Schema
                               helpers over Map<String, Object?>
+packages/phoenix_channels     pure Dart, web_socket_channel and equatable:
+                              a Phoenix channels (v2) client that opens a
+                              socket, joins a topic, pushes and streams
+                              events, and never reconnects
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
   tools       client tools, their calls and the user's answers
@@ -41,9 +45,19 @@ never `Object?`. It has a single feature, so its classes sit directly in
 `lib/src/` and its barrel, `lib/json_utils.dart`, is the only library other
 packages import.
 
+`phoenix_channels` knows nothing about CopilotKit: it speaks the Phoenix
+channels protocol over `web_socket_channel`, so it can be published on its own
+too, and like `json_utils` it has a single feature with its classes directly
+in `lib/src/` and a barrel, `lib/phoenix_channels.dart`, that is the only
+library other packages import. It never reconnects. The join token of the
+Intelligence gateway is single-use, so a reconnect needs fresh credentials,
+and only the transport that asks the runtime for them can do it
+([ADR 0012](adr/0012-phoenix-client-for-intelligence.md)).
+
 ## Layout
 
-Every package except `json_utils` has one folder per feature in `lib/src/`,
+Every package except `json_utils` and `phoenix_channels` has one folder per
+feature in `lib/src/`,
 and every feature folder has the same shape:
 
 ```text
@@ -105,10 +119,13 @@ nothing re-exports a file under `copilotkit`'s `lib/src/`.
 it, so every package or app that builds a schema declares `ack` in its
 `pubspec.yaml` and imports `package:ack/ack.dart` itself.
 
-`ag_ui` and `json_utils` are implementation details of `copilotkit`. No
-other package imports them, declares them in its `pubspec.yaml` or exports
-them, and `copilotkit` exports neither:
+`ag_ui`, `json_utils` and `phoenix_channels` are implementation details of
+`copilotkit`. No other package imports them, declares them in its
+`pubspec.yaml` or exports them, and `copilotkit` exports none of them:
 
+- `phoenix_channels` is imported under `tool/` for the Intelligence round
+  trip, and by the Intelligence transport once it exists. Its types stay
+  inside that transport.
 - `json_utils` is imported under `lib/src/` and `tool/` through
   `package:json_utils/json_utils.dart`, and features convert to and from
   `Map<String, Object?>` at the call site.
@@ -558,5 +575,5 @@ lists only the `copilotkit_flutter` barrel, and the second finds nothing:
 
 ```sh
 rg -n "^export 'package:" packages/*/lib
-rg -l "package:(ag_ui|json_utils)/" packages/copilotkit_flutter example
+rg -l "package:(ag_ui|json_utils|phoenix_channels)/" packages/copilotkit_flutter example
 ```

@@ -1,0 +1,46 @@
+environment:
+  sdk: ^3.13.0
+package:phoenix_channels/phoenix_channels.dart:
+  PhoenixClient (class extends Object):
+    new (constructor: PhoenixClient Function({required Uri clientUrl, WebSocketChannel Function(Uri)? connect, Duration heartbeatInterval, Map<String, String> params, Duration replyTimeout}))
+    events (getter: Stream<PhoenixEvent>)
+    heartbeatInterval (getter: Duration)
+    replyTimeout (getter: Duration)
+    close (method: Future<void> Function())
+    join (method: Future<Object?> Function(String, Map<String, Object?>))
+    open (method: Future<void> Function())
+    push (method: Future<Object?> Function(String, String, Map<String, Object?>))
+  PhoenixClosedException (class extends Equatable implements Exception):
+    new (const constructor: PhoenixClosedException Function({int? code, String? reason}))
+    code (getter: int?)
+    props (getter: List<Object?>)
+    reason (getter: String?)
+    toString (method: String Function())
+  PhoenixEvent (class extends Equatable):
+    new (const constructor: PhoenixEvent Function({required String event, required Map<String, Object?> payload, required String topic}))
+    event (getter: String)
+    payload (getter: Map<String, Object?>)
+    props (getter: List<Object?>)
+    topic (getter: String)
+  PhoenixReplyException (class extends Equatable implements Exception):
+    new (const constructor: PhoenixReplyException Function({required Object? response, required String status}))
+    props (getter: List<Object?>)
+    response (getter: Object?)
+    status (getter: String)
+    toString (method: String Function())
+dart:async:
+  Future (referenced)
+  Stream (referenced)
+dart:core:
+  Duration (referenced)
+  Exception (referenced)
+  List (referenced)
+  Map (referenced)
+  Object (referenced)
+  String (referenced)
+  Uri (referenced)
+  int (referenced)
+package:equatable/src/equatable.dart:
+  Equatable (referenced)
+package:web_socket_channel/src/channel.dart:
+  WebSocketChannel (referenced)
