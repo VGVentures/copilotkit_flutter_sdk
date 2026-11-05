@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:phoenix_channels/src/phoenix_closed_exception.dart';
-import 'package:phoenix_channels/src/phoenix_endpoint.dart';
-import 'package:phoenix_channels/src/phoenix_event.dart';
-import 'package:phoenix_channels/src/phoenix_frame.dart';
-import 'package:phoenix_channels/src/phoenix_reply_exception.dart';
+import 'package:phoenix_channels_client/src/phoenix_closed_exception.dart';
+import 'package:phoenix_channels_client/src/phoenix_endpoint.dart';
+import 'package:phoenix_channels_client/src/phoenix_event.dart';
+import 'package:phoenix_channels_client/src/phoenix_frame.dart';
+import 'package:phoenix_channels_client/src/phoenix_reply_exception.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 /// A client of the Phoenix channels protocol, version 2, for one socket and
