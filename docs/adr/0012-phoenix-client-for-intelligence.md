@@ -15,13 +15,14 @@ which one: the `phoenix_socket` package, or a small client of our own on
 `web_socket_channel`.
 
 The spike ran against a real Intelligence runtime (`@copilotkit/runtime`
-1.79.0, managed cloud), with the client in
-`packages/copilotkit/tool/phoenix_client.dart`: about 190 lines, on
+1.79.0, managed cloud), with a client of about 190 lines on
 `web_socket_channel`, which the workspace already resolves. It covered a text
 run, a frontend-tool run, a run on a locked thread, and a stop over the
 channel and over REST. The recordings are in
-`packages/copilotkit/test/fixtures/intelligence_*.jsonl`. All 42 recorded
-events decode with the `ag_ui` decoder the SDK already uses, including the
+`packages/copilotkit/test/fixtures/intelligence_*.jsonl`. They were made with
+throwaway scripts that are not kept, because they sat in no layer of the SDK;
+support for the Intelligence runtime in `tool/round_trip.dart` can record them
+again. All 42 recorded events decode with the `ag_ui` decoder the SDK already uses, including the
 extra `organization_id`, `project_id` and `metadata` fields on every event and
 one `TEXT_MESSAGE_CONTENT` with an empty `delta`.
 
@@ -137,5 +138,4 @@ Reasons:
   `phoenix_socket` is a change inside the transport.
 - One new package, `phoenix_channels`, with its own CI job and release
   component. It depends on `web_socket_channel` only, which the workspace
-  already resolves. The spike's prototype in `tool/phoenix_client.dart` moves
-  into it.
+  already resolves. The spike's client is what the package grows from.
