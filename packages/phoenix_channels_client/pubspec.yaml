@@ -1,4 +1,4 @@
-name: phoenix_channels
+name: phoenix_channels_client
 description: A Phoenix channels (protocol v2) client over web_socket_channel.
 version: 0.1.0
 publish_to: none

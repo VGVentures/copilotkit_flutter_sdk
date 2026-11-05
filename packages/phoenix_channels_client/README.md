@@ -1,4 +1,4 @@
-# phoenix_channels
+# phoenix_channels_client
 
 A small client of the [Phoenix channels](https://hexdocs.pm/phoenix/channels.html)
 protocol, version 2, over `web_socket_channel`. It is pure Dart and knows

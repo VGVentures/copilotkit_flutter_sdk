@@ -12,8 +12,8 @@
     "packages/json_utils": {
       "component": "json_utils"
     },
-    "packages/phoenix_channels": {
-      "component": "phoenix_channels"
+    "packages/phoenix_channels_client": {
+      "component": "phoenix_channels_client"
     },
     "packages/copilotkit": {
       "component": "copilotkit"

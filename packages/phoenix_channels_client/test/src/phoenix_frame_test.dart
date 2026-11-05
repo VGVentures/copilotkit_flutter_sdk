@@ -1,4 +1,4 @@
-import 'package:phoenix_channels/src/phoenix_frame.dart';
+import 'package:phoenix_channels_client/src/phoenix_frame.dart';
 import 'package:test/test.dart';
 
 void main() {

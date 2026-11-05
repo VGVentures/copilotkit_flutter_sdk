@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
-import 'package:phoenix_channels/phoenix_channels.dart';
-import 'package:phoenix_channels/src/phoenix_frame.dart';
+import 'package:phoenix_channels_client/phoenix_channels_client.dart';
+import 'package:phoenix_channels_client/src/phoenix_frame.dart';
 import 'package:test/test.dart';
 
 import '../helpers/fake_socket.dart';
