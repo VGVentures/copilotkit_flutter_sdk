@@ -41,6 +41,38 @@ void main() {
       expect(seen, [same(client.agents['ops'])]);
     });
 
+    testWidgets('opens the agent on the given thread', (tester) async {
+      await tester.pumpWidget(
+        build(
+          CopilotAgentScope(
+            agentId: 'ops',
+            threadId: 'thread-9',
+            child: _Probe(seen),
+          ),
+        ),
+      );
+
+      expect(seen.single.state.threadId, 'thread-9');
+    });
+
+    testWidgets('keeps the thread of an agent that is already open', (
+      tester,
+    ) async {
+      client.agent('ops', threadId: 'thread-1');
+
+      await tester.pumpWidget(
+        build(
+          CopilotAgentScope(
+            agentId: 'ops',
+            threadId: 'thread-2',
+            child: _Probe(seen),
+          ),
+        ),
+      );
+
+      expect(seen.single.state.threadId, 'thread-1');
+    });
+
     testWidgets('shares one agent between scopes with the same id', (
       tester,
     ) async {

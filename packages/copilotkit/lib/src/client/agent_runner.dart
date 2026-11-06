@@ -79,9 +79,30 @@ class AgentRunner({
   ///
   /// Does nothing when [agent] isn't in a turn. Errors from cancelling the
   /// run and from the stop request go to the error handler.
-  Future<void> stop(CopilotAgent agent) async {
+  Future<void> stop(CopilotAgent agent) => _stop(agent);
+
+  /// Moves [agent] to the thread [threadId]: stops its turn, as [stop] does,
+  /// and starts it over with an empty conversation on the new thread.
+  ///
+  /// Does nothing when [agent] is on that thread already. The agent is on
+  /// the new thread as soon as the turn has ended locally; the returned
+  /// future completes once the runtime has answered the stop request, which
+  /// asks for the run of the old thread to stop. No event of the old turn
+  /// reaches the agent after the switch, and a failed stop request goes to
+  /// the error handler.
+  Future<void> switchThread(CopilotAgent agent, String threadId) async {
+    if (agent.state.threadId == threadId) return;
+    await _stop(agent, afterTurn: () => agent.switchThread(threadId));
+  }
+
+  Future<void> _stop(CopilotAgent agent, {void Function()? afterTurn}) async {
     final turn = _turns.remove(agent.state.agentId);
-    if (turn == null) return;
+    if (turn == null) {
+      afterTurn?.call();
+      return;
+    }
+    // The thread of the run being stopped, before [afterTurn] moves the agent.
+    final threadId = agent.state.threadId;
     turn.signal.cancel();
     final run = turn.run;
     if (run != null) {
@@ -99,11 +120,12 @@ class AgentRunner({
     // sends no stop request.
     if (agent.isClosed) return;
     agent.endTurn();
+    afterTurn?.call();
     if (run == null) return;
     try {
       await _transport.stop(
         agentId: agent.state.agentId,
-        threadId: agent.state.threadId,
+        threadId: threadId,
         runId: run.runId,
         headers: run.headers,
       );
