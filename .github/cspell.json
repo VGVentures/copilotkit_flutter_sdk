@@ -23,5 +23,5 @@
     }
   ],
   "useGitignore": true,
-  "ignorePaths": ["**/pubspec.lock"]
+  "ignorePaths": ["**/pubspec.lock", "**/*.g.dart"]
 }
