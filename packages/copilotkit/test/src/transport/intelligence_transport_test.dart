@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/intelligence_transport.dart';
+import 'package:copilotkit/src/transport/models/runtime_mode.dart';
 import 'package:copilotkit/src/transport/models/thread_locked_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
@@ -625,6 +626,31 @@ void main() {
           );
         },
       );
+    });
+
+    group('info', () {
+      test('gets the info route with the headers and decodes it', () async {
+        stubHttp(200, {'mode': 'intelligence'});
+
+        final info = await transport.info(
+          headers: {'Authorization': 'Bearer t'},
+        );
+
+        expect(info.mode, RuntimeMode.intelligence);
+        final request = sentRequest();
+        expect(request.method, 'GET');
+        expect(
+          request.url,
+          Uri.parse('http://runtime.test/api/copilotkit/info'),
+        );
+        expect(request.headers['Authorization'], 'Bearer t');
+      });
+
+      test('refuses once closed', () async {
+        await transport.close();
+
+        expect(() => transport.info(), throwsStateError);
+      });
     });
 
     group('close', () {
