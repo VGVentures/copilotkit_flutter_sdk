@@ -26,7 +26,8 @@ class _TodoPanelState extends State<TodoPanel> {
   }
 
   void _edit(TodoList list) {
-    CopilotAgentScope.of(context).setSharedState(SharedState(list.toJson()));
+    final agent = CopilotAgentScope.of(context);
+    agent.setSharedState(list.toShared(agent.state.sharedState));
   }
 
   void _add(TodoList list) {
