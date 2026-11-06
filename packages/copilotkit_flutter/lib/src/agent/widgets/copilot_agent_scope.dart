@@ -15,12 +15,21 @@ import 'package:flutter/widgets.dart';
 /// The client owns the agent, so the scope never closes it: the agent lives
 /// until the client closes. Two scopes with the same [agentId] under the same
 /// client share one agent.
+///
+/// Pass [threadId] to open the agent on a thread the app saved, so a
+/// conversation keeps its thread across launches. It only applies when the
+/// scope opens the agent: an agent that is already open keeps its thread. To
+/// move an open agent to another thread, call
+/// [CopilotKitClient.switchAgentThread].
 class const CopilotAgentScope({
   /// Id of the agent on the runtime, e.g. `default`.
   required final String agentId,
 
   /// The subtree that can read the agent.
   required final Widget child,
+
+  /// The thread to open the agent on, or `null` for a new one.
+  final String? threadId,
   super.key,
 }) extends StatelessWidget {
   /// Creates a scope for the agent [agentId].
@@ -48,7 +57,7 @@ class const CopilotAgentScope({
   @override
   Widget build(BuildContext context) {
     return _CopilotAgentScope(
-      agent: CopilotKit.of(context).agent(agentId),
+      agent: CopilotKit.of(context).agent(agentId, threadId: threadId),
       child: child,
     );
   }
