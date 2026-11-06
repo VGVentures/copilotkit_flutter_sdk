@@ -5,6 +5,7 @@ import 'dart:developer' as developer;
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/models/stop_request.dart';
+import 'package:copilotkit/src/transport/simple_input_mapper.dart';
 import 'package:http/http.dart' as http;
 
 /// [AgentTransport] over a Copilot Runtime v2 using `ag_ui`'s SSE client.
@@ -20,6 +21,7 @@ class AgUiTransport({
   http.Client Function()? httpClientFactory,
   Duration stopTimeout = const Duration(seconds: 10),
   void Function(Object error, StackTrace stackTrace)? onSkippedEvent,
+  SimpleInputMapper simpleInput = const SimpleInputMapper(),
 }) implements AgentTransport {
   /// Creates a transport for the runtime at [runtimeUrl].
   ///
@@ -43,6 +45,7 @@ class AgUiTransport({
   final Duration _stopTimeout = stopTimeout;
   final void Function(Object error, StackTrace stackTrace)? _onSkippedEvent =
       onSkippedEvent;
+  final SimpleInputMapper _simpleInput = simpleInput;
 
   /// Ends each run in flight, see [close].
   final Set<void Function()> _runEnds = {};
@@ -156,19 +159,6 @@ class AgUiTransport({
   void _ensureOpen() {
     if (_closed) throw StateError('AgUiTransport is closed.');
   }
-
-  /// Copies [input] into the [SimpleRunAgentInput] that `ag_ui`'s client
-  /// sends to the runtime, field for field.
-  SimpleRunAgentInput _simpleInput(RunAgentInput input) => SimpleRunAgentInput(
-    threadId: input.threadId,
-    runId: input.runId,
-    parentRunId: input.parentRunId,
-    state: input.state,
-    messages: input.messages,
-    tools: input.tools,
-    context: input.context,
-    forwardedProps: input.forwardedProps,
-  );
 
   /// Logs an event skipped because it couldn't be decoded and reports it to
   /// `onSkippedEvent`, which must not break the run if it throws.
