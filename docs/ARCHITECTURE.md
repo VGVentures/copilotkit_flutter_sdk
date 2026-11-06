@@ -8,12 +8,17 @@ against it.
 
 ## Packages
 
-The SDK has three packages, layered from the network up:
+The SDK has four packages, layered from the network up:
 
 ```text
 packages/json_utils           pure Dart, only package:collection: partial
                               JSON parsing, JSON Patch and JSON Schema
                               helpers over Map<String, Object?>
+packages/phoenix_channels_client
+                              pure Dart, web_socket_channel and equatable:
+                              a Phoenix channels (v2) client that opens a
+                              socket, joins a topic, pushes and streams
+                              events, and never reconnects
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
   tools       client tools, their calls and the user's answers
@@ -41,10 +46,19 @@ never `Object?`. It has a single feature, so its classes sit directly in
 `lib/src/` and its barrel, `lib/json_utils.dart`, is the only library other
 packages import.
 
+`phoenix_channels_client` knows nothing about CopilotKit: it speaks the
+Phoenix channels protocol over `web_socket_channel`, so it can be published on
+its own too, and like `json_utils` it has a single feature with its classes
+directly in `lib/src/` and a barrel, `lib/phoenix_channels_client.dart`, that
+is the only library other packages import. It never reconnects. The join token
+of the Intelligence gateway is single-use, so a reconnect needs fresh
+credentials, and only the transport that asks the runtime for them can do it
+([ADR 0012](adr/0012-phoenix-client-for-intelligence.md)).
+
 ## Layout
 
-Every package except `json_utils` has one folder per feature in `lib/src/`,
-and every feature folder has the same shape:
+Every package except `json_utils` and `phoenix_channels_client` has one
+folder per feature in `lib/src/`, and every feature folder has the same shape:
 
 ```text
 lib/src/<feature>/

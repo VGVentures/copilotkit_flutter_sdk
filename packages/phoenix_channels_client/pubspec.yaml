@@ -1,0 +1,19 @@
+name: phoenix_channels_client
+description: A Phoenix channels (protocol v2) client over web_socket_channel.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.13.0
+
+resolution: workspace
+
+dependencies:
+  equatable: ^3.0.0
+  web_socket_channel: ^3.0.3
+
+dev_dependencies:
+  api_summary: ^1.2.0
+  mocktail: ^1.0.5
+  test: ^1.31.0
+  very_good_analysis: ^11.0.0
