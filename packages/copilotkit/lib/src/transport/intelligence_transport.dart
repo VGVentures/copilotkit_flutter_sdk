@@ -7,8 +7,10 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/intelligence_event_decoder.dart';
 import 'package:copilotkit/src/transport/models/intelligence_run_credentials.dart';
+import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:copilotkit/src/transport/models/stop_request.dart';
 import 'package:copilotkit/src/transport/models/thread_locked_exception.dart';
+import 'package:copilotkit/src/transport/runtime_info_client.dart';
 import 'package:copilotkit/src/transport/simple_input_mapper.dart';
 import 'package:http/http.dart' as http;
 import 'package:json_annotation/json_annotation.dart';
@@ -67,6 +69,11 @@ class IntelligenceTransport({
       ((clientUrl, params) =>
           PhoenixChannelsClient(clientUrl: clientUrl, params: params));
   final Duration _stopTimeout = stopTimeout;
+  late final RuntimeInfoClient _info = RuntimeInfoClient(
+    baseUrl: _baseUrl,
+    httpClientFactory: _httpClientFactory,
+    timeout: _stopTimeout,
+  );
   final void Function(Object error, StackTrace stackTrace)? _onSkippedEvent =
       onSkippedEvent;
   final IntelligenceEventDecoder _decoder = decoder;
@@ -152,6 +159,17 @@ class IntelligenceTransport({
     } finally {
       httpClient.close();
     }
+  }
+
+  /// Reads the runtime's `GET /info`.
+  ///
+  /// Throws an [http.ClientException] when the runtime rejects the request,
+  /// doesn't answer within the stop timeout or doesn't answer with a JSON
+  /// object.
+  @override
+  Future<RuntimeInfo> info({Map<String, String> headers = const {}}) async {
+    _ensureOpen();
+    return await _info(headers: headers);
   }
 
   /// Ends the runs in flight (their streams complete). The transport can't be
