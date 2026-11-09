@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
+import 'package:copilotkit/src/transport/runtime_info_status_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:json_annotation/json_annotation.dart';
 
@@ -24,7 +25,8 @@ class const RuntimeInfoClient({
 
   /// Sends [headers] to the runtime and decodes its answer.
   ///
-  /// Throws an [http.ClientException] when the runtime rejects the request,
+  /// Throws an [http.ClientException] when the runtime rejects the request (a
+  /// [RuntimeInfoStatusException]),
   /// doesn't answer within the timeout, or doesn't answer with a JSON object
   /// of the shape of [RuntimeInfo].
   Future<RuntimeInfo> call({Map<String, String> headers = const {}}) async {
@@ -35,10 +37,12 @@ class const RuntimeInfoClient({
         ..headers.addAll({...headers, 'Accept': 'application/json'});
       final response = await _send(httpClient, request).timeout(timeout);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw http.ClientException(
-          'Runtime info failed with status ${response.statusCode}: '
-          '${response.body}',
-          url,
+        throw RuntimeInfoStatusException(
+          statusCode: response.statusCode,
+          message:
+              'Runtime info failed with status ${response.statusCode}: '
+              '${response.body}',
+          uri: url,
         );
       }
       try {

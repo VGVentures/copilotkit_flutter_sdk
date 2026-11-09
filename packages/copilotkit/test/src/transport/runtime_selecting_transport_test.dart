@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
+import 'package:copilotkit/src/transport/runtime_info_status_exception.dart';
 import 'package:copilotkit/src/transport/runtime_selecting_transport.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -143,6 +144,57 @@ void main() {
 
         expect(messageOf(received), 'sse');
         expect(infoErrors, [isA<StateError>()]);
+      });
+
+      test('ends the stream with the error when onInfoError throws', () async {
+        transport = RuntimeSelectingTransport(
+          sse: sse,
+          intelligence: intelligence,
+          onInfoError: (_, _) => throw StateError('callback failed'),
+        );
+        when(() => sse.info(headers: any(named: 'headers')))
+            .thenAnswer((_) async => throw StateError('offline'));
+
+        await expectLater(
+          transport.run(agentId: 'a', input: _input),
+          emitsInOrder([emitsError(isA<StateError>()), emitsDone]),
+        );
+      });
+
+      test(
+        'remembers a runtime without /info as SSE and stays quiet',
+        () async {
+          when(() => sse.info(headers: any(named: 'headers'))).thenAnswer(
+            (_) async => throw const RuntimeInfoStatusException(
+              statusCode: 404,
+              message: 'not found',
+            ),
+          );
+
+          await transport.run(agentId: 'a', input: _input).toList();
+          final received = await transport
+              .run(agentId: 'a', input: _input)
+              .toList();
+
+          expect(messageOf(received), 'sse');
+          expect(infoErrors, isEmpty);
+          verify(() => sse.info(headers: any(named: 'headers'))).called(1);
+        },
+      );
+
+      test('reports and asks again after a 5xx from /info', () async {
+        when(() => sse.info(headers: any(named: 'headers'))).thenAnswer(
+          (_) async => throw const RuntimeInfoStatusException(
+            statusCode: 503,
+            message: 'unavailable',
+          ),
+        );
+
+        await transport.run(agentId: 'a', input: _input).toList();
+        await transport.run(agentId: 'a', input: _input).toList();
+
+        expect(infoErrors, hasLength(2));
+        verify(() => sse.info(headers: any(named: 'headers'))).called(2);
       });
 
       test('asks again after /info failed', () async {
