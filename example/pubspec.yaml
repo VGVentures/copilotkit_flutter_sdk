@@ -16,7 +16,7 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
-  gpt_markdown: ^1.4.0
+  gpt_markdown: ^1.4.1
   json_annotation: ^4.12.0
 
 dev_dependencies:
