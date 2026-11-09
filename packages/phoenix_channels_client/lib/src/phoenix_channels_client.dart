@@ -52,9 +52,11 @@ class PhoenixChannelsClient({
       StreamController<PhoenixEvent>.broadcast();
   final Map<String, Completer<Object?>> _pending = {};
   WebSocketChannel? _channel;
+  StreamSubscription<Object?>? _subscription;
   Timer? _heartbeat;
   int _lastRef = 0;
   String? _joinRef;
+  bool _opening = false;
   bool _closed = false;
   bool _failed = false;
 
@@ -76,14 +78,28 @@ class PhoenixChannelsClient({
     if (_closed) {
       throw StateError('PhoenixChannelsClient is closed.');
     }
-    if (_channel != null) {
+    if (_channel != null || _opening) {
       throw StateError('PhoenixChannelsClient is already open.');
     }
-    final channel = _connect(_socketUrl);
-    await channel.ready;
-    _channel = channel;
-    channel.stream.listen(_onData, onError: _fail, onDone: _onDone);
-    _heartbeat = Timer.periodic(heartbeatInterval, (_) => unawaited(_beat()));
+    _opening = true;
+    try {
+      final channel = _connect(_socketUrl);
+      await channel.ready;
+      if (_closed) {
+        // close() ran during the handshake: don't keep the connection.
+        await channel.sink.close();
+        throw const PhoenixClosedException();
+      }
+      _channel = channel;
+      _subscription = channel.stream.listen(
+        _onData,
+        onError: _fail,
+        onDone: _onDone,
+      );
+      _heartbeat = Timer.periodic(heartbeatInterval, (_) => unawaited(_beat()));
+    } finally {
+      _opening = false;
+    }
   }
 
   /// Joins [topic] with [params] and returns the `response` of the reply.
@@ -92,15 +108,17 @@ class PhoenixChannelsClient({
   /// [PhoenixReplyException] when the server answers with an error, a
   /// [TimeoutException] when it doesn't answer, and a
   /// [PhoenixClosedException] when the connection ended first.
-  Future<Object?> join(String topic, Map<String, Object?> params) {
+  Future<Object?> join(String topic, Map<String, Object?> params) async {
     final joinRef = '${_lastRef + 1}';
-    _joinRef = joinRef;
-    return _push(
+    final response = await _push(
       topic: topic,
       event: 'phx_join',
       payload: params,
       joinRef: joinRef,
     );
+    // Only a join the server accepted changes the ref later pushes send.
+    _joinRef = joinRef;
+    return response;
   }
 
   /// Pushes [event] on [topic] and returns the `response` of the reply.
@@ -120,8 +138,12 @@ class PhoenixChannelsClient({
     _heartbeat?.cancel();
     _heartbeat = null;
     _failPending(const PhoenixClosedException());
-    await _channel?.sink.close();
-    await _events.close();
+    try {
+      await _subscription?.cancel();
+      await _channel?.sink.close();
+    } finally {
+      await _events.close();
+    }
   }
 
   Future<Object?> _push({
@@ -174,7 +196,7 @@ class PhoenixChannelsClient({
   }
 
   void _onData(Object? data) {
-    if (data is! String) return;
+    if (_ended || data is! String) return;
     final PhoenixFrame frame;
     try {
       frame = PhoenixFrame.decode(data);
