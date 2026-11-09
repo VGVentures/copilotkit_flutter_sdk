@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:http/http.dart' as http;
+import 'package:json_annotation/json_annotation.dart';
 
 /// Reads a Copilot Runtime's `GET /info`.
 ///
@@ -24,7 +25,8 @@ class const RuntimeInfoClient({
   /// Sends [headers] to the runtime and decodes its answer.
   ///
   /// Throws an [http.ClientException] when the runtime rejects the request,
-  /// doesn't answer within the timeout or doesn't answer with a JSON object.
+  /// doesn't answer within the timeout, or doesn't answer with a JSON object
+  /// of the shape of [RuntimeInfo].
   Future<RuntimeInfo> call({Map<String, String> headers = const {}}) async {
     final url = Uri.parse('$baseUrl/info');
     final httpClient = httpClientFactory();
@@ -39,7 +41,14 @@ class const RuntimeInfoClient({
           url,
         );
       }
-      return RuntimeInfo.fromJson(_decodeObject(response.body, url));
+      try {
+        return RuntimeInfo.fromJson(_decodeObject(response.body, url));
+      } on CheckedFromJsonException catch (error) {
+        throw http.ClientException(
+          'Runtime info is malformed: ${error.message}',
+          url,
+        );
+      }
     } on TimeoutException {
       throw http.ClientException(
         'Runtime info timed out after ${timeout.inMilliseconds}ms.',

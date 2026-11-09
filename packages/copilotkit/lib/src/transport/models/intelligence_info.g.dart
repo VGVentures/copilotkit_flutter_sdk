@@ -9,7 +9,7 @@ part of 'intelligence_info.dart';
 IntelligenceInfo _$IntelligenceInfoFromJson(Map<String, dynamic> json) =>
     $checkedCreate('IntelligenceInfo', json, ($checkedConvert) {
       final val = IntelligenceInfo(
-        wsUrl: $checkedConvert('wsUrl', (v) => v as String),
+        wsUrl: $checkedConvert('wsUrl', (v) => v as String? ?? ''),
       );
       return val;
     });

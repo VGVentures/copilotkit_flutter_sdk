@@ -9,8 +9,9 @@ part 'intelligence_info.g.dart';
 @JsonSerializable(createToJson: false)
 class const IntelligenceInfo({
   /// The WebSocket URL of the realtime service, e.g.
-  /// `wss://realtime.intelligence.copilotkit.ai/client`.
-  required final String wsUrl,
+  /// `wss://realtime.intelligence.copilotkit.ai/client`. Empty when the
+  /// runtime doesn't say, for example because a newer one renamed it.
+  @JsonKey(defaultValue: '') final String wsUrl = '',
 }) extends Equatable {
   /// Creates the Intelligence part of the runtime info.
   this;

@@ -483,6 +483,24 @@ void main() {
         );
       });
 
+      test(
+        'throws a ClientException when the body has the wrong shape',
+        () async {
+          stubBody('{"version": 1}');
+
+          await expectLater(
+            transport.info(),
+            throwsA(
+              isA<http.ClientException>().having(
+                (e) => e.message,
+                'message',
+                contains('malformed'),
+              ),
+            ),
+          );
+        },
+      );
+
       test('throws when the body is JSON but not an object', () async {
         stubBody('[]');
 
