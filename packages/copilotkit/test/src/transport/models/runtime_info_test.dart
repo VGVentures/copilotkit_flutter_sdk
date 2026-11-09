@@ -84,6 +84,18 @@ void main() {
       });
     });
 
+    test('keeps the mode when an agent or the realtime url is incomplete', () {
+      final info = RuntimeInfo.fromJson(const {
+        'mode': 'intelligence',
+        'intelligence': <String, Object?>{},
+        'agents': {'a': <String, Object?>{}},
+      });
+
+      expect(info.mode, RuntimeMode.intelligence);
+      expect(info.intelligence, const IntelligenceInfo());
+      expect(info.agents, {'a': const RuntimeAgentInfo()});
+    });
+
     test('is an SSE runtime with nothing else when the body is empty', () {
       expect(RuntimeInfo.fromJson(const {}), const RuntimeInfo());
     });

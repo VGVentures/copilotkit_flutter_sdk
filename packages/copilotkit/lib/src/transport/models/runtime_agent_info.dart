@@ -6,8 +6,9 @@ part 'runtime_agent_info.g.dart';
 /// An agent a runtime serves, as `GET /info` lists it.
 @JsonSerializable(createToJson: false)
 class const RuntimeAgentInfo({
-  /// The agent's id.
-  required final String name,
+  /// The agent's id, or empty when the runtime doesn't say. The key of the
+  /// `agents` object is the id either way.
+  @JsonKey(defaultValue: '') final String name = '',
 
   /// What the agent does, or empty when the runtime doesn't say.
   @JsonKey(defaultValue: '') final String description = '',
