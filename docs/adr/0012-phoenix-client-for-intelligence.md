@@ -82,6 +82,20 @@ timeout, a silent loss takes up to 40 seconds to notice.
 What is still untested is a real device: iOS and Android suspend sockets in
 ways a tunnel only approximates.
 
+The spike also stopped a run over both routes. A stop ends on the channel with
+`RUN_FINISHED`, not `RUN_ERROR`, and with no `finishReason`; the REST reply says
+`interrupt: {type: RUN_ERROR, code: STOPPED}`, but nothing of that reaches the
+channel. The recordings are weaker than that sounds:
+
+- `intelligence_stop_channel.jsonl` jumps from `cpki_event_seq` 4 to 7 and has
+  no `TEXT_MESSAGE_END`. It cannot tell whether the gateway dropped events 5
+  and 6 or the runtime sends nothing after `stop_run`.
+- `intelligence_stop_rest.jsonl` shows the run finishing by itself before the
+  REST response was logged, so it does not show a stop that interrupted a run.
+
+Both fixtures carry a `note` saying so. Record them again against a runtime
+before a test relies on them as a clean stop.
+
 ## Decision
 
 Write the Phoenix v2 client ourselves, on `web_socket_channel`, as a package of
@@ -131,6 +145,11 @@ Reasons:
 
 - #75 needs no reconnect. A dropped connection ends the run with an error,
   typed as #163 decides.
+- A stopped run is a normal finish on the channel: `RUN_FINISHED`, with no
+  `RUN_ERROR`. #75 and #163 should type it as a cancellation the transport
+  derives from its own stop request, not from the stream. The stream may also
+  skip sequence numbers after a stop, so the gap check in #84 must not treat a
+  jump straight before `RUN_FINISHED` on a stopped run as a loss.
 - #84 owns the reconnect loop, the cursor and the gap check. It relies on
   `metadata.cpki_event_id` and `metadata.cpki_event_seq`, which are internal
   upstream: pin the runtime version and record a replay fixture, which this
