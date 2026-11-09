@@ -26,6 +26,8 @@ class FakeSocket() {
     });
     when(sink.close).thenAnswer((_) async {
       closedByClient = true;
+      final error = closeError;
+      if (error != null) throw error;
       unawaited(_incoming.close());
     });
     _ready.complete();
@@ -48,6 +50,9 @@ class FakeSocket() {
 
   /// The close reason the socket reports once the server closed it.
   String? closeReason;
+
+  /// Makes closing the sink throw, as a socket that already failed does.
+  Exception? closeError;
 
   /// Whether the client closed the socket.
   bool closedByClient = false;
@@ -83,6 +88,16 @@ class FakeSocket() {
   void failHandshake(Object error) {
     _ready = Completer<void>()..completeError(error);
   }
+
+  /// Makes the handshake wait until [finishHandshake]. Call it before the
+  /// client opens.
+  void holdHandshake() => _ready = Completer<void>();
+
+  /// Completes a handshake held by [holdHandshake].
+  void finishHandshake() => _ready.complete();
+
+  /// Makes the next handshake succeed again, after [failHandshake].
+  void allowHandshake() => _ready = Completer<void>()..complete();
 
   /// The server sends [frame].
   void serverSends(PhoenixFrame frame) {

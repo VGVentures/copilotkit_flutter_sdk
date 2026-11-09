@@ -63,6 +63,44 @@ void main() {
 
         await expectLater(client.open, throwsException);
         await expectLater(() => client.join('t', const {}), throwsStateError);
+
+        socket.allowHandshake();
+        await client.open();
+        final joined = client.join('t', const {});
+        await socket.settle();
+        socket.serverSends(socket.replyTo(socket.sentFrames.single));
+
+        expect(await joined, isEmpty);
+      });
+
+      test('closes the socket and starts no heartbeat when close ran '
+          'during the handshake', () async {
+        socket.holdHandshake();
+        final client = createClient(
+          heartbeatInterval: const Duration(milliseconds: 10),
+        );
+
+        final opening = client.open();
+        await socket.settle();
+        await client.close();
+        socket.finishHandshake();
+
+        await expectLater(opening, throwsA(isA<PhoenixClosedException>()));
+        await socket.settle(const Duration(milliseconds: 50));
+        expect(socket.closedByClient, isTrue);
+        expect(socket.sentFrames, isEmpty);
+      });
+
+      test('throws a StateError when it is already opening', () async {
+        socket.holdHandshake();
+        final client = createClient();
+
+        final opening = client.open();
+        await socket.settle();
+
+        await expectLater(client.open, throwsStateError);
+        socket.finishHandshake();
+        await opening;
       });
 
       test('throws a StateError when it is already open', () async {
@@ -199,6 +237,28 @@ void main() {
         );
         expect(await reply, {'ok': true});
       });
+
+      test('does not use the ref of a join the server refused', () async {
+        final client = createClient();
+        await client.open();
+        final joined = client.join('thread:1', const {});
+        await socket.settle();
+        socket.serverSends(
+          socket.replyTo(socket.sentFrames.single, status: 'error'),
+        );
+        await expectLater(joined, throwsA(isA<PhoenixReplyException>()));
+
+        final pushed = client.push('thread:1', 'stop_run', const {});
+        await socket.settle();
+
+        expect(socket.sentFrames.last.joinRef, isNull);
+        final failure = expectLater(
+          pushed,
+          throwsA(isA<PhoenixClosedException>()),
+        );
+        await client.close();
+        await failure;
+      });
     });
 
     group('events', () {
@@ -328,6 +388,35 @@ void main() {
           throwsA(isA<PhoenixClosedException>()),
         );
       });
+
+      test('skips what the server sends after the error', () async {
+        final client = createClient();
+        final heard = listenTo(client);
+        await client.open();
+        socket.streamFails(Exception('boom'));
+        await socket.settle();
+
+        socket.serverSends(
+          const PhoenixFrame(topic: 't', event: 'late', payload: {}),
+        );
+        await socket.settle();
+
+        expect(heard.errors, hasLength(1));
+        expect(heard.events, isEmpty);
+      });
+
+      test(
+        'close ends the events even when closing the socket throws',
+        () async {
+          final client = createClient();
+          final heard = listenTo(client);
+          await client.open();
+          socket.closeError = Exception('already failed');
+
+          await expectLater(client.close, throwsException);
+          await heard.done;
+        },
+      );
 
       test('close still closes the socket and ends the events', () async {
         final client = createClient();
