@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/client/models/run_result.dart';
 import 'package:copilotkit/src/client/run_streamer.dart';
@@ -36,6 +38,10 @@ class AgentRunner({
   this;
 
   final _turns = <String, Turn>{};
+
+  // The stops that are still ending their turn locally, by agent id. Until
+  // one is done the agent has no turn but is still running.
+  final _stopping = <String, Future<void>>{};
 
   /// Runs a turn of [agent], after appending [message] if given.
   ///
@@ -96,31 +102,45 @@ class AgentRunner({
   }
 
   Future<void> _stop(CopilotAgent agent, {void Function()? afterTurn}) async {
-    final turn = _turns.remove(agent.state.agentId);
+    final agentId = agent.state.agentId;
+    final turn = _turns.remove(agentId);
     if (turn == null) {
+      // A stop that is still ending its turn would end a turn started after
+      // [afterTurn], so wait for it.
+      final pending = _stopping[agentId];
+      if (pending != null) await pending;
       afterTurn?.call();
       return;
     }
+    final ended = Completer<void>();
+    _stopping[agentId] = ended.future;
     // The thread of the run being stopped, before [afterTurn] moves the agent.
     final threadId = agent.state.threadId;
     turn.signal.cancel();
     final run = turn.run;
-    if (run != null) {
-      // A failed cancel must not skip the end of the turn below: the run
-      // guard would then drop every later run of the agent.
-      try {
-        await run.subscription.cancel();
-      } on Object catch (error, stackTrace) {
-        _onError(error, stackTrace);
+    try {
+      if (run != null) {
+        // A failed cancel must not skip the end of the turn below: the run
+        // guard would then drop every later run of the agent.
+        try {
+          await run.subscription.cancel();
+        } on Object catch (error, stackTrace) {
+          _onError(error, stackTrace);
+        }
+      }
+
+      _toolCalls.closeOpen(agent, FallbackToolResult.cancelled);
+      // close() ended the turn while this stop was waiting; like close(), it
+      // sends no stop request.
+      if (agent.isClosed) return;
+      agent.endTurn();
+      afterTurn?.call();
+    } finally {
+      ended.complete();
+      if (identical(_stopping[agentId], ended.future)) {
+        unawaited(_stopping.remove(agentId));
       }
     }
-
-    _toolCalls.closeOpen(agent, FallbackToolResult.cancelled);
-    // close() ended the turn while this stop was waiting; like close(), it
-    // sends no stop request.
-    if (agent.isClosed) return;
-    agent.endTurn();
-    afterTurn?.call();
     if (run == null) return;
     try {
       await _transport.stop(

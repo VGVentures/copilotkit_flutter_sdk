@@ -577,6 +577,31 @@ void main() {
         expect(errors, [same(failure)]);
       });
 
+      test('waits for a stop that is still ending the turn', () async {
+        final cancel = Completer<void>();
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancel.future,
+        );
+        transport.stubRun(() => events.stream);
+        await startStreaming();
+
+        final stopped = runner.stop(agent);
+        await pumpEventQueue();
+        final switched = runner.switchThread(agent, 'thread-2');
+        await pumpEventQueue();
+
+        // The stop hasn't ended the turn, so the agent has not moved and no
+        // new turn can start on the new thread yet.
+        expect(threadId(), oldThread);
+        expect(agent.state.isRunning, isTrue);
+
+        cancel.complete();
+        await Future.wait([stopped, switched, run]);
+
+        expect(threadId(), 'thread-2');
+        expect(agent.state.isRunning, isFalse);
+      });
+
       test('sends no stop request when the agent closes meanwhile', () async {
         final cancel = Completer<void>();
         events = StreamController<ag_ui.BaseEvent>(
