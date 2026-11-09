@@ -4,17 +4,24 @@ import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:copilotkit/src/transport/models/runtime_mode.dart';
+import 'package:copilotkit/src/transport/runtime_info_status_exception.dart';
 
 /// [AgentTransport] that works out which kind of runtime it talks to, and
 /// hands every call to the transport for that kind.
 ///
 /// The first run or stop reads the runtime's `GET /info` with the headers of
-/// that call. A runtime in [RuntimeMode.intelligence] mode gets the
-/// Intelligence transport, any other gets the SSE transport.
+/// that call. Calls that start while that read is pending share it, and so
+/// share the headers of the first: the runtime's mode doesn't depend on the
+/// caller, so don't rely on per-call headers here. A runtime in
+/// [RuntimeMode.intelligence] mode gets the Intelligence transport, any other
+/// gets the SSE transport.
 ///
 /// A failed `/info` doesn't block the call: it goes to the SSE transport and
-/// the error goes to `onInfoError`. Nothing is remembered about the failure,
-/// so the next call asks again.
+/// the error goes to `onInfoError`. A failure that may pass (a timeout, a
+/// network error, a `5xx`) isn't remembered, so the next call asks again. A
+/// runtime that answers that it has no `/info` route (`404`, `405`), like a
+/// plain AG-UI endpoint, is remembered as an SSE runtime and not reported:
+/// it is a valid answer, not an error.
 ///
 /// This class is mutable: it remembers the runtime's info once it has it.
 class RuntimeSelectingTransport({
@@ -33,6 +40,7 @@ class RuntimeSelectingTransport({
       onInfoError;
 
   RuntimeInfo? _info;
+  bool _withoutInfo = false;
   Future<RuntimeInfo>? _pending;
 
   @override
@@ -46,10 +54,10 @@ class RuntimeSelectingTransport({
     late final StreamController<BaseEvent> controller;
     controller = StreamController<BaseEvent>(
       onListen: () async {
-        final transport = await _transportFor(headers);
-        // Cancelled while the runtime was answering: start nothing.
-        if (cancelled) return;
         try {
+          final transport = await _transportFor(headers);
+          // Cancelled while the runtime was answering: start nothing.
+          if (cancelled) return;
           subscription = transport
               .run(agentId: agentId, input: input, headers: headers)
               .listen(
@@ -109,9 +117,17 @@ class RuntimeSelectingTransport({
       .whenComplete(() => _pending = null);
 
   Future<AgentTransport> _transportFor(Map<String, String> headers) async {
+    if (_withoutInfo) return _sse;
     try {
       final info = _info ?? await _fetch(headers);
       return info.mode == RuntimeMode.intelligence ? _intelligence : _sse;
+    } on RuntimeInfoStatusException catch (error, stackTrace) {
+      if (error.isMissing) {
+        _withoutInfo = true;
+        return _sse;
+      }
+      _onInfoError?.call(error, stackTrace);
+      return _sse;
     } on Object catch (error, stackTrace) {
       _onInfoError?.call(error, stackTrace);
       return _sse;
