@@ -9,7 +9,7 @@ environment:
 resolution: workspace
 
 dependencies:
-  ack: ^1.7.0
+  ack: ^1.7.1
   ag_ui: 0.3.0
   equatable: ^3.0.0
   http: ^1.6.0
