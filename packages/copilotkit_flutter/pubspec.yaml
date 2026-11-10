@@ -21,7 +21,7 @@ dependencies:
   uuid: ^4.6.0
 
 dev_dependencies:
-  ack: ^1.7.0
+  ack: ^1.7.1
   api_summary: ^1.2.0
   bloc_test: ^10.0.0
   flutter_test:
