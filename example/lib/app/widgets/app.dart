@@ -23,7 +23,9 @@ class const App({
           ? const WeatherDemo(
               child: CopilotAgentScope(
                 agentId: ChatPage.agentId,
-                child: ChatPage(header: TodoPanel()),
+                child: ChatPage(
+                  header: Column(children: [TodoPanel(), DocumentPanel()]),
+                ),
               ),
             )
           : const _MissingRuntimeScreen(),
