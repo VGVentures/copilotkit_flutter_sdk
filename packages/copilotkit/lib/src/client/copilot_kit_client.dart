@@ -33,12 +33,22 @@ class CopilotKitClient({
   /// `properties` are sent with every run as its forwarded props, e.g. a
   /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
-  /// they are logged. [transport] replaces the AG-UI transport to
+  /// they are logged. [transport] replaces the transport to
   /// [runtimeUrl] in tests.
   this;
 
-  final AgentTransport _transport =
-      transport ?? AgUiTransport(runtimeUrl: runtimeUrl);
+  final Uri _runtimeUrl = runtimeUrl;
+  final AgentTransport? _givenTransport = transport;
+
+  /// The transport given to the constructor, or one that works out from the
+  /// runtime's `GET /info` whether it speaks SSE or Intelligence.
+  late final AgentTransport _transport =
+      _givenTransport ??
+      RuntimeSelectingTransport(
+        sse: AgUiTransport(runtimeUrl: _runtimeUrl),
+        intelligence: IntelligenceTransport(runtimeUrl: _runtimeUrl),
+        onInfoError: _report,
+      );
 
   final _agents = <String, CopilotAgent>{};
 

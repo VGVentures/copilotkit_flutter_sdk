@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
 import 'package:copilotkit/src/transport/models/runtime_mode.dart';
+import 'package:copilotkit/src/transport/runtime_info_status_exception.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -458,11 +459,10 @@ void main() {
         await expectLater(
           transport.info(),
           throwsA(
-            isA<http.ClientException>().having(
-              (e) => e.message,
-              'message',
-              contains('500'),
-            ),
+            isA<RuntimeInfoStatusException>()
+                .having((e) => e.message, 'message', contains('500'))
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having((e) => e.isMissing, 'isMissing', isFalse),
           ),
         );
         verify(() => httpClient.close()).called(1);
