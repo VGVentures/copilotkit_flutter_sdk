@@ -71,6 +71,61 @@ physical device use the LAN URL. In Chrome use `localhost`.
 > API keys. The runtime still starts and `/info` still responds, but every
 > message fails. Use the model that the error message recommends.
 
+## Learning with Intelligence
+
+With a CopilotKit Intelligence project, the runtime records the app's
+conversations as threads, and Automatic Learning turns them into Insights and
+reviewable Skills. This is optional: without `CPK_INTELLIGENCE_API_KEY` the
+runtime serves plain SSE, exactly as before.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CPK_INTELLIGENCE_API_KEY` | none | Project API key. Setting it turns Intelligence mode on. |
+| `CPK_INTELLIGENCE_LEARNING_CONTAINER_ID` | `flutter-example` | Learning container that threads are assigned to. |
+
+`example/tool/.env.example` lists them. The key is server-side only: keep it in
+your shell or in the git-ignored `example/tool/.env`, never in the app or in a
+committed file. The container id must be 1-64 lowercase letters, numbers or
+single hyphens (for example `expense-review`); the runtime refuses to start
+with an invalid one.
+
+<!-- prettier-ignore -->
+> [!IMPORTANT]
+> A thread's container is permanent. The runtime assigns it before the
+> thread's first run, and the thread can never move to another container or
+> be backfilled. The app keeps one thread id across launches (see
+> `lib/app/thread_id_store.dart`) and opens its agent on it, so a device's
+> conversation stays in one thread. Create the container before the first
+> message. To start a new thread, clear the app's data.
+
+Set it up:
+
+1. Log in with `npx copilotkit@latest login` and
+   `npx copilotkit@latest project select`, or open the
+   [Intelligence dashboard](https://dashboard.operations.copilotkit.ai/). The
+   project needs Learning available.
+2. In the dashboard, open Learning and create a container whose id matches
+   `CPK_INTELLIGENCE_LEARNING_CONTAINER_ID` (default `flutter-example`).
+3. Put `CPK_INTELLIGENCE_API_KEY` in `example/tool/.env` and start the runtime.
+   Its first line names the mode:
+   `Copilot Runtime (<model>, Intelligence, Learning container "<id>")`.
+   If every message fails with `404 {"error":"Failed to initialize thread"}`,
+   the container doesn't exist in the project yet. Create it, then send
+   again.
+4. Run the app and chat. The app reuses one thread per install, so collect
+   several threads by clearing the app's data between conversations or by using
+   several devices or simulators.
+5. In the dashboard, check that the threads appear under AG-UI Streams and that
+   the container's readiness count goes up.
+6. An automatic run needs 15 eligible threads by default and is scheduled daily
+   (02:00 UTC by default). To check sooner, choose **Start manual run now** on
+   the container.
+7. When the run finishes, open the container's Insights. They should describe
+   patterns from your conversations (todos, weather, approvals). Skills are
+   proposed there for review; nothing reaches the agent until you publish one.
+
+Tap and navigation capture (trajectories) is not part of this example.
+
 ## Run the app
 
 Pass the runtime URL with `--dart-define`. Flutter is pinned in the root
