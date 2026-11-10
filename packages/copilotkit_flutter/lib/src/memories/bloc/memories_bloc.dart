@@ -75,7 +75,7 @@ class MemoriesBloc({required final MemoriesClient _client})
       _mutate(
         emit,
         () => _client.save(event.memory),
-        onOutcome: (outcome) => _upserted(outcome.memory),
+        onOutcome: (outcome) => _withMemory(outcome.memory),
       );
 
   Future<void> _onSuperseded(
@@ -85,7 +85,7 @@ class MemoriesBloc({required final MemoriesClient _client})
     emit,
     () => _client.supersede(event.id, event.memory),
     onOutcome: (outcome) =>
-        _upserted(outcome.memory, replacing: outcome.retiredId),
+        _withMemory(outcome.memory, replacing: outcome.retiredId),
   );
 
   Future<void> _onRetired(MemoryRetired event, Emitter<MemoriesState> emit) =>
@@ -153,7 +153,7 @@ class MemoriesBloc({required final MemoriesClient _client})
       if (memory.id != id) memory,
   ];
 
-  List<Memory> _upserted(Memory memory, {String? replacing}) {
+  List<Memory> _withMemory(Memory memory, {String? replacing}) {
     final memories = _without(state.memories, replacing);
     final index = memories.indexWhere((m) => m.id == memory.id);
     if (index == -1) return [memory, ...memories];
