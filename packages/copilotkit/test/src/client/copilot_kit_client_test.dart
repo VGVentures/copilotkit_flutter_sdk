@@ -13,6 +13,8 @@ import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
+class _MockMemoriesClient extends Mock implements MemoriesClient;
+
 void main() {
   setUpAll(MockAgentTransport.registerFallbacks);
 
@@ -469,6 +471,26 @@ void main() {
           threads.list(agentId: 'default'),
           throwsA(isA<ThreadsException>()),
         );
+      });
+    });
+
+    group('memories', () {
+      test('is a client for the runtime', () {
+        expect(client.memories, isA<MemoriesClient>());
+      });
+
+      test('is closed with the client', () async {
+        final memories = _MockMemoriesClient();
+        client = CopilotKitClient(
+          runtimeUrl: runtimeUrl,
+          transport: transport,
+          memoriesClient: memories,
+        );
+
+        expect(client.memories, same(memories));
+        await client.close();
+
+        verify(memories.close).called(1);
       });
     });
 

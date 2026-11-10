@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/memories/memories.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
 import 'package:copilotkit/src/threads/threads.dart';
@@ -25,6 +26,7 @@ class CopilotKitClient({
   final Map<String, Object?>? _properties,
   final CopilotErrorHandler? _onError,
   @visibleForTesting AgentTransport? transport,
+  @visibleForTesting MemoriesClient? memoriesClient,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -34,11 +36,19 @@ class CopilotKitClient({
   /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the transport to
-  /// [runtimeUrl] in tests.
+  /// [runtimeUrl] in tests, and [memoriesClient] replaces the memories client.
   this;
 
   final Uri _runtimeUrl = runtimeUrl;
   final AgentTransport? _givenTransport = transport;
+
+  /// Lists, recalls, saves, supersedes and retires the user's memories on
+  /// the runtime, with the same `headers` as the runs.
+  ///
+  /// [close] closes it.
+  final MemoriesClient memories =
+      memoriesClient ??
+      MemoriesClient(runtimeUrl: runtimeUrl, headers: _headers);
 
   /// The transport given to the constructor, or one that works out from the
   /// runtime's `GET /info` whether it speaks SSE or Intelligence.
@@ -246,6 +256,7 @@ class CopilotKitClient({
     }
     await _transport.close();
     _threads?.close();
+    memories.close();
   }
 
   void _report(Object error, StackTrace stackTrace) {

@@ -1,0 +1,13 @@
+{
+  "memories": [
+    {
+      "id": "mem_1",
+      "kind": "topical",
+      "scope": "user",
+      "content": "Prefers window seats.",
+      "sourceThreadIds": ["thread_a"],
+      "invalidatedAt": null,
+      "score": 0.87
+    }
+  ]
+}
