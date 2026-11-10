@@ -8,6 +8,9 @@ class const App({
   /// Copilot Runtime URL from `--dart-define=RUNTIME_URL=...`.
   required final String runtimeUrl,
 
+  /// The conversation's thread, kept across launches (see `ThreadIdStore`).
+  required final String threadId,
+
   /// Receives the SDK's errors.
   final ErrorLogger _logger = const ErrorLogger(),
   super.key,
@@ -20,10 +23,11 @@ class const App({
       title: 'CopilotKit',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6766FC)),
       home: isValid
-          ? const WeatherDemo(
+          ? WeatherDemo(
               child: CopilotAgentScope(
                 agentId: ChatPage.agentId,
-                child: ChatPage(header: TodoPanel()),
+                threadId: threadId,
+                child: const ChatPage(header: TodoPanel()),
               ),
             )
           : const _MissingRuntimeScreen(),

@@ -112,6 +112,28 @@ void main() {
         expect(agent.state.error, isNull);
       });
 
+      test('opens the agent on the given thread', () async {
+        final agent = client.agent('default', threadId: 'thread-9');
+        stubRun(
+          Stream.fromIterable([
+            ag_ui.RunStartedEvent(threadId: 'thread-9', runId: 'r'),
+            const ag_ui.RunFinishedEvent(threadId: 'thread-9', runId: 'r'),
+          ]),
+        );
+
+        await client.runAgent('default');
+
+        expect(agent.state.threadId, 'thread-9');
+        expect(sentInput().threadId, 'thread-9');
+      });
+
+      test('ignores the thread for an agent that is already open', () {
+        final agent = client.agent('default', threadId: 'thread-1');
+
+        expect(client.agent('default', threadId: 'thread-2'), same(agent));
+        expect(agent.state.threadId, 'thread-1');
+      });
+
       test('gives each agent its own thread', () {
         final a = client.agent('a').state.threadId;
         final b = client.agent('b').state.threadId;
@@ -206,6 +228,59 @@ void main() {
           expect(agent.state.error, isA<Exception>());
         },
       );
+    });
+
+    group('switchAgentThread', () {
+      test('moves the agent to the thread and stops its run', () async {
+        final agent = client.agent('default', threadId: 'thread-1');
+        final events = StreamController<ag_ui.BaseEvent>();
+        stubRun(events.stream);
+        transport.stubStop();
+        final run = client.runAgent(
+          'default',
+          message: const UserMessage(id: 'u1', content: 'Hi'),
+        );
+        events.add(ag_ui.RunStartedEvent(threadId: 'thread-1', runId: 'r'));
+        await pumpEventQueue();
+
+        await client.switchAgentThread('default', 'thread-2');
+        await run;
+
+        expect(
+          agent.state,
+          const CopilotAgentState(agentId: 'default', threadId: 'thread-2'),
+        );
+        verify(
+          () => transport.stop(
+            agentId: 'default',
+            threadId: 'thread-1',
+            runId: any(named: 'runId'),
+            headers: any(named: 'headers'),
+          ),
+        ).called(1);
+      });
+
+      test('opens an agent that was never opened on the thread', () async {
+        await client.switchAgentThread('default', 'thread-2');
+
+        expect(client.agent('default').state.threadId, 'thread-2');
+        transport.verifyNoStop();
+      });
+
+      test('sends the new thread with the next run', () async {
+        client.agent('default', threadId: 'thread-1');
+        await client.switchAgentThread('default', 'thread-2');
+        stubRun(
+          Stream.fromIterable([
+            ag_ui.RunStartedEvent(threadId: 'thread-2', runId: 'r'),
+            const ag_ui.RunFinishedEvent(threadId: 'thread-2', runId: 'r'),
+          ]),
+        );
+
+        await client.runAgent('default');
+
+        expect(sentInput().threadId, 'thread-2');
+      });
     });
 
     group('stopAgent', () {

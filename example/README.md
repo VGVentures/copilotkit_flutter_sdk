@@ -216,6 +216,16 @@ This check confirms that the conversation history reaches the agent.
 - After a weather answer, ask "And in Tokyo?" or "Which one was warmer?" The
   agent uses the earlier messages.
 
+### Thread across restarts
+
+The app keeps its thread id, so a conversation stays on the same thread after
+a restart.
+
+- Send a message, then close and reopen the app. The chat starts empty, but a
+  runtime in Intelligence mode shows the new messages on the same thread as the
+  first ones (AG-UI Streams in the Intelligence dashboard), not on a new one.
+- Clear the app's data (or reinstall it) to start on a new thread.
+
 ### Errors and recovery
 
 These checks cover runtime failures.

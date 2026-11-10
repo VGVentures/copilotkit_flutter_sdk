@@ -70,8 +70,38 @@ class CopilotKitClient({
   List<AgentContextEntry> get context => _context.entries;
 
   /// Returns the agent [agentId], opening it the first time.
-  CopilotAgent agent(String agentId) =>
-      _agents.putIfAbsent(agentId, () => CopilotAgent(agentId: agentId));
+  ///
+  /// [threadId] is the thread every run and stop of the agent uses; without
+  /// one, a random id is generated. It only applies when the agent is
+  /// opened: for an agent that is already open it is ignored, and
+  /// [switchAgentThread] moves it to another thread.
+  ///
+  /// Keep a thread across launches by saving [CopilotAgentState.threadId] in
+  /// the app and passing it here the next time. A thread that already has a
+  /// run going answers a new run with a `ThreadLockedException`.
+  CopilotAgent agent(String agentId, {String? threadId}) => _agents.putIfAbsent(
+    agentId,
+    () => CopilotAgent(agentId: agentId, threadId: threadId),
+  );
+
+  /// Moves the agent [agentId] to the thread [threadId], opening it there if
+  /// it isn't open.
+  ///
+  /// Stops the agent's turn first, as [stopAgent] does, then clears its
+  /// messages, shared state, tool calls and error: the agent is on the new
+  /// thread, empty, as soon as the turn has ended locally. No event of the
+  /// old turn is applied to the new thread. The returned future completes
+  /// once the runtime has answered the request to stop the old run; a
+  /// failure of that request goes to `onError`. Does nothing when the agent
+  /// is on that thread already.
+  Future<void> switchAgentThread(String agentId, String threadId) async {
+    final open = _agents[agentId];
+    if (open == null) {
+      agent(agentId, threadId: threadId);
+      return;
+    }
+    await _runner.switchThread(open, threadId);
+  }
 
   /// Registers [tool]; every run sends it to the agent.
   ///

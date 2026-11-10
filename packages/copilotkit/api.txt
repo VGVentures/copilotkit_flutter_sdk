@@ -48,6 +48,7 @@ package:copilotkit/copilotkit.dart:
     setMessages (method: void Function(List<Message@1>))
     setSharedState (method: void Function(SharedState?))
     startTurn (method: void Function(), internal)
+    switchThread (method: void Function(String), internal)
   CopilotAgentState (class extends Equatable):
     new (const constructor: CopilotAgentState Function({required String agentId, Object? error, bool isRunning, List<Message@1> messages, SharedState? sharedState, required String threadId, List<ToolCallView> toolCalls}))
     agentId (getter: String)
@@ -79,13 +80,14 @@ package:copilotkit/copilotkit.dart:
     context (getter: List<AgentContextEntry>)
     tools (getter: Map<String, ClientTool<Object?>>)
     addContext (method: void Function(AgentContextEntry))
-    agent (method: CopilotAgent Function(String))
+    agent (method: CopilotAgent Function(String, {String? threadId}))
     close (method: Future<void> Function())
     registerTool (method: void Function(ClientTool<Object?>))
     removeContext (method: void Function(String))
     respondToToolCall (method: void Function(String, Object?))
     runAgent (method: Future<void> Function(String, {Message@1? message}))
     stopAgent (method: Future<void> Function(String))
+    switchAgentThread (method: Future<void> Function(String, String))
     unregisterTool (method: void Function(ClientTool<Object?>))
     updateContext (method: void Function(String, Map<String, Object?>))
   DeveloperMessage (class extends Message@1, final):
