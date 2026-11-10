@@ -1,4 +1,10 @@
 export 'ag_ui_transport.dart';
 export 'agent_transport.dart';
 export 'intelligence_transport.dart';
+export 'models/a2ui_info.dart';
+export 'models/intelligence_info.dart';
+export 'models/runtime_agent_info.dart';
+export 'models/runtime_info.dart';
+export 'models/runtime_mode.dart';
+export 'models/thread_endpoints.dart';
 export 'models/thread_locked_exception.dart';

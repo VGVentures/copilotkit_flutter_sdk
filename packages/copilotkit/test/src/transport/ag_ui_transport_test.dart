@@ -3,9 +3,12 @@ import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/ag_ui_transport.dart';
+import 'package:copilotkit/src/transport/models/runtime_mode.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
+
+import '../../helpers/fixtures.dart';
 
 class _MockHttpClient extends Mock implements http.Client;
 
@@ -418,6 +421,121 @@ void main() {
           transport.stop(agentId: 'a', threadId: 't', runId: 'r'),
           throwsStateError,
         );
+      });
+    });
+
+    group('info', () {
+      void stubBody(String body, {int statusCode = 200}) {
+        stubResponse(
+          http.StreamedResponse(Stream.value(utf8.encode(body)), statusCode),
+        );
+      }
+
+      test('gets the info route with headers and decodes it', () async {
+        final body = loadFixture('runtime_info_intelligence').rawEvents.first;
+        stubBody(jsonEncode(body['body']));
+
+        final info = await transport.info(
+          headers: {'Authorization': 'Bearer token'},
+        );
+
+        final request =
+            verify(() => httpClient.send(captureAny())).captured.single
+                as http.Request;
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/copilotkit/info');
+        expect(request.headers['Authorization'], 'Bearer token');
+        expect(info.mode, RuntimeMode.intelligence);
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws when the runtime rejects the request', () async {
+        stubBody(
+          '{"error":"Failed to retrieve runtime information"}',
+          statusCode: 500,
+        );
+
+        await expectLater(
+          transport.info(),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('500'),
+            ),
+          ),
+        );
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws when the body is not JSON', () async {
+        stubBody('<html></html>');
+
+        await expectLater(
+          transport.info(),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('not a JSON object'),
+            ),
+          ),
+        );
+      });
+
+      test(
+        'throws a ClientException when the body has the wrong shape',
+        () async {
+          stubBody('{"version": 1}');
+
+          await expectLater(
+            transport.info(),
+            throwsA(
+              isA<http.ClientException>().having(
+                (e) => e.message,
+                'message',
+                contains('malformed'),
+              ),
+            ),
+          );
+        },
+      );
+
+      test('throws when the body is JSON but not an object', () async {
+        stubBody('[]');
+
+        await expectLater(
+          transport.info(),
+          throwsA(isA<http.ClientException>()),
+        );
+      });
+
+      test('throws when the runtime does not answer in time', () async {
+        transport = AgUiTransport(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          httpClientFactory: () => httpClient,
+          stopTimeout: const Duration(milliseconds: 10),
+        );
+        when(() => httpClient.send(any()))
+            .thenAnswer((_) => Completer<http.StreamedResponse>().future);
+
+        await expectLater(
+          transport.info(),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('timed out after 10ms'),
+            ),
+          ),
+        );
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws after close', () async {
+        await transport.close();
+
+        await expectLater(transport.info(), throwsStateError);
       });
     });
   });
