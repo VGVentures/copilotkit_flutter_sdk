@@ -48,6 +48,13 @@ void main() {
           ),
         ).thenAnswer((_) => events(entry.key));
         when(
+          () => entry.value.connect(
+            agentId: any(named: 'agentId'),
+            input: any(named: 'input'),
+            headers: any(named: 'headers'),
+          ),
+        ).thenAnswer((_) => events(entry.key));
+        when(
           () => entry.value.stop(
             agentId: any(named: 'agentId'),
             threadId: any(named: 'threadId'),
@@ -72,6 +79,38 @@ void main() {
         intelligence: intelligence,
         onInfoError: (error, _) => infoErrors.add(error),
       );
+    });
+
+    group('connect', () {
+      test('goes to the SSE transport for an SSE runtime', () async {
+        stubInfo(_sseInfo);
+
+        final received = await transport
+            .connect(agentId: 'a', input: _input, headers: {'k': 'v'})
+            .toList();
+
+        expect(messageOf(received), 'sse');
+        verify(
+          () => sse.connect(agentId: 'a', input: _input, headers: {'k': 'v'}),
+        ).called(1);
+      });
+
+      test('goes to the Intelligence transport for such a runtime', () async {
+        stubInfo(_intelligenceInfo);
+
+        final received = await transport
+            .connect(agentId: 'a', input: _input)
+            .toList();
+
+        expect(messageOf(received), 'intelligence');
+        verifyNever(
+          () => sse.connect(
+            agentId: any(named: 'agentId'),
+            input: any(named: 'input'),
+            headers: any(named: 'headers'),
+          ),
+        );
+      });
     });
 
     group('run', () {

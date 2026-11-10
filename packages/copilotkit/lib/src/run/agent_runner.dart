@@ -4,6 +4,7 @@ import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/models/run_result.dart';
 import 'package:copilotkit/src/run/run_streamer.dart';
+import 'package:copilotkit/src/run/thread_connector.dart';
 import 'package:copilotkit/src/run/tool_call_runner.dart';
 import 'package:copilotkit/src/run/turn.dart';
 import 'package:copilotkit/src/tools/tools.dart';
@@ -32,9 +33,13 @@ class AgentRunner({
 
   /// Produces the results of the tool calls between runs.
   required final ToolCallRunner _toolCalls,
+
+  /// Replays the thread of an agent.
+  required final ThreadConnector _connector,
 }) {
-  /// Creates a runner that streams runs with the given streamer and runs
-  /// tool calls with the given tool call runner.
+  /// Creates a runner that streams runs with the given streamer, runs
+  /// tool calls with the given tool call runner and replays threads with the
+  /// given connector.
   this;
 
   final _turns = <String, Turn>{};
@@ -70,6 +75,30 @@ class AgentRunner({
     }
   }
 
+  /// Rebuilds the conversation of [agent] from the replay of its thread.
+  ///
+  /// The agent is running until the replay ends, which is when a run still
+  /// going on the thread ends. Completes then and never throws: errors go to
+  /// the error handler and to [CopilotAgentState.error]. Does nothing while
+  /// [agent] is already in a turn, or while a stop of its turn is still in
+  /// flight. A stop or a thread switch ends the replay, and sends no stop
+  /// request to the runtime.
+  Future<void> connect(CopilotAgent agent) async {
+    final agentId = agent.state.agentId;
+    if (_turns.containsKey(agentId) || agent.state.isRunning) return;
+    final turn = Turn(agent);
+    _turns[agentId] = turn;
+    agent.startTurn();
+    try {
+      await _connector(turn);
+    } finally {
+      if (!agent.isClosed && _turns[agentId] == turn) {
+        _turns.remove(agentId);
+        agent.endTurn();
+      }
+    }
+  }
+
   /// Answers the human-in-the-loop call [toolCallId] of an agent in a turn
   /// with [result]; see `ToolCallRunner.respond`.
   void respond(String toolCallId, Object? result) =>
@@ -88,17 +117,25 @@ class AgentRunner({
   Future<void> stop(CopilotAgent agent) => _stop(agent);
 
   /// Moves [agent] to the thread [threadId]: stops its turn, as [stop] does,
-  /// and starts it over with an empty conversation on the new thread.
+  /// and starts it over on the new thread, where it connects to replay the
+  /// thread's history (see [connect]).
   ///
   /// Does nothing when [agent] is on that thread already. The agent is on
-  /// the new thread as soon as the turn has ended locally; the returned
+  /// the new thread, empty, as soon as the turn has ended locally, and the
+  /// replay starts then without being awaited; the returned
   /// future completes once the runtime has answered the stop request, which
   /// asks for the run of the old thread to stop. No event of the old turn
   /// reaches the agent after the switch, and a failed stop request goes to
   /// the error handler.
   Future<void> switchThread(CopilotAgent agent, String threadId) async {
     if (agent.state.threadId == threadId) return;
-    await _stop(agent, afterTurn: () => agent.switchThread(threadId));
+    await _stop(
+      agent,
+      afterTurn: () {
+        agent.switchThread(threadId);
+        unawaited(connect(agent));
+      },
+    );
   }
 
   Future<void> _stop(CopilotAgent agent, {void Function()? afterTurn}) async {
@@ -141,12 +178,14 @@ class AgentRunner({
         unawaited(_stopping.remove(agentId));
       }
     }
-    if (run == null) return;
+    // A replay has no run id: there is no run of its own to stop.
+    final runId = run?.runId;
+    if (run == null || runId == null) return;
     try {
       await _transport.stop(
         agentId: agent.state.agentId,
         threadId: threadId,
-        runId: run.runId,
+        runId: runId,
         headers: run.headers,
       );
     } on Object catch (error, stackTrace) {

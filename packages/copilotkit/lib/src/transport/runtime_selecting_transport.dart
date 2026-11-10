@@ -48,38 +48,22 @@ class RuntimeSelectingTransport({
     required String agentId,
     required RunAgentInput input,
     Map<String, String> headers = const {},
-  }) {
-    StreamSubscription<BaseEvent>? subscription;
-    var cancelled = false;
-    late final StreamController<BaseEvent> controller;
-    controller = StreamController<BaseEvent>(
-      onListen: () async {
-        try {
-          final transport = await _transportFor(headers);
-          // Cancelled while the runtime was answering: start nothing.
-          if (cancelled) return;
-          subscription = transport
-              .run(agentId: agentId, input: input, headers: headers)
-              .listen(
-                controller.add,
-                onError: controller.addError,
-                onDone: () => unawaited(controller.close()),
-              );
-          if (controller.isPaused) subscription?.pause();
-        } on Object catch (error, stackTrace) {
-          controller.addError(error, stackTrace);
-          unawaited(controller.close());
-        }
-      },
-      onPause: () => subscription?.pause(),
-      onResume: () => subscription?.resume(),
-      onCancel: () {
-        cancelled = true;
-        return subscription?.cancel();
-      },
-    );
-    return controller.stream;
-  }
+  }) => _viaSelected(
+    headers,
+    (transport) =>
+        transport.run(agentId: agentId, input: input, headers: headers),
+  );
+
+  @override
+  Stream<BaseEvent> connect({
+    required String agentId,
+    required RunAgentInput input,
+    Map<String, String> headers = const {},
+  }) => _viaSelected(
+    headers,
+    (transport) =>
+        transport.connect(agentId: agentId, input: input, headers: headers),
+  );
 
   @override
   Future<void> stop({
@@ -109,6 +93,45 @@ class RuntimeSelectingTransport({
   Future<void> close() async {
     await _sse.close();
     await _intelligence.close();
+  }
+
+  /// Streams what [open] returns for the transport the runtime's mode
+  /// selects, once the runtime has answered.
+  ///
+  /// Cancelling the subscription cancels the stream [open] returned, and does
+  /// nothing more if it happens before the runtime has answered.
+  Stream<BaseEvent> _viaSelected(
+    Map<String, String> headers,
+    Stream<BaseEvent> Function(AgentTransport transport) open,
+  ) {
+    StreamSubscription<BaseEvent>? subscription;
+    var cancelled = false;
+    late final StreamController<BaseEvent> controller;
+    controller = StreamController<BaseEvent>(
+      onListen: () async {
+        try {
+          final transport = await _transportFor(headers);
+          // Cancelled while the runtime was answering: start nothing.
+          if (cancelled) return;
+          subscription = open(transport).listen(
+            controller.add,
+            onError: controller.addError,
+            onDone: () => unawaited(controller.close()),
+          );
+          if (controller.isPaused) subscription?.pause();
+        } on Object catch (error, stackTrace) {
+          controller.addError(error, stackTrace);
+          unawaited(controller.close());
+        }
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () {
+        cancelled = true;
+        return subscription?.cancel();
+      },
+    );
+    return controller.stream;
   }
 
   Future<RuntimeInfo> _fetch(Map<String, String> headers) => _pending ??= _sse

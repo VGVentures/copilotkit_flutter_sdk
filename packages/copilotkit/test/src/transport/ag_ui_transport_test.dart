@@ -107,6 +107,92 @@ void main() {
       expect(body['forwardedProps'], {'userId': '42'});
     });
 
+    group('connect', () {
+      test('posts the input to the agent connect route', () async {
+        stubResponse(
+          _sse(
+            Stream.fromIterable([
+              _event({
+                'type': 'RUN_STARTED',
+                'threadId': 'thread-1',
+                'runId': 'run-1',
+              }),
+              _event({
+                'type': 'RUN_FINISHED',
+                'threadId': 'thread-1',
+                'runId': 'run-1',
+              }),
+            ]),
+          ),
+        );
+
+        final events = await transport
+            .connect(
+              agentId: 'my agent',
+              input: _input,
+              headers: {'Authorization': 'Bearer token'},
+            )
+            .toList();
+
+        expect(events, [isA<RunStartedEvent>(), isA<RunFinishedEvent>()]);
+        final request =
+            verify(() => httpClient.send(captureAny())).captured.single
+                as http.Request;
+        expect(request.method, 'POST');
+        expect(
+          request.url,
+          Uri.parse(
+            'http://runtime.test/api/copilotkit/agent/my%20agent/connect',
+          ),
+        );
+        expect(request.headers['Authorization'], 'Bearer token');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['threadId'], 'thread-1');
+        expect(body['messages'], isNotEmpty);
+      });
+
+      test('streams nothing when the runtime has no history (204)', () async {
+        stubResponse(http.StreamedResponse(const Stream.empty(), 204));
+
+        final events = await transport
+            .connect(agentId: 'default', input: _input)
+            .toList();
+
+        expect(events, isEmpty);
+      });
+
+      test('emits an error when the runtime rejects the request', () async {
+        stubResponse(
+          http.StreamedResponse(
+            Stream.value(utf8.encode('{"error":"Forbidden"}')),
+            403,
+          ),
+        );
+
+        await expectLater(
+          transport.connect(agentId: 'default', input: _input),
+          emitsError(isA<TransportError>()),
+        );
+      });
+
+      test('closes the http client when the replay ends', () async {
+        stubResponse(_sse(const Stream.empty()));
+
+        await transport.connect(agentId: 'default', input: _input).toList();
+
+        verify(() => httpClient.close()).called(1);
+      });
+
+      test('throws after close', () async {
+        await transport.close();
+
+        expect(
+          () => transport.connect(agentId: 'default', input: _input),
+          throwsStateError,
+        );
+      });
+    });
+
     test('encodes the agent id in the route', () async {
       stubResponse(_sse(const Stream.empty()));
 

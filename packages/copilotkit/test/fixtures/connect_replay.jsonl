@@ -1,0 +1,11 @@
+{"fixture":{"source":"recorded","mode":"sse","runtimeVersion":"1.79.0","recordedOn":"2026-11-18","note":"What POST /agent/{id}/connect replays for a thread of two finished runs, from the example runtime's in-memory runner. The user's messages only exist in the input of each RUN_STARTED, and each run's input carries only the message that run added, not the earlier ones."}}
+{"type":"RUN_STARTED","threadId":"thread-replay","runId":"run-1","protocolVersion":"1.0","input":{"threadId":"thread-replay","runId":"run-1","state":{},"messages":[{"id":"user-1","role":"user","content":"Say hello in five words."}],"tools":[],"context":[],"forwardedProps":{}}}
+{"type":"TEXT_MESSAGE_START","messageId":"0539b5c2-f173-4da2-8fc9-07ad54abb072","role":"assistant"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"0539b5c2-f173-4da2-8fc9-07ad54abb072","delta":"Hello there, have a great day!"}
+{"type":"TEXT_MESSAGE_END","messageId":"0539b5c2-f173-4da2-8fc9-07ad54abb072"}
+{"type":"RUN_FINISHED","metadata":{"finishReason":"stop"},"threadId":"thread-replay","runId":"run-1","usage":[{"provider":"google.generative-ai","model":"gemini-3.8-flash","inputTokens":285,"outputTokens":49,"totalTokens":334,"reasoningTokens":41,"cachedInputTokens":0}]}
+{"type":"RUN_STARTED","threadId":"thread-replay","runId":"run-2","protocolVersion":"1.0","input":{"threadId":"thread-replay","runId":"run-2","state":{},"messages":[{"id":"user-2","role":"user","content":"And goodbye?"}],"tools":[],"context":[],"forwardedProps":{}}}
+{"type":"TEXT_MESSAGE_START","messageId":"160ac371-2d2c-4f0b-9df7-e5cadce93e57","role":"assistant"}
+{"type":"TEXT_MESSAGE_CONTENT","messageId":"160ac371-2d2c-4f0b-9df7-e5cadce93e57","delta":"Goodbye, have a wonderful day!"}
+{"type":"TEXT_MESSAGE_END","messageId":"160ac371-2d2c-4f0b-9df7-e5cadce93e57"}
+{"type":"RUN_FINISHED","metadata":{"finishReason":"stop"},"threadId":"thread-replay","runId":"run-2","usage":[{"provider":"google.generative-ai","model":"gemini-3.8-flash","inputTokens":298,"outputTokens":200,"totalTokens":498,"reasoningTokens":193,"cachedInputTokens":0}]}

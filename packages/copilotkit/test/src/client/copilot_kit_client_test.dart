@@ -24,6 +24,7 @@ void main() {
     setUp(() {
       transport = MockAgentTransport();
       when(() => transport.close()).thenAnswer((_) async {});
+      transport.stubConnect(() => const Stream.empty());
       errors = [];
       client = CopilotKitClient(
         runtimeUrl: runtimeUrl,
@@ -114,6 +115,7 @@ void main() {
 
       test('opens the agent on the given thread', () async {
         final agent = client.agent('default', threadId: 'thread-9');
+        await pumpEventQueue();
         stubRun(
           Stream.fromIterable([
             ag_ui.RunStartedEvent(threadId: 'thread-9', runId: 'r'),
@@ -233,6 +235,7 @@ void main() {
     group('switchAgentThread', () {
       test('moves the agent to the thread and stops its run', () async {
         final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
         final events = StreamController<ag_ui.BaseEvent>();
         stubRun(events.stream);
         transport.stubStop();
@@ -245,6 +248,7 @@ void main() {
 
         await client.switchAgentThread('default', 'thread-2');
         await run;
+        await pumpEventQueue();
 
         expect(
           agent.state,
@@ -269,7 +273,9 @@ void main() {
 
       test('sends the new thread with the next run', () async {
         client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
         await client.switchAgentThread('default', 'thread-2');
+        await pumpEventQueue();
         stubRun(
           Stream.fromIterable([
             ag_ui.RunStartedEvent(threadId: 'thread-2', runId: 'r'),
@@ -280,6 +286,99 @@ void main() {
         await client.runAgent('default');
 
         expect(sentInput().threadId, 'thread-2');
+      });
+    });
+
+    group('connectAgent', () {
+      final replay = [
+        ag_ui.RunStartedEvent(
+          threadId: 'thread-1',
+          runId: 'r1',
+          input: ag_ui.RunAgentInput(
+            threadId: 'thread-1',
+            runId: 'r1',
+            messages: [ag_ui.UserMessage(id: 'u1', content: 'Hi')],
+            tools: const [],
+            context: const [],
+          ),
+        ),
+        const ag_ui.TextMessageStartEvent(messageId: 'a1'),
+        const ag_ui.TextMessageContentEvent(messageId: 'a1', delta: 'Hello'),
+        const ag_ui.TextMessageEndEvent(messageId: 'a1'),
+        const ag_ui.RunFinishedEvent(threadId: 'thread-1', runId: 'r1'),
+      ];
+
+      test('restores the conversation of the thread', () async {
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.connectAgent('default');
+
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, isNull);
+        final input = transport.connectedInputs().last;
+        expect(input.threadId, 'thread-1');
+        expect(input.messages, isEmpty);
+      });
+
+      test('opens an agent that is not open', () async {
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.connectAgent('default');
+
+        expect(client.agents.keys, ['default']);
+        transport.connectedInputs();
+      });
+
+      test('restores an agent opened on a given thread', () async {
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+      });
+
+      test('does not connect an agent opened without a thread', () async {
+        client.agent('default');
+        await pumpEventQueue();
+
+        transport.verifyNoConnect();
+      });
+
+      test('restores the agent after a thread switch', () async {
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.switchAgentThread('default', 'thread-2');
+        await pumpEventQueue();
+
+        expect(agent.state.threadId, 'thread-2');
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+        expect(transport.connectedInputs().last.threadId, 'thread-2');
+      });
+
+      test('reports a failed connection and leaves the agent usable', () async {
+        final agent = client.agent('default');
+        final failure = StateError('runtime down');
+        transport.stubConnect(() => Stream.error(failure));
+
+        await client.connectAgent('default');
+
+        expect(errors.map((e) => e.$1), [same(failure)]);
+        expect(agent.state.error, same(failure));
+        expect(agent.state.isRunning, isFalse);
+        stubRun(
+          Stream.fromIterable([
+            ag_ui.RunStartedEvent(threadId: 'thread-1', runId: 'r'),
+            const ag_ui.RunFinishedEvent(threadId: 'thread-1', runId: 'r'),
+          ]),
+        );
+        await client.runAgent('default');
+        expect(agent.state.error, isNull);
       });
     });
 

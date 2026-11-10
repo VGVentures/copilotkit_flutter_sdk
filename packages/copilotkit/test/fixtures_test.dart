@@ -12,6 +12,7 @@ void main() {
       'run_error',
       'unknown_events',
       'dropped_connection',
+      'connect_replay',
     ];
 
     for (final name in names) {
@@ -43,6 +44,15 @@ void main() {
       expect(fixture.isSynthetic, isTrue);
       expect(fixture.undecodable, [containsPair('type', 'SUBAGENT_STARTED')]);
       expect(fixture.events.last, isA<RunFinishedEvent>());
+    });
+
+    test('connect_replay replays two finished runs', () {
+      final fixture = loadFixture('connect_replay');
+
+      expect(fixture.isSynthetic, isFalse);
+      expect(fixture.undecodable, isEmpty);
+      expect(fixture.events.whereType<RunStartedEvent>(), hasLength(2));
+      expect(fixture.events.whereType<RunFinishedEvent>(), hasLength(2));
     });
 
     test('dropped_connection ends without a terminal event', () {
