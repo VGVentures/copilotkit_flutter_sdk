@@ -233,6 +233,11 @@ When a run ends with tool calls, `AgentRunner` hands the turn to its
 ([ADR 0009](adr/0009-human-in-the-loop-responses.md)). Each result is applied
 to the agent as an event, and `AgentRunner` starts the next run.
 
+An agent opened on an existing thread, or switched to one, gets its
+conversation back through `AgentRunner`'s `ThreadConnector`: it clears the
+agent, asks the transport to `connect` to the thread, and applies the replayed
+events like those of a run. A turn holds the replay, so a stop cancels it.
+
 ## The example app
 
 `example/` is an app built on the SDK. It follows the rules for a package,

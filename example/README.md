@@ -276,10 +276,23 @@ This check confirms that the conversation history reaches the agent.
 The app keeps its thread id, so a conversation stays on the same thread after
 a restart.
 
-- Send a message, then close and reopen the app. The chat starts empty, but a
-  runtime in Intelligence mode shows the new messages on the same thread as the
-  first ones (AG-UI Streams in the Intelligence dashboard), not on a new one.
+- Send a message, then close and reopen the app (not the runtime). The chat
+  opens on the same thread and replays it: the earlier messages and the todo
+  list come back. The local runtime keeps history in memory, so restarting the
+  runtime loses it, and the chat then starts empty.
+- With a thread the runtime has no history for, for example right after
+  clearing the app's data, the chat starts empty and nothing fails.
 - Clear the app's data (or reinstall it) to start on a new thread.
+- To see what the runtime replays for a thread, post to its connect route.
+  The stream has the `RUN_STARTED`, text and `RUN_FINISHED` events of every
+  run, and a thread without history answers `204 No Content`:
+
+  ```sh
+  curl -i -N -X POST http://localhost:8200/api/copilotkit/agent/default/connect \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: text/event-stream' \
+    -d '{"threadId":"<thread id>","runId":"c1","state":{},"messages":[],"tools":[],"context":[],"forwardedProps":{}}'
+  ```
 
 ### Errors and recovery
 
