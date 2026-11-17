@@ -8,3 +8,4 @@ export 'models/runtime_info.dart';
 export 'models/runtime_mode.dart';
 export 'models/thread_endpoints.dart';
 export 'models/thread_locked_exception.dart';
+export 'runtime_selecting_transport.dart';
