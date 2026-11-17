@@ -16,3 +16,4 @@ export 'src/tools/tools.dart'
         ToolCallOutcome,
         ToolRegistry,
         ToolResponses;
+export 'src/transport/transport.dart' show ThreadLockedException;

@@ -244,6 +244,11 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     props (getter: List<Object?>)
     copyWith (method: SystemMessage Function({String? content}), internal)
     toAgUi (method: Message@2 Function(), internal)
+  ThreadLockedException (class extends Equatable implements Exception):
+    new (const constructor: ThreadLockedException Function({String? message}))
+    message (getter: String?)
+    props (getter: List<Object?>)
+    toString (method: String Function())
   ToolCall@1 (class extends Equatable):
     new (const constructor: ToolCall@1 Function({required String arguments, String? encryptedValue, required String id, required String name}))
     fromAgUi (constructor: ToolCall@1 Function(ToolCall@2), internal)
