@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/client/agent_runner.dart';
+import 'package:copilotkit/src/run/agent_runner.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';

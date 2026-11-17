@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/active_run.dart';
-import 'package:copilotkit/src/client/models/run_result.dart';
-import 'package:copilotkit/src/client/run_input_builder.dart';
-import 'package:copilotkit/src/client/turn.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/run/active_run.dart';
+import 'package:copilotkit/src/run/models/run_result.dart';
+import 'package:copilotkit/src/run/run_input_builder.dart';
+import 'package:copilotkit/src/run/turn.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 

@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
-import 'package:copilotkit/src/client/client.dart';
+import 'package:copilotkit/src/run/run.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';

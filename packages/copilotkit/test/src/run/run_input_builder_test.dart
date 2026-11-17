@@ -1,9 +1,9 @@
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/run_input_builder.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/messages/messages.dart';
+import 'package:copilotkit/src/run/run_input_builder.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';

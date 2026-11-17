@@ -1,8 +1,8 @@
-/// @docImport 'package:copilotkit/src/client/copilot_kit_client.dart';
+/// @docImport 'package:copilotkit/src/client/client.dart';
 library;
 
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/active_run.dart';
+import 'package:copilotkit/src/run/active_run.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 
 /// The turn in flight of one agent: the runs and tool calls between

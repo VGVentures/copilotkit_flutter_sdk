@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/agent/agent.dart';
-import 'package:copilotkit/src/client/run_streamer.dart';
-import 'package:copilotkit/src/client/turn.dart';
+import 'package:copilotkit/src/run/run_streamer.dart';
+import 'package:copilotkit/src/run/turn.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:uuid/uuid.dart';
 
