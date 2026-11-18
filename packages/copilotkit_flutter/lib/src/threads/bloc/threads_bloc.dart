@@ -1,0 +1,243 @@
+import 'package:bloc/bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
+import 'package:copilotkit/copilotkit.dart';
+import 'package:equatable/equatable.dart';
+
+part 'threads_event.dart';
+part 'threads_state.dart';
+
+/// Drives a threads UI from a [CopilotKitClient].
+///
+/// Turns [ThreadsRequested], [ThreadsNextPageRequested], [ThreadRenamed],
+/// [ThreadArchived], [ThreadUnarchived] and [ThreadDeleted] into calls on the
+/// client's [CopilotKitClient.threads], and applies what the runtime answers
+/// to [ThreadsState]. A deletion is the one change applied before the answer:
+/// it is undone if the runtime rejects it.
+///
+/// It reads the routes the runtime has once per [ThreadsRequested], and
+/// leaves changes alone when the runtime has no thread mutations (see
+/// [ThreadsState.canMutate]).
+class ThreadsBloc({
+  required final CopilotKitClient _client,
+  required final String _agentId,
+  final bool _includeArchived = false,
+  final int? _limit,
+}) extends Bloc<ThreadsEvent, ThreadsState> {
+  /// Creates a bloc that drives a threads UI for the threads of the agent
+  /// `agentId`, as listed through `client`.
+  ///
+  /// It also lists archived threads when `includeArchived`, and loads pages
+  /// of `limit` threads, as many as the runtime chooses when it is `null`.
+  this : super(const ThreadsState()) {
+    on<ThreadsRequested>(_onRequested, transformer: restartable());
+    on<ThreadsNextPageRequested>(_onNextPage, transformer: droppable());
+    on<ThreadRenamed>(_onRenamed, transformer: concurrent());
+    on<ThreadArchived>(_onArchived, transformer: concurrent());
+    on<ThreadUnarchived>(_onUnarchived, transformer: concurrent());
+    on<ThreadDeleted>(_onDeleted, transformer: concurrent());
+  }
+
+  Future<void> _onRequested(
+    ThreadsRequested event,
+    Emitter<ThreadsState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        isLoading: true,
+        error: () => null,
+        fetchMoreError: () => null,
+      ),
+    );
+    final endpoints = await _client.threadEndpoints();
+    emit(state.copyWith(canMutate: endpoints.mutations));
+    if (!endpoints.list) {
+      return emit(
+        state.copyWith(
+          threads: const [],
+          isLoading: false,
+          isAvailable: false,
+          nextCursor: () => null,
+        ),
+      );
+    }
+    try {
+      final page = await _client.threads.list(
+        agentId: _agentId,
+        includeArchived: _includeArchived,
+        limit: _limit,
+      );
+      emit(
+        state.copyWith(
+          threads: page.threads,
+          isLoading: false,
+          isAvailable: true,
+          nextCursor: () => page.nextCursor,
+        ),
+      );
+    } on Object catch (error) {
+      emit(state.copyWith(isLoading: false, error: () => error));
+    }
+  }
+
+  Future<void> _onNextPage(
+    ThreadsNextPageRequested event,
+    Emitter<ThreadsState> emit,
+  ) async {
+    final cursor = state.nextCursor;
+    if (cursor == null) return;
+    emit(state.copyWith(isFetchingNextPage: true, fetchMoreError: () => null));
+    try {
+      final page = await _client.threads.list(
+        agentId: _agentId,
+        includeArchived: _includeArchived,
+        limit: _limit,
+        cursor: cursor,
+      );
+      final known = {for (final thread in state.threads) thread.id};
+      emit(
+        state.copyWith(
+          threads: [
+            ...state.threads,
+            for (final thread in page.threads)
+              if (!known.contains(thread.id)) thread,
+          ],
+          isFetchingNextPage: false,
+          nextCursor: () => page.nextCursor,
+        ),
+      );
+    } on Object catch (error) {
+      emit(
+        state.copyWith(isFetchingNextPage: false, fetchMoreError: () => error),
+      );
+    }
+  }
+
+  Future<void> _onRenamed(ThreadRenamed event, Emitter<ThreadsState> emit) =>
+      _mutate(emit, () async {
+        final renamed = await _client.threads.rename(
+          agentId: _agentId,
+          threadId: event.threadId,
+          name: event.name,
+        );
+        return _replaced(renamed);
+      });
+
+  Future<void> _onArchived(ThreadArchived event, Emitter<ThreadsState> emit) =>
+      _mutate(emit, () async {
+        await _client.threads.archive(
+          agentId: _agentId,
+          threadId: event.threadId,
+        );
+        return _includeArchived
+            ? [
+                for (final thread in state.threads)
+                  if (thread.id == event.threadId)
+                    thread.copyWith(archived: true)
+                  else
+                    thread,
+              ]
+            : _without(event.threadId);
+      });
+
+  Future<void> _onUnarchived(
+    ThreadUnarchived event,
+    Emitter<ThreadsState> emit,
+  ) => _mutate(emit, () async {
+    final unarchived = await _client.threads.unarchive(
+      agentId: _agentId,
+      threadId: event.threadId,
+    );
+    return _replaced(unarchived);
+  });
+
+  Future<void> _onDeleted(
+    ThreadDeleted event,
+    Emitter<ThreadsState> emit,
+  ) async {
+    if (!_canMutate(emit)) return;
+    final index = state.threads.indexWhere((t) => t.id == event.threadId);
+    final removed = index == -1 ? null : state.threads[index];
+    emit(
+      state.copyWith(
+        threads: _without(event.threadId),
+        inFlightMutationCount: state.inFlightMutationCount + 1,
+        error: () => null,
+      ),
+    );
+    try {
+      await _client.threads.delete(agentId: _agentId, threadId: event.threadId);
+      emit(
+        state.copyWith(inFlightMutationCount: state.inFlightMutationCount - 1),
+      );
+    } on Object catch (error) {
+      emit(
+        state.copyWith(
+          threads: removed == null ? null : _restored(removed, index),
+          inFlightMutationCount: state.inFlightMutationCount - 1,
+          error: () => error,
+        ),
+      );
+    }
+  }
+
+  /// Runs [mutation] while counting it as in flight, then puts the list it
+  /// returns in the state.
+  Future<void> _mutate(
+    Emitter<ThreadsState> emit,
+    Future<List<ThreadRecord>> Function() mutation,
+  ) async {
+    if (!_canMutate(emit)) return;
+    emit(
+      state.copyWith(
+        inFlightMutationCount: state.inFlightMutationCount + 1,
+        error: () => null,
+      ),
+    );
+    try {
+      final threads = await mutation();
+      emit(
+        state.copyWith(
+          threads: threads,
+          inFlightMutationCount: state.inFlightMutationCount - 1,
+        ),
+      );
+    } on Object catch (error) {
+      emit(
+        state.copyWith(
+          inFlightMutationCount: state.inFlightMutationCount - 1,
+          error: () => error,
+        ),
+      );
+    }
+  }
+
+  /// Whether the runtime can change threads. When it can't, puts an error in
+  /// the state.
+  bool _canMutate(Emitter<ThreadsState> emit) {
+    if (state.canMutate) return true;
+    emit(
+      state.copyWith(
+        error: () =>
+            UnsupportedError('The runtime does not support changing threads.'),
+      ),
+    );
+    return false;
+  }
+
+  List<ThreadRecord> _without(String id) => [
+    for (final thread in state.threads)
+      if (thread.id != id) thread,
+  ];
+
+  /// The threads with [thread] in place of the one with its id, if the list
+  /// has one.
+  List<ThreadRecord> _replaced(ThreadRecord thread) => [
+    for (final known in state.threads)
+      if (known.id == thread.id) thread else known,
+  ];
+
+  /// The threads with [thread] back at [index], or at the end when the list
+  /// is shorter now.
+  List<ThreadRecord> _restored(ThreadRecord thread, int index) =>
+      [...state.threads]..insert(index.clamp(0, state.threads.length), thread);
+}
