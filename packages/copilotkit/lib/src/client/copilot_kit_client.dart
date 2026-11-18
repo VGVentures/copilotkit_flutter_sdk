@@ -94,19 +94,23 @@ class CopilotKitClient({
   ThreadsClient get threads =>
       _threads ??= ThreadsClient(runtimeUrl: _runtimeUrl, headers: _headers);
 
+  ThreadEndpoints? _lastEndpoints;
+
   /// Reads which thread routes the runtime has, from its `GET /info`.
   ///
   /// Never throws: when the runtime can't be asked, the error goes to
-  /// `onError` and no route is reported as available.
+  /// `onError`, and the routes it last reported are returned, or none if it
+  /// never answered. A network blip then doesn't make a runtime that has
+  /// threads look like one without.
   Future<ThreadEndpoints> threadEndpoints() async {
     try {
       final info = await _transport.info(
         headers: await _headers?.call() ?? const {},
       );
-      return info.threadEndpoints;
+      return _lastEndpoints = info.threadEndpoints;
     } on Object catch (error, stackTrace) {
       _report(error, stackTrace);
-      return const ThreadEndpoints();
+      return _lastEndpoints ?? const ThreadEndpoints();
     }
   }
 
