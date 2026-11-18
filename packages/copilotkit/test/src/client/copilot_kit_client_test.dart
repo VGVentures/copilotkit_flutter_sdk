@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
@@ -413,6 +414,43 @@ void main() {
 
         expect(client.agents, isEmpty);
         transport.verifyNoStop();
+      });
+    });
+
+    group('threadEndpoints', () {
+      test('reports the routes the runtime says it has', () async {
+        when(() => transport.info(headers: any(named: 'headers'))).thenAnswer(
+          (_) async => RuntimeInfo.fromJson(const {
+            'mode': 'intelligence',
+            'threadEndpoints': {'list': true, 'mutations': true},
+          }),
+        );
+
+        final endpoints = await client.threadEndpoints();
+
+        expect(endpoints, const ThreadEndpoints(list: true, mutations: true));
+        verify(() => transport.info(headers: {'Authorization': 'Bearer token'}))
+            .called(1);
+      });
+
+      test('reports no route when the runtime cannot be asked', () async {
+        when(() => transport.info(headers: any(named: 'headers')))
+            .thenThrow(StateError('offline'));
+
+        final endpoints = await client.threadEndpoints();
+
+        expect(endpoints, const ThreadEndpoints());
+        expect(errors.single.$1, isA<StateError>());
+      });
+
+      test('sends no headers when the client has no builder', () async {
+        client = CopilotKitClient(runtimeUrl: runtimeUrl, transport: transport);
+        when(() => transport.info(headers: any(named: 'headers')))
+            .thenAnswer((_) async => RuntimeInfo.fromJson(const {}));
+
+        await client.threadEndpoints();
+
+        verify(() => transport.info()).called(1);
       });
     });
 

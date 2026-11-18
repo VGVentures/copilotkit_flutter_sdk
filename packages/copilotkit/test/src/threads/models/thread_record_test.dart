@@ -62,6 +62,15 @@ void main() {
       );
     });
 
+    test('copies with a new name or archived flag', () {
+      final thread = decode();
+
+      expect(thread.copyWith(name: 'New').name, 'New');
+      expect(thread.copyWith(archived: true).archived, isTrue);
+      expect(thread.copyWith(), thread);
+      expect(thread.copyWith(name: 'New').updatedAt, thread.updatedAt);
+    });
+
     test('supports value equality', () {
       expect(decode(), decode({}));
       expect(decode(), isNot(decode({'archived': true})));
