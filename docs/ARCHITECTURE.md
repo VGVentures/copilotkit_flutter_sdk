@@ -22,6 +22,8 @@ packages/phoenix_channels_client
                               events, and never reconnects
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
+  threads     ThreadsClient: the agent's threads over the runtime's REST
+              routes, and their models
   tools       client tools, their calls and the user's answers
   context     the app data shared with the agent
   messages    the conversation's messages and their AG-UI mapping
@@ -71,7 +73,8 @@ agent                   State: CopilotAgent, a state holder, and the mapper
 messages, tools,        Domain: the SDK's models and the registries over
 context                 them, with no I/O
   ▼
-transport, json_utils   Data: the wire and JSON, with no SDK logic
+transport, threads,     Data: the wire and JSON, with no SDK logic
+json_utils
 ```
 
 These are VGV's layers fitted to an SDK. The data layer is the same: it
@@ -137,12 +140,13 @@ barrel:
 | Package | Feature | Layer | May import |
 | --- | --- | --- | --- |
 | `copilotkit` | `transport` | Data | — |
+| | `threads` | Data | — |
 | | `tools` | Domain | — |
 | | `context` | Domain | — |
 | | `messages` | Domain | — |
 | | `agent` | State | `messages`, `tools`, `json_utils` |
 | | `run` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
-| | `client` | Client | `run`, `transport`, `messages`, `agent`, `tools`, `context` |
+| | `client` | Client | `run`, `transport`, `threads`, `messages`, `agent`, `tools`, `context` |
 | `copilotkit_flutter` | `client` | Presentation | the core |
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |

@@ -1,0 +1,221 @@
+/// @docImport 'package:copilotkit/src/client/client.dart';
+library;
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:copilotkit/src/threads/models/thread_page.dart';
+import 'package:copilotkit/src/threads/models/thread_record.dart';
+import 'package:copilotkit/src/threads/models/threads_error_code.dart';
+import 'package:copilotkit/src/threads/models/threads_exception.dart';
+import 'package:http/http.dart' as http;
+
+/// Lists, renames, archives, unarchives and deletes the threads of an agent,
+/// through the `/threads` routes of a Copilot Runtime.
+///
+/// Listing works on a runtime that keeps threads. Changing a thread needs a
+/// runtime with Intelligence: its `RuntimeInfo.threadEndpoints` say which
+/// routes it has. A failure throws a [ThreadsException].
+///
+/// The request and response shapes mirror `@copilotkit/core` 1.79, which is
+/// the only description of the routes. The runtime knows the user from the
+/// headers, so pass the same `headers` as [CopilotKitClient].
+///
+/// [CopilotKitClient.threads] provides a client for its runtime.
+class ThreadsClient({
+  required Uri runtimeUrl,
+  Future<Map<String, String>> Function()? headers,
+  http.Client? httpClient,
+  Duration timeout = const Duration(seconds: 15),
+}) {
+  /// Creates a client for the thread routes of the runtime at [runtimeUrl],
+  /// e.g. `https://host/api/copilotkit`.
+  ///
+  /// `headers` builds the headers of each request, e.g. for auth. A request
+  /// that gets no answer within [timeout] fails with
+  /// [ThreadsErrorCode.requestTimeout]. The client sends through [httpClient],
+  /// which defaults to [http.Client.new], and [close] closes it.
+  this;
+
+  final Uri _baseUrl = Uri.parse(
+    '${runtimeUrl.toString().replaceFirst(RegExp(r'/+$'), '')}/threads',
+  );
+  final Future<Map<String, String>> Function()? _headers = headers;
+  final http.Client _httpClient = httpClient ?? http.Client();
+  final Duration _timeout = timeout;
+
+  /// Returns a page of the threads of [agentId], newest first.
+  ///
+  /// Archived threads are left out unless [includeArchived]. At most [limit]
+  /// threads come back, as many as the runtime chooses when it is `null`.
+  /// Pass the [ThreadPage.nextCursor] of a page as [cursor] to get the next
+  /// one. Throws a [ThreadsException] with [ThreadsErrorCode.listFailed] when
+  /// the runtime fails.
+  Future<ThreadPage> list({
+    required String agentId,
+    bool includeArchived = false,
+    int? limit,
+    String? cursor,
+  }) async {
+    const code = ThreadsErrorCode.listFailed;
+    final response = await _send(
+      'GET',
+      _baseUrl.replace(
+        queryParameters: {
+          'agentId': agentId,
+          if (includeArchived) 'includeArchived': 'true',
+          if (limit != null) 'limit': '$limit',
+          'cursor': ?cursor,
+        },
+      ),
+      code: code,
+    );
+    try {
+      return ThreadPage.fromJson(_object(response));
+    } on Object catch (error) {
+      throw _invalid(code, response, 'threads', error);
+    }
+  }
+
+  /// Gives the thread [threadId] of [agentId] the name [name], and returns
+  /// the thread as it is then.
+  ///
+  /// Throws a [ThreadsException] with [ThreadsErrorCode.mutationFailed] when
+  /// the runtime fails, which it also does for a thread it doesn't have.
+  Future<ThreadRecord> rename({
+    required String agentId,
+    required String threadId,
+    required String name,
+  }) => _update(agentId, threadId, {'name': name});
+
+  /// Archives the thread [threadId] of [agentId], hiding it from the default
+  /// list.
+  ///
+  /// Throws a [ThreadsException] with [ThreadsErrorCode.mutationFailed] when
+  /// the runtime fails.
+  Future<void> archive({
+    required String agentId,
+    required String threadId,
+  }) async {
+    await _send(
+      'POST',
+      _thread(threadId, 'archive'),
+      code: ThreadsErrorCode.mutationFailed,
+      body: {'agentId': agentId},
+    );
+  }
+
+  /// Brings the archived thread [threadId] of [agentId] back into the default
+  /// list, and returns the thread as it is then.
+  ///
+  /// Throws a [ThreadsException] with [ThreadsErrorCode.mutationFailed] when
+  /// the runtime fails.
+  Future<ThreadRecord> unarchive({
+    required String agentId,
+    required String threadId,
+  }) => _update(agentId, threadId, {'archived': false});
+
+  /// Deletes the thread [threadId] of [agentId] for good.
+  ///
+  /// Throws a [ThreadsException] with [ThreadsErrorCode.mutationFailed] when
+  /// the runtime fails, which it also does for a thread it no longer has.
+  Future<void> delete({
+    required String agentId,
+    required String threadId,
+  }) async {
+    await _send(
+      'DELETE',
+      _thread(threadId),
+      code: ThreadsErrorCode.mutationFailed,
+      body: {'agentId': agentId},
+    );
+  }
+
+  /// Closes the client it sends through.
+  void close() => _httpClient.close();
+
+  Future<ThreadRecord> _update(
+    String agentId,
+    String threadId,
+    Map<String, Object?> changes,
+  ) async {
+    const code = ThreadsErrorCode.mutationFailed;
+    final response = await _send(
+      'PATCH',
+      _thread(threadId),
+      code: code,
+      body: {'agentId': agentId, ...changes},
+    );
+    try {
+      return ThreadRecord.fromJson(_object(response));
+    } on Object catch (error) {
+      throw _invalid(code, response, 'thread', error);
+    }
+  }
+
+  Uri _thread(String threadId, [String? action]) => _baseUrl.replace(
+    pathSegments: [..._baseUrl.pathSegments, threadId, ?action],
+  );
+
+  Future<http.Response> _send(
+    String method,
+    Uri url, {
+    required ThreadsErrorCode code,
+    Map<String, Object?>? body,
+  }) async {
+    final http.Response response;
+    try {
+      final request = http.Request(method, url)
+        ..headers.addAll({
+          ...?await _headers?.call(),
+          if (body != null) 'Content-Type': 'application/json',
+        });
+      if (body != null) request.body = jsonEncode(body);
+      response = await _exchange(request).timeout(_timeout);
+    } on TimeoutException {
+      throw ThreadsException(
+        code: ThreadsErrorCode.requestTimeout,
+        message: 'The runtime did not answer within ${_timeout.inSeconds}s.',
+      );
+    } on Object catch (error) {
+      throw ThreadsException(code: code, message: 'Request failed: $error');
+    }
+    final status = response.statusCode;
+    if (status < 200 || status >= 300) {
+      throw ThreadsException(
+        code: code,
+        message: _errorOf(response.body) ?? 'Request failed: $status',
+        statusCode: status,
+      );
+    }
+    return response;
+  }
+
+  /// Sends [request] and reads the whole answer.
+  Future<http.Response> _exchange(http.Request request) async =>
+      await http.Response.fromStream(await _httpClient.send(request));
+
+  /// The `error` the runtime put in a JSON body, if it did.
+  String? _errorOf(String body) {
+    try {
+      if (jsonDecode(body) case {'error': final String error}) return error;
+    } on FormatException {
+      // Not JSON: there is no message to give.
+    }
+    return null;
+  }
+
+  Map<String, Object?> _object(http.Response response) =>
+      jsonDecode(response.body) as Map<String, Object?>;
+
+  ThreadsException _invalid(
+    ThreadsErrorCode code,
+    http.Response response,
+    String what,
+    Object error,
+  ) => ThreadsException(
+    code: code,
+    message: 'The runtime sent invalid $what: $error',
+    statusCode: response.statusCode,
+  );
+}
