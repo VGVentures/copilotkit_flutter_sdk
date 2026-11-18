@@ -126,6 +126,18 @@ class CopilotAgent({
   @internal
   void fail(Object error) => _update(_state.copyWith(error: () => error));
 
+  /// Moves the agent to the thread [threadId], with an empty conversation:
+  /// no messages, shared state, tool calls or error, and not running.
+  ///
+  /// Does nothing when the agent is on that thread already. Call it only
+  /// when no turn is in flight: [CopilotKitClient.switchAgentThread] stops
+  /// the turn first.
+  @internal
+  void switchThread(String threadId) {
+    if (threadId == _state.threadId) return;
+    _update(CopilotAgentState(agentId: _state.agentId, threadId: threadId));
+  }
+
   /// Stops [stream]. Changes after this are ignored.
   Future<void> close() => _states.close();
 
