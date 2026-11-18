@@ -23,6 +23,60 @@ void main() {
       expect(Uuid.isValidUUID(fromString: agent.state.threadId), isTrue);
     });
 
+    test('uses the thread id it is given', () {
+      final agent = CopilotAgent(agentId: 'default', threadId: 'thread-9');
+
+      expect(agent.state.threadId, 'thread-9');
+    });
+
+    group('switchThread', () {
+      test('moves to the thread with an empty conversation', () {
+        final agent = buildAgent()
+          ..addMessage(user)
+          ..setSharedState(const SharedState({'count': 1}))
+          ..startTurn()
+          ..fail(StateError('old'))
+          ..switchThread('thread-2');
+
+        expect(
+          agent.state,
+          const CopilotAgentState(agentId: 'default', threadId: 'thread-2'),
+        );
+      });
+
+      test('emits the new state', () async {
+        final agent = buildAgent();
+        final states = <CopilotAgentState>[];
+        agent.stream.listen(states.add);
+
+        agent.switchThread('thread-2');
+        await pumpEventQueue();
+
+        expect(states, [agent.state]);
+      });
+
+      test('does nothing on the thread the agent is on', () async {
+        final agent = buildAgent()..addMessage(user);
+        final states = <CopilotAgentState>[];
+        agent.stream.listen(states.add);
+
+        agent.switchThread(agent.state.threadId);
+        await pumpEventQueue();
+
+        expect(states, isEmpty);
+        expect(agent.state.messages, [user]);
+      });
+
+      test('is ignored once the agent is closed', () async {
+        final agent = buildAgent();
+        await agent.close();
+
+        agent.switchThread('thread-2');
+
+        expect(agent.state.threadId, 'thread-1');
+      });
+    });
+
     test('addMessage appends the message', () {
       final agent = buildAgent()..addMessage(user);
 

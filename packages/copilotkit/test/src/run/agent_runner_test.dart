@@ -390,6 +390,237 @@ void main() {
       });
     });
 
+    group('switchThread', () {
+      late StreamController<ag_ui.BaseEvent> events;
+      late bool cancelled;
+      late String oldThread;
+      late Future<void> run;
+
+      setUp(() {
+        cancelled = false;
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancelled = true,
+        );
+        useHarness(
+          RunnerHarness(headers: () async => {'Authorization': 'Bearer token'}),
+        );
+        transport.stubRun(() => events.stream);
+        oldThread = threadId();
+      });
+
+      Future<void> startStreaming() async {
+        run = runner.run(agent);
+        events
+          ..add(ag_ui.RunStartedEvent(threadId: oldThread, runId: 'r'))
+          ..add(const ag_ui.TextMessageStartEvent(messageId: 'm1'))
+          ..add(
+            const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'Hal'),
+          );
+        await pumpEventQueue();
+      }
+
+      test(
+        'moves an idle agent to the thread with an empty conversation',
+        () async {
+          agent
+            ..addMessage(const UserMessage(id: 'u1', content: 'Hi'))
+            ..setSharedState(const SharedState({'count': 1}))
+            ..fail(StateError('old'));
+
+          await runner.switchThread(agent, 'thread-2');
+
+          expect(
+            agent.state,
+            const CopilotAgentState(agentId: 'default', threadId: 'thread-2'),
+          );
+          transport.verifyNoStop();
+        },
+      );
+
+      test('does nothing when the agent is on that thread already', () async {
+        await startStreaming();
+
+        await runner.switchThread(agent, oldThread);
+
+        expect(agent.state.isRunning, isTrue);
+        expect(agent.state.messages, isNotEmpty);
+        expect(cancelled, isFalse);
+        transport.verifyNoStop();
+        await runner.stop(agent);
+        await run;
+      });
+
+      test('stops the run and starts over on the new thread', () async {
+        await startStreaming();
+
+        await runner.switchThread(agent, 'thread-2');
+        await run;
+
+        expect(cancelled, isTrue);
+        expect(
+          agent.state,
+          const CopilotAgentState(agentId: 'default', threadId: 'thread-2'),
+        );
+        expect(errors, isEmpty);
+      });
+
+      test('asks the runtime to stop the run of the old thread', () async {
+        await startStreaming();
+
+        await runner.switchThread(agent, 'thread-2');
+        await run;
+
+        final runId = sentInputs().single.runId;
+        verify(
+          () => transport.stop(
+            agentId: 'default',
+            threadId: oldThread,
+            runId: runId,
+            headers: {'Authorization': 'Bearer token'},
+          ),
+        ).called(1);
+      });
+
+      test(
+        'is on the new thread before the runtime answers the stop',
+        () async {
+          final answer = Completer<void>();
+          when(
+            () => transport.stop(
+              agentId: any(named: 'agentId'),
+              threadId: any(named: 'threadId'),
+              runId: any(named: 'runId'),
+              headers: any(named: 'headers'),
+            ),
+          ).thenAnswer((_) => answer.future);
+          await startStreaming();
+
+          final switched = runner.switchThread(agent, 'thread-2');
+          await pumpEventQueue();
+
+          expect(threadId(), 'thread-2');
+          expect(agent.state.isRunning, isFalse);
+          answer.complete();
+          await switched;
+          await run;
+        },
+      );
+
+      test('applies no event of the old run after the switch', () async {
+        await startStreaming();
+        await runner.switchThread(agent, 'thread-2');
+        await run;
+        final changes = <CopilotAgentState>[];
+        agent.stream.listen(changes.add);
+
+        events.add(
+          const ag_ui.TextMessageContentEvent(messageId: 'm1', delta: 'lo'),
+        );
+        await pumpEventQueue();
+
+        expect(changes, isEmpty);
+        expect(agent.state.messages, isEmpty);
+      });
+
+      test(
+        'discards the result of a handler that finishes afterwards',
+        () async {
+          final handlerDone = Completer<String>();
+          harness.tools.register(
+            weatherTool((_, {required signal}) => handlerDone.future),
+          );
+          queueRun(toolCallRun(oldThread));
+          transport.stubRun(() => runs.removeAt(0));
+          final run = runner.run(agent);
+          await pumpEventQueue();
+
+          await runner.switchThread(agent, 'thread-2');
+          handlerDone.complete('late result');
+          await run;
+
+          expect(sentInputs(), hasLength(1));
+          expect(
+            agent.state,
+            const CopilotAgentState(agentId: 'default', threadId: 'thread-2'),
+          );
+        },
+      );
+
+      test('runs on the new thread afterwards', () async {
+        await startStreaming();
+        await runner.switchThread(agent, 'thread-2');
+        await run;
+        queueRun([
+          ag_ui.RunStartedEvent(threadId: 'thread-2', runId: 'r2'),
+          const ag_ui.RunFinishedEvent(threadId: 'thread-2', runId: 'r2'),
+        ]);
+        transport.stubRun(() => runs.removeAt(0));
+
+        await runner.run(
+          agent,
+          message: const UserMessage(id: 'u2', content: 'Again'),
+        );
+
+        expect(sentInputs().last.threadId, 'thread-2');
+        expect(agent.state.messages.map(textOf), ['Again']);
+      });
+
+      test('reports a failed stop request but still switches', () async {
+        final failure = StateError('runtime down');
+        transport.stubStopThrows(failure);
+        await startStreaming();
+
+        await runner.switchThread(agent, 'thread-2');
+        await run;
+
+        expect(threadId(), 'thread-2');
+        expect(errors, [same(failure)]);
+      });
+
+      test('waits for a stop that is still ending the turn', () async {
+        final cancel = Completer<void>();
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancel.future,
+        );
+        transport.stubRun(() => events.stream);
+        await startStreaming();
+
+        final stopped = runner.stop(agent);
+        await pumpEventQueue();
+        final switched = runner.switchThread(agent, 'thread-2');
+        await pumpEventQueue();
+
+        // The stop hasn't ended the turn, so the agent has not moved and no
+        // new turn can start on the new thread yet.
+        expect(threadId(), oldThread);
+        expect(agent.state.isRunning, isTrue);
+
+        cancel.complete();
+        await Future.wait([stopped, switched, run]);
+
+        expect(threadId(), 'thread-2');
+        expect(agent.state.isRunning, isFalse);
+      });
+
+      test('sends no stop request when the agent closes meanwhile', () async {
+        final cancel = Completer<void>();
+        events = StreamController<ag_ui.BaseEvent>(
+          onCancel: () => cancel.future,
+        );
+        transport.stubRun(() => events.stream);
+        await startStreaming();
+
+        final switched = runner.switchThread(agent, 'thread-2');
+        await agent.close();
+        cancel.complete();
+        await switched;
+        await run;
+
+        expect(threadId(), oldThread);
+        transport.verifyNoStop();
+      });
+    });
+
     group('close', () {
       test('cancels active runs', () async {
         var cancelled = false;
