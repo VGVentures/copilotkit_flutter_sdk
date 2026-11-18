@@ -4,12 +4,14 @@ These instructions apply to every agent that changes this repository.
 
 ## Before you change code
 
-Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). It holds the packages
-and their layers, the layout of each package, and the conventions for code,
-tests and doc comments. Keep every change inside those rules. When a change
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and
+[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md). The first holds the packages
+and their layers, the layout of each package, and how data flows through
+them. The second holds the conventions for code, tests and doc comments.
+Keep every change inside those rules. When a change
 needs to break one, follow
 [Following the architecture](docs/ARCHITECTURE.md#following-the-architecture):
-update the document in the same pull request instead of working around it.
+update the documents in the same pull request instead of working around it.
 
 For the setup, the checks CI runs, and the commit and pull request workflow,
 see [`CONTRIBUTING.md`](CONTRIBUTING.md).
