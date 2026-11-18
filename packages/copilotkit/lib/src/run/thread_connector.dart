@@ -75,8 +75,6 @@ class const ThreadConnector({
       if (!streamDone.isCompleted) streamDone.complete();
     }
 
-    // The runs of the replay that started and have not ended.
-    var open = 0;
     turn.attach(
       ActiveRun(
         headers: headers,
@@ -84,15 +82,10 @@ class const ThreadConnector({
         subscription: events.listen(
           (event) {
             switch (event) {
-              case RunStartedEvent(:final input):
-                open++;
-                if (input != null) {
-                  agent.setMessages(
-                    agent.state.messagesWithMissing(input.messages),
-                  );
-                }
-              case RunFinishedEvent() || RunErrorEvent():
-                if (open > 0) open--;
+              case RunStartedEvent(:final input?):
+                agent.setMessages(
+                  agent.state.messagesWithMissing(input.messages),
+                );
               default:
             }
             agent.apply(event);
@@ -101,16 +94,9 @@ class const ThreadConnector({
             _fail(agent, error, stackTrace);
             finish();
           },
-          onDone: () {
-            if (open > 0) {
-              _fail(
-                agent,
-                StateError('The connection closed before the run finished.'),
-                StackTrace.current,
-              );
-            }
-            finish();
-          },
+          // A replay may end without the end of its last run, so the stream
+          // closing is not an error, as in `@copilotkit/core`.
+          onDone: finish,
           cancelOnError: true,
         ),
       ),

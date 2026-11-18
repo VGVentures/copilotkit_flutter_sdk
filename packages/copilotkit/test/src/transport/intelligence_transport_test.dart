@@ -187,12 +187,11 @@ void main() {
               ),
         ]);
 
-        // The recording lacks the end of the run, so it is closed for it.
+        // The recording lacks the end of the run, and it stays so.
         expect(events, [
           isA<RunStartedEvent>(),
           isA<TextMessageStartEvent>(),
           isA<TextMessageContentEvent>(),
-          isA<RunFinishedEvent>(),
         ]);
         expect(
           (events.first as RunStartedEvent).input?.messages.single.id,
@@ -267,7 +266,7 @@ void main() {
         expect(received, [isA<TextMessageContentEvent>()]);
       });
 
-      test('ends a run the replay left open with RUN_FINISHED', () async {
+      test('passes on a run the replay left open as it is', () async {
         final events = await replay([
           started('r1'),
           text('Hello'),
@@ -275,31 +274,10 @@ void main() {
           streamIdle(),
         ]);
 
-        final received = events;
-        expect(received.last, isA<RunFinishedEvent>());
-        expect((received.last as RunFinishedEvent).runId, 'r1');
-        expect((received.last as RunFinishedEvent).threadId, 'server-thread');
-      });
-
-      test('does not end a run that RUN_ERROR already ended', () async {
-        final events = await replay([
-          started('r1'),
-          _agUi({'type': 'RUN_ERROR', 'message': 'boom'}),
-          replayComplete(),
-          streamIdle(),
+        expect(events, [
+          isA<RunStartedEvent>(),
+          isA<TextMessageContentEvent>(),
         ]);
-
-        expect(events, [isA<RunStartedEvent>(), isA<RunErrorEvent>()]);
-      });
-
-      test('ends a RUN_ERROR with no run open', () async {
-        final events = await replay([
-          _agUi({'type': 'RUN_ERROR', 'message': 'boom'}),
-          replayComplete(),
-          streamIdle(),
-        ]);
-
-        expect(events, [isA<RunErrorEvent>()]);
       });
 
       test('skips an event it cannot decode and reports it', () async {

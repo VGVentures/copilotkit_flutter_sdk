@@ -98,10 +98,11 @@ class IntelligenceTransport({
   /// The replay is always a full one: the runtime is asked for no cursor. It
   /// ends when the gateway has sent both `replay_complete` and `stream_idle`,
   /// not on `RUN_FINISHED`: a replay may hold a run without its end, and
-  /// nothing follows once the stream is idle. Each run still open then gets a
-  /// `RUN_FINISHED`, as the agent isn't running any more. A `204` means the
-  /// runtime has no history for the thread, and the stream is empty. A channel
-  /// that closes before the replay ends is an error.
+  /// nothing follows once the stream is idle. The events are passed on as the
+  /// gateway sent them, as `@copilotkit/core` does: a run left open is not
+  /// closed here. A `204` means the runtime has no history for the thread, and
+  /// the stream is empty. A channel that closes before the replay ends is an
+  /// error.
   @override
   Stream<BaseEvent> connect({
     required String agentId,
@@ -309,8 +310,6 @@ class IntelligenceTransport({
       onChannel(channel);
       var replayComplete = false;
       var streamIdle = false;
-      // The runs the replay started and didn't end.
-      final open = <RunStartedEvent>[];
       // Listen before opening: early frames are lost otherwise.
       onSubscription(
         channel.events.listen(
@@ -325,27 +324,12 @@ class IntelligenceTransport({
                   return _reportSkipped(error, stackTrace);
                 }
                 controller.add(event);
-                switch (event) {
-                  case RunStartedEvent():
-                    open.add(event);
-                  case RunFinishedEvent(:final runId):
-                    open.removeWhere((run) => run.runId == runId);
-                  case RunErrorEvent():
-                    if (open.isNotEmpty) open.removeLast();
-                  default:
-                }
               case 'replay_complete':
                 replayComplete = true;
               case 'stream_idle':
                 streamIdle = true;
             }
-            if (!replayComplete || !streamIdle) return;
-            for (final run in open) {
-              controller.add(
-                RunFinishedEvent(threadId: run.threadId, runId: run.runId),
-              );
-            }
-            end();
+            if (replayComplete && streamIdle) end();
           },
           onError: (Object error, StackTrace stackTrace) {
             if (!controller.isClosed) controller.addError(error, stackTrace);

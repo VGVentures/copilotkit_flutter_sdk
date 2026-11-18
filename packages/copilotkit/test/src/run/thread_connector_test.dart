@@ -195,7 +195,7 @@ void main() {
       expect(turn.run, isNull);
     });
 
-    test('reports a connection that closes before a run finished', () async {
+    test('accepts a replay that ends without the end of its run', () async {
       queueReplay([
         ag_ui.RunStartedEvent(threadId: 't', runId: 'r'),
         const ag_ui.TextMessageStartEvent(messageId: 'a1'),
@@ -203,8 +203,8 @@ void main() {
 
       await connect();
 
-      expect(agent.state.error, isA<StateError>());
-      expect(errors, [isA<StateError>()]);
+      expect(agent.state.error, isNull);
+      expect(errors, isEmpty);
     });
 
     test('reports a transport that throws', () async {
