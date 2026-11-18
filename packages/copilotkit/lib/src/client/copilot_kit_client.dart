@@ -6,6 +6,7 @@ import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
+import 'package:copilotkit/src/threads/threads.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 import 'package:meta/meta.dart';
@@ -73,6 +74,15 @@ class CopilotKitClient({
       headers: _headers,
     ),
   );
+
+  ThreadsClient? _threads;
+
+  /// The client for the thread routes of this client's runtime.
+  ///
+  /// It sends the same headers as this client and is closed with it. It is
+  /// created on first use.
+  ThreadsClient get threads =>
+      _threads ??= ThreadsClient(runtimeUrl: _runtimeUrl, headers: _headers);
 
   /// The open agents, by agent id. A read-only view.
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
@@ -226,6 +236,7 @@ class CopilotKitClient({
       await agent.close();
     }
     await _transport.close();
+    _threads?.close();
   }
 
   void _report(Object error, StackTrace stackTrace) {

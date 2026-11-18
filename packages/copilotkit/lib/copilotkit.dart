@@ -9,6 +9,7 @@ export 'src/client/client.dart';
 export 'src/context/context.dart' hide AgentContextStore;
 export 'src/messages/messages.dart';
 export 'src/run/run.dart' show CopilotErrorHandler, HeadersBuilder;
+export 'src/threads/threads.dart';
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
