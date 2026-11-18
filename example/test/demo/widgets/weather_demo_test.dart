@@ -1,9 +1,6 @@
-import 'dart:convert';
-
 import 'package:ack/ack.dart';
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/demo/models/demo_user.dart';
-import 'package:example/demo/models/forecast.dart';
 import 'package:example/demo/widgets/weather_demo.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,26 +25,30 @@ void main() {
   });
 
   group(WeatherDemo, () {
-    testWidgets('registers the tool and the user context', (tester) async {
-      final client = _MockCopilotKitClient();
-
-      await tester.pumpWidget(
+    Future<void> pump(
+      WidgetTester tester,
+      CopilotKitClient client, {
+      ToolCallView call = const ToolCallView(
+        id: 'c1',
+        name: 'showWeather',
+        status: ToolCallStatus.executing,
+        args: {'city': 'Lima'},
+      ),
+    }) {
+      return tester.pumpWidget(
         CopilotKit.value(
           client: client,
-          child: const MaterialApp(
-            home: WeatherDemo(
-              child: ToolCallWidgetProbe(
-                call: ToolCallView(
-                  id: 'c1',
-                  name: 'showWeather',
-                  status: ToolCallStatus.executing,
-                  args: {'city': 'Lima'},
-                ),
-              ),
-            ),
+          child: MaterialApp(
+            home: WeatherDemo(child: ToolCallWidgetProbe(call: call)),
           ),
         ),
       );
+    }
+
+    testWidgets('registers the tool and the user context', (tester) async {
+      final client = _MockCopilotKitClient();
+
+      await pump(tester, client);
 
       final tools = verify(() => client.registerTool(captureAny())).captured
           .cast<ClientTool<Object?>>();
@@ -62,29 +63,16 @@ void main() {
       expect(find.text('Checking Lima…'), findsOneWidget);
     });
 
-    testWidgets('shows the forecast from a completed call', (tester) async {
-      await tester.pumpWidget(
-        CopilotKit.value(
-          client: _MockCopilotKitClient(),
-          child: MaterialApp(
-            home: WeatherDemo(
-              child: ToolCallWidgetProbe(
-                call: ToolCallView(
-                  id: 'c1',
-                  name: 'showWeather',
-                  status: ToolCallStatus.complete,
-                  args: const {'city': 'Lima'},
-                  result: jsonEncode(
-                    const Forecast(
-                      city: 'Lima',
-                      temperatureC: 21,
-                      condition: 'Sunny',
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+    testWidgets('renders a completed call as its forecast', (tester) async {
+      await pump(
+        tester,
+        _MockCopilotKitClient(),
+        call: const ToolCallView(
+          id: 'c1',
+          name: 'showWeather',
+          status: ToolCallStatus.complete,
+          args: {'city': 'Lima'},
+          result: '{"city":"Lima","temperatureC":21,"condition":"Sunny"}',
         ),
       );
 
@@ -94,7 +82,7 @@ void main() {
   });
 }
 
-/// Renders [call] inside the demo's tool scope.
+/// Renders a showWeather [call] inside the demo's tool scope.
 class const ToolCallWidgetProbe({required final ToolCallView call, super.key})
     extends StatelessWidget {
   @override

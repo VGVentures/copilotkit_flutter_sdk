@@ -12,7 +12,6 @@ export 'src/run/run.dart' show CopilotErrorHandler, HeadersBuilder;
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
-        InvalidToolArguments,
         ToolCallExecutor,
         ToolCallOutcome,
         ToolRegistry,

@@ -69,7 +69,7 @@ and a `FormatException` is thrown.
 Register a `ClientTool` with `client.registerTool`; the client sends every
 registered tool to the agent on each run. There are two kinds:
 
-- `FrontendTool` runs a handler in the app and sends its result back.
+- `FrontendTool` runs a handler in the app and sends its result back. Without a handler the result is `''`; `followUp: false` ends the turn instead of running the agent again.
 - `HumanInTheLoopTool` has no handler: the result is the user's answer.
 
 A tool's `parameters` is an [`ack`](https://pub.dev/packages/ack) schema.

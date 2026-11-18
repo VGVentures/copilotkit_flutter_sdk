@@ -1,4 +1,5 @@
 import 'package:ack/ack.dart';
+import 'package:copilotkit/src/tools/models/invalid_tool_arguments.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:test/test.dart';
 
@@ -141,65 +142,27 @@ void main() {
       });
     });
 
-    group('accepts', () {
-      final tool = weatherTool((_, {required signal}) async => 'ok');
-
-      test('is true when the args match the parameters', () {
-        expect(executor.accepts(tool, callWith({'city': 'Lima'})), isTrue);
-      });
-
-      test('is false when they do not', () {
-        expect(executor.accepts(tool, callWith({'days': 3})), isFalse);
-      });
-    });
-
-    group('with invalid args', () {
+    test('returns the invalid arguments without running the tool', () async {
       var called = false;
-      late FrontendTool<Map<String, Object?>> tool;
-
-      setUp(() {
-        called = false;
-        tool = weatherTool((_, {required signal}) async {
-          called = true;
-          return 'ok';
-        });
+      final tool = weatherTool((_, {required signal}) async {
+        called = true;
+        return 'ok';
       });
+      const args = {'days': '3'};
 
-      Future<ToolCallOutcome> outcomeFor(Map<String, Object?> args) => executor
-          .call(tool, callWith(args), signal, responses: ToolResponses());
+      final outcome = await executor(
+        tool,
+        callWith(args),
+        signal,
+        responses: ToolResponses(),
+      );
 
-      test('lists each problem by argument path, without running', () async {
-        final outcome = await outcomeFor({'days': '3', 'extra': true});
-
-        expect(
-          outcome,
-          const ToolCallOutcome(
-            result:
-                "The tool didn't run: its arguments don't match its "
-                'parameters. Fix them and call it again.\n'
-                '- city: Required property "city" is missing.\n'
-                '- days: Expected integer, got string.\n'
-                '- extra: Property "extra" is not allowed.',
-          ),
-        );
-        expect(called, isFalse);
-      });
-
-      test('joins nested paths with dots', () async {
-        final outcome = await outcomeFor({
-          'city': 'Lima',
-          'unit': {'step': 'x'},
-          'tags': ['a', 1],
-        });
-
-        expect(
-          outcome.result,
-          endsWith(
-            '\n- unit.step: Expected integer, got string.'
-            '\n- tags.1: Expected string, got integer.',
-          ),
-        );
-      });
+      final error = (tool.parameters.safeParse(args) as Fail).error;
+      expect(
+        outcome,
+        ToolCallOutcome(result: InvalidToolArguments(error).message),
+      );
+      expect(called, isFalse);
     });
   });
 }

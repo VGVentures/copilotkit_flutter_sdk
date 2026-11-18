@@ -1,6 +1,6 @@
 name: copilotkit_flutter
 description: Flutter widgets and blocs for the CopilotKit SDK.
-version: 0.1.0+1
+version: 0.1.0
 publish_to: none
 
 environment:
@@ -14,7 +14,7 @@ dependencies:
   bloc_concurrency: ^0.3.0
   collection: ^1.19.1
   copilotkit: ^0.1.0
-  equatable: ^3.0.0
+  equatable: ">=2.1.0 <4.0.0"
   flutter:
     sdk: flutter
   flutter_bloc: ^9.1.1
