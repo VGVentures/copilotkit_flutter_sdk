@@ -65,6 +65,7 @@ void main() {
       Duration stopTimeout = const Duration(seconds: 10),
       void Function(Object, StackTrace)? onSkippedEvent,
       Uri? runtimeUrl,
+      int maxReconnects = 5,
     }) => IntelligenceTransport(
       runtimeUrl: runtimeUrl ?? Uri.parse('http://runtime.test/api/copilotkit'),
       httpClientFactory: () => httpClient,
@@ -74,6 +75,8 @@ void main() {
         return channel;
       },
       stopTimeout: stopTimeout,
+      maxReconnects: maxReconnects,
+      reconnectDelay: (_) => Duration.zero,
       onSkippedEvent: onSkippedEvent ?? (error, _) => skipped.add(error),
     );
 
@@ -280,6 +283,175 @@ void main() {
         ]);
       });
 
+      group('when the channel drops', () {
+        late List<StreamController<PhoenixEvent>> attempts;
+        late int channelsMade;
+
+        PhoenixEvent withId(String id) => _agUi({
+          'type': 'TEXT_MESSAGE_CONTENT',
+          'messageId': 'm1',
+          'delta': id,
+          'metadata': {'cpki_event_id': id},
+        });
+
+        IntelligenceTransport reconnecting({int maxReconnects = 5}) =>
+            IntelligenceTransport(
+              runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+              httpClientFactory: () => httpClient,
+              channelFactory: (_, _) {
+                channelsMade++;
+                return channel;
+              },
+              maxReconnects: maxReconnects,
+              reconnectDelay: (_) => Duration.zero,
+            );
+
+        setUp(() {
+          channelsMade = 0;
+          attempts = List.generate(
+            3,
+            (_) => StreamController<PhoenixEvent>.broadcast(),
+          );
+          var next = 0;
+          when(() => channel.events).thenAnswer((_) => attempts[next++].stream);
+          // Connect replies are fresh for each attempt.
+          stubHttp(200, connectCredentials);
+        });
+
+        tearDown(() async {
+          for (final attempt in attempts) {
+            await attempt.close();
+          }
+        });
+
+        Map<String, Object?> sentBody(int index) => jsonDecode(
+          (verify(() => httpClient.send(captureAny())).captured[index]
+                  as http.Request)
+              .body,
+        ) as Map<String, Object?>;
+
+        test('replays again from the last event it saw', () async {
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          attempts[0].add(withId('e1'));
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          attempts[1]
+            ..add(withId('e2'))
+            ..add(replayComplete())
+            ..add(streamIdle());
+
+          expect(await events, [
+            isA<TextMessageContentEvent>(),
+            isA<TextMessageContentEvent>(),
+          ]);
+          expect(channelsMade, 2);
+          expect(sentBody(1), containsPair('lastSeenEventId', 'e1'));
+          verify(
+            () => channel.join('thread:server-thread', const {
+              'stream_mode': 'connect',
+              'last_seen_event_id': 'e1',
+            }),
+          ).called(1);
+        });
+
+        test('replays in full when no event was seen yet', () async {
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+
+          expect(await events, isEmpty);
+          expect(sentBody(1), containsPair('lastSeenEventId', null));
+        });
+
+        test('replays again after a channel error', () async {
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          attempts[0].addError(StateError('socket'));
+          await pumpEventQueue();
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+
+          expect(await events, isEmpty);
+          expect(channelsMade, 2);
+        });
+
+        test('gives up after the limit and reports the drop', () async {
+          transport = reconnecting(maxReconnects: 1);
+          final done = expectLater(
+            transport.connect(agentId: 'a', input: _input),
+            emitsInOrder([emitsError(isA<StateError>()), emitsDone]),
+          );
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          await attempts[1].close();
+          await done;
+
+          expect(channelsMade, 2);
+        });
+
+        test('waits a little by default before replaying again', () async {
+          transport = IntelligenceTransport(
+            runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+            httpClientFactory: () => httpClient,
+            channelFactory: (_, _) {
+              channelsMade++;
+              return channel;
+            },
+          );
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          await attempts[0].close();
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+
+          expect(await events, isEmpty);
+          expect(channelsMade, 2);
+        });
+
+        test('stops waiting to reconnect when it is cancelled', () async {
+          transport = IntelligenceTransport(
+            runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+            httpClientFactory: () => httpClient,
+            channelFactory: (_, _) {
+              channelsMade++;
+              return channel;
+            },
+            reconnectDelay: (_) => const Duration(milliseconds: 50),
+          );
+          final subscription = transport
+              .connect(agentId: 'a', input: _input)
+              .listen((_) {});
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          await subscription.cancel();
+          await Future<void>.delayed(const Duration(milliseconds: 120));
+
+          expect(channelsMade, 1);
+        });
+      });
+
       test('skips an event it cannot decode and reports it', () async {
         final events = await replay([
           _agUi({'type': 'NOT_AN_EVENT'}),
@@ -357,6 +529,7 @@ void main() {
       });
 
       test('fails when the channel closes before the replay ends', () async {
+        transport = build(maxReconnects: 0);
         final events = transport.connect(agentId: 'a', input: _input).toList();
         await pumpEventQueue();
 
@@ -375,6 +548,7 @@ void main() {
       });
 
       test('fails with the error that dropped the connection', () async {
+        transport = build(maxReconnects: 0);
         final events = transport.connect(agentId: 'a', input: _input).toList();
         await pumpEventQueue();
 

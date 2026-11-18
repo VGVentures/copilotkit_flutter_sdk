@@ -28,9 +28,11 @@ import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 /// with credentials, and the replay arrives on a channel joined in `connect`
 /// mode.
 ///
-/// The transport doesn't reconnect: a connection that drops ends the run with
-/// the error that dropped it. The join token is single-use, so a reconnect
-/// needs fresh credentials (see ADR 0012).
+/// A run doesn't reconnect: a connection that drops ends it with the error
+/// that dropped it. The join token is single-use, so a reconnect needs fresh
+/// credentials (see ADR 0012). [connect] does reconnect: a replay whose channel
+/// drops starts again with new credentials, from the last event it saw, a
+/// limited number of times with a growing wait.
 ///
 /// A thread that already has a run answers `409`, which this transport
 /// throws as a [ThreadLockedException].
@@ -42,6 +44,8 @@ class IntelligenceTransport({
   PhoenixChannelsClient Function(Uri clientUrl, Map<String, String> params)?
   channelFactory,
   Duration stopTimeout = const Duration(seconds: 10),
+  int maxReconnects = 5,
+  Duration Function(int attempt)? reconnectDelay,
   void Function(Object error, StackTrace stackTrace)? onSkippedEvent,
   IntelligenceEventDecoder decoder = const IntelligenceEventDecoder(),
   SimpleInputMapper simpleInput = const SimpleInputMapper(),
@@ -56,6 +60,11 @@ class IntelligenceTransport({
   ///
   /// [stopTimeout] bounds the stop request, so a hung runtime can't hang
   /// `stop`.
+  ///
+  /// [maxReconnects] is how many times [connect] asks for a new replay when
+  /// its channel drops before the replay ends, and [reconnectDelay] gives the
+  /// wait before attempt `attempt` (from 1); it defaults to a doubling wait
+  /// from 100 ms up to 10 s, as `@copilotkit/core` waits.
   ///
   /// [onSkippedEvent] is called with each event the transport skipped because
   /// it couldn't be decoded. Errors it throws are logged and don't end the
@@ -74,6 +83,9 @@ class IntelligenceTransport({
       ((clientUrl, params) =>
           PhoenixChannelsClient(clientUrl: clientUrl, params: params));
   final Duration _stopTimeout = stopTimeout;
+  final int _maxReconnects = maxReconnects;
+  final Duration Function(int attempt) _reconnectDelay =
+      reconnectDelay ?? _defaultReconnectDelay;
   late final RuntimeInfoClient _info = RuntimeInfoClient(
     baseUrl: _baseUrl,
     httpClientFactory: _httpClientFactory,
@@ -101,8 +113,10 @@ class IntelligenceTransport({
   /// nothing follows once the stream is idle. The events are passed on as the
   /// gateway sent them, as `@copilotkit/core` does: a run left open is not
   /// closed here. A `204` means the runtime has no history for the thread, and
-  /// the stream is empty. A channel that closes before the replay ends is an
-  /// error.
+  /// the stream is empty. A channel that closes before the replay ends is
+  /// replayed again from the last event seen (the `cpki_event_id` of its
+  /// metadata), up to `maxReconnects` times, and is an error after that.
+  /// Failing to get credentials is an error at once.
   @override
   Stream<BaseEvent> connect({
     required String agentId,
@@ -283,8 +297,8 @@ class IntelligenceTransport({
   }
 
   /// Asks for the replay of the thread, joins its channel and streams the
-  /// replay into [controller]. Any failure is reported as an error of the
-  /// stream and ends it.
+  /// replay into [controller], asking again when the channel drops. Any other
+  /// failure is reported as an error of the stream and ends it.
   Future<void> _startConnect({
     required String agentId,
     required RunAgentInput input,
@@ -297,64 +311,124 @@ class IntelligenceTransport({
   }) async {
     // Closed before anyone listened: send nothing.
     if (_closed) return;
+    // The id of the last event passed on: where a new replay starts from.
+    String? cursor;
+    var reconnects = 0;
     try {
-      final credentials = await _requestConnect(agentId, input, headers);
-      // Closed or cancelled while the runtime was answering: don't join.
-      if (_closed || controller.isClosed) return;
-      // No history for the thread.
-      if (credentials == null) return end();
-      final channel = _channelFactory(
-        Uri.parse(credentials.realtime.clientUrl),
-        {'join_token': credentials.joinToken},
-      );
-      onChannel(channel);
-      var replayComplete = false;
-      var streamIdle = false;
-      // Listen before opening: early frames are lost otherwise.
-      onSubscription(
-        channel.events.listen(
-          (frame) {
-            if (controller.isClosed) return;
-            switch (frame.event) {
-              case 'ag_ui_event':
-                final BaseEvent event;
-                try {
-                  event = _decoder(frame.payload);
-                } on DecodingError catch (error, stackTrace) {
-                  return _reportSkipped(error, stackTrace);
-                }
-                controller.add(event);
-              case 'replay_complete':
-                replayComplete = true;
-              case 'stream_idle':
-                streamIdle = true;
-            }
-            if (replayComplete && streamIdle) end();
-          },
-          onError: (Object error, StackTrace stackTrace) {
-            if (!controller.isClosed) controller.addError(error, stackTrace);
-            end();
-          },
-          onDone: () {
-            if (!controller.isClosed) {
-              controller.addError(
-                StateError('The connection closed before the replay finished.'),
-              );
-            }
-            end();
-          },
-        ),
-      );
-      await channel.open();
-      await channel.join(credentials.realtime.topic, const {
-        'stream_mode': 'connect',
-        'last_seen_event_id': null,
-      });
+      while (true) {
+        final dropped = await _connectOnce(
+          agentId: agentId,
+          input: input,
+          headers: headers,
+          cursor: cursor,
+          controller: controller,
+          onCursor: (id) => cursor = id,
+          onChannel: onChannel,
+          onSubscription: onSubscription,
+        );
+        if (dropped == null || _closed || controller.isClosed) break;
+        if (++reconnects > _maxReconnects) {
+          controller.addError(dropped.error, dropped.stackTrace);
+          break;
+        }
+        // The next attempt has a channel of its own.
+        await dropped.close();
+        await Future<void>.delayed(_reconnectDelay(reconnects));
+        if (_closed || controller.isClosed) break;
+      }
     } on Object catch (error, stackTrace) {
       if (!controller.isClosed) controller.addError(error, stackTrace);
-      end();
     }
+    end();
   }
+
+  /// One attempt at the replay, from [cursor]. Returns `null` when the replay
+  /// ended, or why the channel dropped before it did.
+  Future<_Drop?> _connectOnce({
+    required String agentId,
+    required RunAgentInput input,
+    required Map<String, String> headers,
+    required String? cursor,
+    required StreamController<BaseEvent> controller,
+    required void Function(String? id) onCursor,
+    required void Function(PhoenixChannelsClient channel) onChannel,
+    required void Function(StreamSubscription<PhoenixEvent> subscription)
+    onSubscription,
+  }) async {
+    final credentials = await _requestConnect(agentId, input, headers, cursor);
+    // Closed or cancelled while the runtime was answering: don't join.
+    if (_closed || controller.isClosed) return null;
+    // No history for the thread.
+    if (credentials == null) return null;
+    final channel = _channelFactory(Uri.parse(credentials.realtime.clientUrl), {
+      'join_token': credentials.joinToken,
+    });
+    onChannel(channel);
+    var replayComplete = false;
+    var streamIdle = false;
+    final outcome = Completer<_Drop?>();
+    void settle(_Drop? value) {
+      if (!outcome.isCompleted) outcome.complete(value);
+    }
+
+    // Listen before opening: early frames are lost otherwise.
+    late final StreamSubscription<PhoenixEvent> subscription;
+    subscription = channel.events.listen(
+      (frame) {
+        if (controller.isClosed) return;
+        switch (frame.event) {
+          case 'ag_ui_event':
+            final BaseEvent event;
+            try {
+              event = _decoder(frame.payload);
+            } on DecodingError catch (error, stackTrace) {
+              return _reportSkipped(error, stackTrace);
+            }
+            controller.add(event);
+            onCursor(_cursorOf(frame.payload) ?? cursor);
+          case 'replay_complete':
+            replayComplete = true;
+          case 'stream_idle':
+            streamIdle = true;
+        }
+        if (replayComplete && streamIdle) settle(null);
+      },
+      onError: (Object error, StackTrace stackTrace) => settle((
+        error: error,
+        stackTrace: stackTrace,
+        close: () => _release(subscription, channel),
+      )),
+      onDone: () => settle((
+        error: StateError('The connection closed before the replay finished.'),
+        stackTrace: StackTrace.current,
+        close: () => _release(subscription, channel),
+      )),
+    );
+    onSubscription(subscription);
+    // A channel that can't be opened or joined is an error, not a drop: the
+    // runtime refused it, and asking again would be refused again.
+    await channel.open();
+    await channel.join(credentials.realtime.topic, {
+      'stream_mode': 'connect',
+      'last_seen_event_id': cursor,
+    });
+    return await outcome.future;
+  }
+
+  Future<void> _release(
+    StreamSubscription<PhoenixEvent> subscription,
+    PhoenixChannelsClient channel,
+  ) async {
+    await subscription.cancel();
+    await _closeChannel(channel);
+  }
+
+  /// The id of the event in an `ag_ui_event` payload, if the gateway gave one.
+  String? _cursorOf(Map<String, Object?> payload) =>
+      switch (payload['metadata']) {
+        {'cpki_event_id': final String id} => id,
+        _ => null,
+      };
 
   /// Asks the runtime for the replay of the thread of [input], or returns
   /// `null` when it has no history for it (`204`).
@@ -362,6 +436,7 @@ class IntelligenceTransport({
     String agentId,
     RunAgentInput input,
     Map<String, String> headers,
+    String? cursor,
   ) async {
     final url = Uri.parse(
       '$_baseUrl/agent/${Uri.encodeComponent(agentId)}/connect',
@@ -370,10 +445,11 @@ class IntelligenceTransport({
     try {
       final request = http.Request('POST', url)
         ..headers.addAll({...headers, 'Content-Type': 'application/json'})
-        // No cursor: the agent was cleared, so the replay must be a full one.
+        // No cursor for the first attempt: the agent was cleared, so the
+        // replay must be a full one.
         ..body = jsonEncode({
           ..._simpleInput(input).toJson(),
-          'lastSeenEventId': null,
+          'lastSeenEventId': cursor,
         });
       final response = await _send(httpClient, request);
       if (response.statusCode == 204) return null;
@@ -519,4 +595,17 @@ class IntelligenceTransport({
       );
     }
   }
+
+  /// Doubles from 100 ms and stops at 10 s.
+  static Duration _defaultReconnectDelay(int attempt) {
+    final milliseconds = 100 * (1 << (attempt - 1).clamp(0, 10));
+    return Duration(milliseconds: milliseconds.clamp(100, 10000));
+  }
 }
+
+/// Why a replay's channel dropped, and how to let go of it.
+typedef _Drop = ({
+  Object error,
+  StackTrace stackTrace,
+  Future<void> Function() close,
+});
