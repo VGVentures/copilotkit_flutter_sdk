@@ -304,6 +304,7 @@ void main() {
               },
               maxReconnects: maxReconnects,
               reconnectDelay: (_) => Duration.zero,
+              onSkippedEvent: (error, _) => skipped.add(error),
             );
 
         setUp(() {
@@ -390,6 +391,230 @@ void main() {
           expect(await events, isEmpty);
           expect(channelsMade, 2);
         });
+
+        /// Answers the connect requests in turn: a status code, or an error to
+        /// throw.
+        void answerInTurn(List<Object> steps) {
+          var next = 0;
+          when(() => httpClient.send(any())).thenAnswer((_) async {
+            final step = steps[next++];
+            if (step is int) {
+              return http.StreamedResponse(
+                Stream.value(
+                  utf8.encode(
+                    step == 200 ? jsonEncode(connectCredentials) : 'no',
+                  ),
+                ),
+                step,
+              );
+            }
+            throw step as Exception;
+          });
+        }
+
+        Future<List<BaseEvent>> dropOnceThenFinish(
+          IntelligenceTransport reconnecting,
+        ) async {
+          final events = reconnecting
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+          attempts[2]
+            ..add(replayComplete())
+            ..add(streamIdle());
+          return await events;
+        }
+
+        test('keeps trying while the network is still down', () async {
+          answerInTurn([200, http.ClientException('offline'), 200]);
+          transport = reconnecting();
+
+          expect(await dropOnceThenFinish(transport), isEmpty);
+
+          verify(() => httpClient.send(any())).called(3);
+          expect(channelsMade, 2);
+        });
+
+        test('treats a 5xx while reconnecting as another drop', () async {
+          answerInTurn([200, 503, 200]);
+          transport = reconnecting();
+
+          expect(await dropOnceThenFinish(transport), isEmpty);
+
+          verify(() => httpClient.send(any())).called(3);
+        });
+
+        test(
+          'treats a rate limit while reconnecting as another drop',
+          () async {
+            answerInTurn([200, 429, 200]);
+            transport = reconnecting();
+
+            expect(await dropOnceThenFinish(transport), isEmpty);
+          },
+        );
+
+        test('fails at once when a reconnect is refused', () async {
+          answerInTurn([200, 401]);
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          await attempts[0].close();
+
+          await expectLater(
+            events,
+            throwsA(
+              isA<http.ClientException>().having(
+                (e) => e.message,
+                'message',
+                contains('status 401'),
+              ),
+            ),
+          );
+        });
+
+        test(
+          'treats a socket that closes while reconnecting as a drop',
+          () async {
+            var joins = 0;
+            when(() => channel.join(any(), any())).thenAnswer((_) async {
+              if (joins++ == 1) throw const PhoenixClosedException();
+              return {};
+            });
+            transport = reconnecting();
+
+            expect(await dropOnceThenFinish(transport), isEmpty);
+
+            expect(channelsMade, 3);
+          },
+        );
+
+        test('fails when a reconnect is refused at the join', () async {
+          var joins = 0;
+          when(() => channel.join(any(), any())).thenAnswer((_) async {
+            if (joins++ == 1) {
+              throw const PhoenixReplyException(
+                status: 'error',
+                response: 'unauthorized',
+              );
+            }
+            return {};
+          });
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          await attempts[0].close();
+
+          await expectLater(events, throwsA(isA<PhoenixReplyException>()));
+        });
+
+        test('treats a drop during the join as a drop, not a hang', () async {
+          var joins = 0;
+          final neverAnswers = Completer<Map<String, Object?>>();
+          when(() => channel.join(any(), any())).thenAnswer((_) {
+            if (joins++ == 0) return neverAnswers.future;
+            return Future.value(<String, Object?>{});
+          });
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          // The socket drops while the join is still waiting for its answer.
+          await attempts[0].close();
+          await pumpEventQueue();
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+
+          expect(await events, isEmpty);
+          expect(channelsMade, 2);
+        });
+
+        test('keeps a pause across a reconnect', () async {
+          transport = IntelligenceTransport(
+            runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+            httpClientFactory: () => httpClient,
+            channelFactory: (_, _) => channel,
+            reconnectDelay: (_) => const Duration(milliseconds: 50),
+          );
+          final received = <BaseEvent>[];
+          final subscription = transport
+              .connect(agentId: 'a', input: _input)
+              .listen(received.add);
+          await pumpEventQueue();
+          await attempts[0].close();
+          subscription.pause();
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          attempts[1].add(withId('e2'));
+          await pumpEventQueue();
+
+          expect(received, isEmpty);
+          subscription.resume();
+          await pumpEventQueue();
+          expect(received, [isA<TextMessageContentEvent>()]);
+          await subscription.cancel();
+        });
+
+        test('moves the cursor past an event it skipped', () async {
+          transport = reconnecting();
+          final events = transport
+              .connect(agentId: 'a', input: _input)
+              .toList();
+          await pumpEventQueue();
+          attempts[0].add(
+            _agUi({
+              'type': 'NOT_AN_EVENT',
+              'metadata': {'cpki_event_id': 'e9'},
+            }),
+          );
+          await pumpEventQueue();
+          await attempts[0].close();
+          await pumpEventQueue();
+          attempts[1]
+            ..add(replayComplete())
+            ..add(streamIdle());
+          await events;
+
+          expect(sentBody(1), containsPair('lastSeenEventId', 'e9'));
+          expect(skipped, hasLength(1));
+        });
+
+        test(
+          'starts the count over after an attempt that made progress',
+          () async {
+            transport = reconnecting(maxReconnects: 1);
+            final events = transport
+                .connect(agentId: 'a', input: _input)
+                .toList();
+            await pumpEventQueue();
+            attempts[0].add(withId('e1'));
+            await pumpEventQueue();
+            await attempts[0].close();
+            await pumpEventQueue();
+            attempts[1].add(withId('e2'));
+            await pumpEventQueue();
+            await attempts[1].close();
+            await pumpEventQueue();
+            attempts[2]
+              ..add(replayComplete())
+              ..add(streamIdle());
+
+            // Two drops in a row would exceed one reconnect, but each attempt
+            // delivered an event.
+            expect(await events, hasLength(2));
+            expect(channelsMade, 3);
+          },
+        );
 
         test('gives up after the limit and reports the drop', () async {
           transport = reconnecting(maxReconnects: 1);

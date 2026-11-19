@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// A text field with a button that hands its text to [onSubmit] and clears
-/// it. Blank text is ignored.
+/// A text field with a button that hands its trimmed text to [onSubmit].
+/// Blank text is ignored. The field keeps its text: the owner of [controller]
+/// decides when to clear it, e.g. once a save worked.
 class const TextEntry({
+  /// The text of the field.
+  required final TextEditingController controller,
+
   /// What the field asks for.
   required final String hint,
 
@@ -13,25 +17,10 @@ class const TextEntry({
   /// Receives the trimmed text.
   required final ValueChanged<String> onSubmit,
   super.key,
-}) extends StatefulWidget {
-  @override
-  State<TextEntry> createState() => _TextEntryState();
-}
-
-class _TextEntryState extends State<TextEntry> {
-  final _controller = TextEditingController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
+}) extends StatelessWidget {
   void _submit() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    widget.onSubmit(text);
-    _controller.clear();
+    final text = controller.text.trim();
+    if (text.isNotEmpty) onSubmit(text);
   }
 
   @override
@@ -41,17 +30,13 @@ class _TextEntryState extends State<TextEntry> {
       children: [
         Expanded(
           child: TextField(
-            controller: _controller,
+            controller: controller,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _submit(),
-            decoration: InputDecoration(hintText: widget.hint),
+            decoration: InputDecoration(hintText: hint),
           ),
         ),
-        IconButton(
-          tooltip: widget.tooltip,
-          icon: Icon(widget.icon),
-          onPressed: _submit,
-        ),
+        IconButton(tooltip: tooltip, icon: Icon(icon), onPressed: _submit),
       ],
     ),
   );

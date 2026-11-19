@@ -107,16 +107,28 @@ class IntelligenceTransport({
   /// Replays the thread of [input], and streams the events of a run of it that
   /// is still going.
   ///
-  /// The replay is always a full one: the runtime is asked for no cursor. It
-  /// ends when the gateway has sent both `replay_complete` and `stream_idle`,
-  /// not on `RUN_FINISHED`: a replay may hold a run without its end, and
-  /// nothing follows once the stream is idle. The events are passed on as the
-  /// gateway sent them, as `@copilotkit/core` does: a run left open is not
-  /// closed here. A `204` means the runtime has no history for the thread, and
-  /// the stream is empty. A channel that closes before the replay ends is
-  /// replayed again from the last event seen (the `cpki_event_id` of its
-  /// metadata), up to `maxReconnects` times, and is an error after that.
-  /// Failing to get credentials is an error at once.
+  /// The first attempt asks the runtime for a full replay: it sends no cursor.
+  /// The replay ends when the gateway has sent both `replay_complete` and
+  /// `stream_idle`, not on `RUN_FINISHED`: a replay may hold a run without its
+  /// end, and nothing follows once the stream is idle. The events are passed
+  /// on as the gateway sent them, as `@copilotkit/core` does: a run left open
+  /// is not closed here. A `204` means the runtime has no history for the
+  /// thread, and the stream is empty.
+  ///
+  /// A channel that closes or fails before the replay ends is replayed again
+  /// from the last event seen (the `cpki_event_id` of its metadata), waiting
+  /// longer each time. Once a replay has got going, a network that is still
+  /// down when it tries again, or a gateway that answers `5xx`, `408` or
+  /// `429`, counts as another drop. An attempt that delivered new events
+  /// starts the count over; after `maxReconnects` drops in a row the last one
+  /// is an error. Failing to get the first credentials, or a request or join
+  /// the runtime refuses, is an error at once.
+  ///
+  /// There is no timeout: a gateway that sends only one of the two markers
+  /// keeps the stream open for as long as the socket lives, and the agent
+  /// stays running. A run still going on the thread legitimately keeps the
+  /// stream open, so a fixed limit would cut it off; `@copilotkit/core` only
+  /// logs a warning after 30 seconds. Cancel the stream to end it.
   @override
   Stream<BaseEvent> connect({
     required String agentId,
@@ -227,6 +239,9 @@ class IntelligenceTransport({
     _ensureOpen();
     PhoenixChannelsClient? channel;
     StreamSubscription<PhoenixEvent>? subscription;
+    // The listener's pause outlives the subscription: a reconnect hands over
+    // a new one, which must start paused too.
+    var paused = false;
     late final StreamController<BaseEvent> controller;
     late final void Function() end;
     end = () {
@@ -238,15 +253,19 @@ class IntelligenceTransport({
     _runEnds.add(end);
     controller = StreamController<BaseEvent>(
       onListen: () => unawaited(
-        start(
-          controller,
-          end,
-          (opened) => channel = opened,
-          (listening) => subscription = listening,
-        ),
+        start(controller, end, (opened) => channel = opened, (listening) {
+          subscription = listening;
+          if (paused) listening.pause();
+        }),
       ),
-      onPause: () => subscription?.pause(),
-      onResume: () => subscription?.resume(),
+      onPause: () {
+        paused = true;
+        subscription?.pause();
+      },
+      onResume: () {
+        paused = false;
+        subscription?.resume();
+      },
       onCancel: end,
     );
     return controller.stream;
@@ -314,19 +333,30 @@ class IntelligenceTransport({
     // The id of the last event passed on: where a new replay starts from.
     String? cursor;
     var reconnects = 0;
+    // Whether a replay got going: from then on a transport failure is one more
+    // drop to recover from. Before, it is an error at once.
+    var joined = false;
     try {
       while (true) {
+        final before = cursor;
         final dropped = await _connectOnce(
           agentId: agentId,
           input: input,
           headers: headers,
           cursor: cursor,
           controller: controller,
+          // From the second attempt on, a transport failure is a drop to
+          // recover from, not an error.
+          recovering: joined,
           onCursor: (id) => cursor = id,
+          onJoined: () => joined = true,
           onChannel: onChannel,
           onSubscription: onSubscription,
         );
         if (dropped == null || _closed || controller.isClosed) break;
+        // An attempt that delivered events made progress: it starts the
+        // budget and the wait over.
+        if (cursor != before) reconnects = 0;
         if (++reconnects > _maxReconnects) {
           controller.addError(dropped.error, dropped.stackTrace);
           break;
@@ -342,6 +372,17 @@ class IntelligenceTransport({
     end();
   }
 
+  /// Whether [error] says the network or the gateway is unavailable, as
+  /// opposed to refusing the request.
+  bool _isTransient(Object error) => switch (error) {
+    _StatusException(:final statusCode) =>
+      statusCode >= 500 || statusCode == 408 || statusCode == 429,
+    http.ClientException() ||
+    TimeoutException() ||
+    PhoenixClosedException() => true,
+    _ => false,
+  };
+
   /// One attempt at the replay, from [cursor]. Returns `null` when the replay
   /// ended, or why the channel dropped before it did.
   Future<_Drop?> _connectOnce({
@@ -350,18 +391,29 @@ class IntelligenceTransport({
     required Map<String, String> headers,
     required String? cursor,
     required StreamController<BaseEvent> controller,
+    required bool recovering,
     required void Function(String? id) onCursor,
+    required void Function() onJoined,
     required void Function(PhoenixChannelsClient channel) onChannel,
     required void Function(StreamSubscription<PhoenixEvent> subscription)
     onSubscription,
   }) async {
-    final credentials = await _requestConnect(agentId, input, headers, cursor);
+    final IntelligenceConnectCredentials? credentials;
+    try {
+      credentials = await _requestConnect(agentId, input, headers, cursor);
+    } on Object catch (error, stackTrace) {
+      // A network that is still down, or a gateway that is unavailable: a
+      // refusal (a 4xx) is an error, and asking again would be refused again.
+      if (recovering && _isTransient(error)) return _dropOf(error, stackTrace);
+      rethrow;
+    }
     // Closed or cancelled while the runtime was answering: don't join.
     if (_closed || controller.isClosed) return null;
     // No history for the thread.
     if (credentials == null) return null;
-    final channel = _channelFactory(Uri.parse(credentials.realtime.clientUrl), {
-      'join_token': credentials.joinToken,
+    final granted = credentials;
+    final channel = _channelFactory(Uri.parse(granted.realtime.clientUrl), {
+      'join_token': granted.joinToken,
     });
     onChannel(channel);
     var replayComplete = false;
@@ -382,6 +434,8 @@ class IntelligenceTransport({
             try {
               event = _decoder(frame.payload);
             } on DecodingError catch (error, stackTrace) {
+              // Dealt with: a new replay must not start before it.
+              onCursor(_cursorOf(frame.payload) ?? cursor);
               return _reportSkipped(error, stackTrace);
             }
             controller.add(event);
@@ -405,15 +459,36 @@ class IntelligenceTransport({
       )),
     );
     onSubscription(subscription);
-    // A channel that can't be opened or joined is an error, not a drop: the
-    // runtime refused it, and asking again would be refused again.
-    await channel.open();
-    await channel.join(credentials.realtime.topic, {
-      'stream_mode': 'connect',
-      'last_seen_event_id': cursor,
-    });
-    return await outcome.future;
+    // Set up beside the outcome, not before it: a channel that drops while it
+    // is being joined is a drop, and a join that never answers must not hang
+    // the attempt. A channel the runtime refuses is an error, not a drop.
+    final refused = Completer<void>();
+    unawaited(() async {
+      try {
+        await channel.open();
+        await channel.join(granted.realtime.topic, {
+          'stream_mode': 'connect',
+          'last_seen_event_id': cursor,
+        });
+        onJoined();
+      } on Object catch (error, stackTrace) {
+        if (!outcome.isCompleted) refused.completeError(error, stackTrace);
+      }
+    }());
+    try {
+      return await Future.any<_Drop?>([
+        outcome.future,
+        refused.future.then<_Drop?>((_) => null),
+      ]);
+    } on Object catch (error, stackTrace) {
+      if (!recovering || !_isTransient(error)) rethrow;
+      await _release(subscription, channel);
+      return _dropOf(error, stackTrace);
+    }
   }
+
+  _Drop _dropOf(Object error, StackTrace stackTrace) =>
+      (error: error, stackTrace: stackTrace, close: () async {});
 
   Future<void> _release(
     StreamSubscription<PhoenixEvent> subscription,
@@ -523,9 +598,10 @@ class IntelligenceTransport({
       throw ThreadLockedException(message: _errorOf(response.body));
     }
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw http.ClientException(
+      throw _StatusException(
         '$what failed with status ${response.statusCode}: ${response.body}',
         url,
+        response.statusCode,
       );
     }
   }
@@ -609,3 +685,10 @@ typedef _Drop = ({
   StackTrace stackTrace,
   Future<void> Function() close,
 });
+
+/// A request the runtime answered with a status that is not a success.
+class _StatusException extends http.ClientException {
+  new(super.message, Uri super.uri, this.statusCode);
+
+  final int statusCode;
+}

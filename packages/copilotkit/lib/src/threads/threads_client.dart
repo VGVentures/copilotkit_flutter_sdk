@@ -164,18 +164,29 @@ class ThreadsClient({
     Map<String, Object?>? body,
   }) async {
     final http.Response response;
+    // Completes on a timeout, so the request stops instead of finishing in
+    // the background: a rename or delete that gave up must not go through
+    // later, while the caller thinks it failed.
+    final abort = Completer<void>();
     try {
-      final request = http.Request(method, url)
-        ..headers.addAll({
-          ...?await _headers?.call(),
-          if (body != null) 'Content-Type': 'application/json',
-        });
+      final request =
+          http.AbortableRequest(method, url, abortTrigger: abort.future)
+            ..headers.addAll({
+              ...?await _headers?.call(),
+              if (body != null) 'Content-Type': 'application/json',
+            });
       if (body != null) request.body = jsonEncode(body);
-      response = await _exchange(request).timeout(_timeout);
+      response = await _exchange(request).timeout(
+        _timeout,
+        onTimeout: () {
+          abort.complete();
+          throw TimeoutException(null);
+        },
+      );
     } on TimeoutException {
       throw ThreadsException(
         code: ThreadsErrorCode.requestTimeout,
-        message: 'The runtime did not answer within ${_timeout.inSeconds}s.',
+        message: 'The runtime did not answer within ${_describe(_timeout)}.',
       );
     } on Object catch (error) {
       throw ThreadsException(code: code, message: 'Request failed: $error');
@@ -192,8 +203,12 @@ class ThreadsClient({
   }
 
   /// Sends [request] and reads the whole answer.
-  Future<http.Response> _exchange(http.Request request) async =>
+  Future<http.Response> _exchange(http.BaseRequest request) async =>
       await http.Response.fromStream(await _httpClient.send(request));
+
+  String _describe(Duration duration) => duration.inSeconds >= 1
+      ? '${duration.inSeconds}s'
+      : '${duration.inMilliseconds} ms';
 
   /// The `error` the runtime put in a JSON body, if it did.
   String? _errorOf(String body) {

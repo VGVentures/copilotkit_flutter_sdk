@@ -16,19 +16,32 @@ class const ThreadsView({
   @override
   Widget build(BuildContext context) {
     final state = context.watch<ThreadsBloc>().state;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Conversations'),
-        actions: [
-          IconButton(
-            key: const Key('new_thread'),
-            tooltip: 'New conversation',
-            icon: const Icon(Icons.add),
-            onPressed: () => Navigator.of(context).pop(_uuid.v4()),
-          ),
-        ],
+    return BlocListener<ThreadsBloc, ThreadsState>(
+      // A failed change while the list is showing: the bloc puts a deleted
+      // row back, so say why it came back.
+      listenWhen: (previous, current) =>
+          current.error != null &&
+          current.error != previous.error &&
+          current.threads.isNotEmpty,
+      listener: (context, state) => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not change that conversation. Try again.'),
+        ),
       ),
-      body: SafeArea(child: _body(context, state)),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Conversations'),
+          actions: [
+            IconButton(
+              key: const Key('new_thread'),
+              tooltip: 'New conversation',
+              icon: const Icon(Icons.add),
+              onPressed: () => Navigator.of(context).pop(_uuid.v4()),
+            ),
+          ],
+        ),
+        body: SafeArea(child: _body(context, state)),
+      ),
     );
   }
 
@@ -64,7 +77,9 @@ class const ThreadsView({
             title: Text(thread.name ?? 'New conversation'),
             subtitle: Text(thread.updatedAt.toLocal().toString()),
             onTap: () => Navigator.of(context).pop(thread.id),
-            trailing: state.canMutate
+            // The chat is on the current thread: deleting or archiving it
+            // would leave the chat and the saved id on a thread that is gone.
+            trailing: state.canMutate && thread.id != currentThreadId
                 ? PopupMenuButton<VoidCallback>(
                     key: Key('thread_menu_${thread.id}'),
                     onSelected: (action) => action(),
