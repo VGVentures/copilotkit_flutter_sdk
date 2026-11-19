@@ -6,6 +6,7 @@ import 'dart:developer' as developer;
 import 'package:ag_ui/ag_ui.dart';
 import 'package:copilotkit/src/transport/agent_transport.dart';
 import 'package:copilotkit/src/transport/intelligence_event_decoder.dart';
+import 'package:copilotkit/src/transport/models/intelligence_connect_credentials.dart';
 import 'package:copilotkit/src/transport/models/intelligence_run_credentials.dart';
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:copilotkit/src/transport/models/stop_request.dart';
@@ -22,6 +23,10 @@ import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 /// the credentials of the run, and its AG-UI events arrive as `ag_ui_event`
 /// frames on a Phoenix channel. Every run joins its own channel, which is
 /// closed when the run ends or its subscription is cancelled.
+///
+/// [connect] replays a thread the same way: `POST /agent/{id}/connect` answers
+/// with credentials, and the replay arrives on a channel joined in `connect`
+/// mode.
 ///
 /// The transport doesn't reconnect: a connection that drops ends the run with
 /// the error that dropped it. The join token is single-use, so a reconnect
@@ -87,56 +92,55 @@ class IntelligenceTransport({
   final Map<String, IntelligenceRunCredentials> _credentials = {};
   bool _closed = false;
 
-  /// Streams nothing: the history of a thread is not replayed over
-  /// Intelligence yet.
+  /// Replays the thread of [input], and streams the events of a run of it that
+  /// is still going.
   ///
-  /// An agent opened on a thread then starts empty, as if the runtime had no
-  /// history for it. Replay needs the connect handshake with a cursor.
+  /// The replay is always a full one: the runtime is asked for no cursor. It
+  /// ends when the gateway has sent both `replay_complete` and `stream_idle`,
+  /// not on `RUN_FINISHED`: a replay may hold a run without its end, and
+  /// nothing follows once the stream is idle. Each run still open then gets a
+  /// `RUN_FINISHED`, as the agent isn't running any more. A `204` means the
+  /// runtime has no history for the thread, and the stream is empty. A channel
+  /// that closes before the replay ends is an error.
+  ///
+  /// There is no timeout: a gateway that sends only one of the two markers
+  /// keeps the stream open for as long as the socket lives, and the agent
+  /// stays running. A run still going on the thread legitimately keeps the
+  /// stream open, so a fixed limit would cut it off; `@copilotkit/core` only
+  /// logs a warning after 30 seconds. Cancel the stream to end it.
   @override
   Stream<BaseEvent> connect({
     required String agentId,
     required RunAgentInput input,
     Map<String, String> headers = const {},
-  }) => const Stream.empty();
+  }) => _open(
+    (controller, end, onChannel, onSubscription) => _startConnect(
+      agentId: agentId,
+      input: input,
+      headers: headers,
+      controller: controller,
+      end: end,
+      onChannel: onChannel,
+      onSubscription: onSubscription,
+    ),
+  );
 
   @override
   Stream<BaseEvent> run({
     required String agentId,
     required RunAgentInput input,
     Map<String, String> headers = const {},
-  }) {
-    _ensureOpen();
-    PhoenixChannelsClient? channel;
-    StreamSubscription<PhoenixEvent>? subscription;
-    late final StreamController<BaseEvent> controller;
-    // Ends the run once, however it ends: finished, failed, cancelled or
-    // closed. Closing the channel closes the socket.
-    late final void Function() end;
-    end = () {
-      if (!_runEnds.remove(end)) return;
-      unawaited(subscription?.cancel());
-      unawaited(_closeChannel(channel));
-      unawaited(controller.close());
-    };
-    _runEnds.add(end);
-    controller = StreamController<BaseEvent>(
-      onListen: () => unawaited(
-        _start(
-          agentId: agentId,
-          input: input,
-          headers: headers,
-          controller: controller,
-          end: end,
-          onChannel: (opened) => channel = opened,
-          onSubscription: (listening) => subscription = listening,
-        ),
-      ),
-      onPause: () => subscription?.pause(),
-      onResume: () => subscription?.resume(),
-      onCancel: end,
-    );
-    return controller.stream;
-  }
+  }) => _open(
+    (controller, end, onChannel, onSubscription) => _start(
+      agentId: agentId,
+      input: input,
+      headers: headers,
+      controller: controller,
+      end: end,
+      onChannel: onChannel,
+      onSubscription: onSubscription,
+    ),
+  );
 
   /// Asks the runtime to stop the run, with the ids it gave that run.
   ///
@@ -198,6 +202,47 @@ class IntelligenceTransport({
     if (_closed) throw StateError('IntelligenceTransport is closed.');
   }
 
+  /// Streams what [start] puts into the stream it is given, and ends it once,
+  /// however it ends: finished, failed, cancelled or closed. Ending closes the
+  /// channel, which closes the socket.
+  Stream<BaseEvent> _open(
+    Future<void> Function(
+      StreamController<BaseEvent> controller,
+      void Function() end,
+      void Function(PhoenixChannelsClient channel) onChannel,
+      void Function(StreamSubscription<PhoenixEvent> subscription)
+      onSubscription,
+    )
+    start,
+  ) {
+    _ensureOpen();
+    PhoenixChannelsClient? channel;
+    StreamSubscription<PhoenixEvent>? subscription;
+    late final StreamController<BaseEvent> controller;
+    late final void Function() end;
+    end = () {
+      if (!_runEnds.remove(end)) return;
+      unawaited(subscription?.cancel());
+      unawaited(_closeChannel(channel));
+      unawaited(controller.close());
+    };
+    _runEnds.add(end);
+    controller = StreamController<BaseEvent>(
+      onListen: () => unawaited(
+        start(
+          controller,
+          end,
+          (opened) => channel = opened,
+          (listening) => subscription = listening,
+        ),
+      ),
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: end,
+    );
+    return controller.stream;
+  }
+
   /// Starts the run, joins its channel and streams its events into
   /// [controller]. Any failure is reported as an error of the stream and ends
   /// the run.
@@ -242,6 +287,130 @@ class IntelligenceTransport({
     }
   }
 
+  /// Asks for the replay of the thread, joins its channel and streams the
+  /// replay into [controller]. Any failure is reported as an error of the
+  /// stream and ends it.
+  Future<void> _startConnect({
+    required String agentId,
+    required RunAgentInput input,
+    required Map<String, String> headers,
+    required StreamController<BaseEvent> controller,
+    required void Function() end,
+    required void Function(PhoenixChannelsClient channel) onChannel,
+    required void Function(StreamSubscription<PhoenixEvent> subscription)
+    onSubscription,
+  }) async {
+    // Closed before anyone listened: send nothing.
+    if (_closed) return;
+    try {
+      final credentials = await _requestConnect(agentId, input, headers);
+      // Closed or cancelled while the runtime was answering: don't join.
+      if (_closed || controller.isClosed) return;
+      // No history for the thread.
+      if (credentials == null) return end();
+      final channel = _channelFactory(
+        Uri.parse(credentials.realtime.clientUrl),
+        {'join_token': credentials.joinToken},
+      );
+      onChannel(channel);
+      var replayComplete = false;
+      var streamIdle = false;
+      // The runs the replay started and didn't end.
+      final open = <RunStartedEvent>[];
+      // Listen before opening: early frames are lost otherwise.
+      onSubscription(
+        channel.events.listen(
+          (frame) {
+            if (controller.isClosed) return;
+            switch (frame.event) {
+              case 'ag_ui_event':
+                final BaseEvent event;
+                try {
+                  event = _decoder(frame.payload);
+                } on DecodingError catch (error, stackTrace) {
+                  return _reportSkipped(error, stackTrace);
+                }
+                controller.add(event);
+                switch (event) {
+                  case RunStartedEvent():
+                    open.add(event);
+                  case RunFinishedEvent(:final runId):
+                    open.removeWhere((run) => run.runId == runId);
+                  case RunErrorEvent():
+                    if (open.isNotEmpty) open.removeLast();
+                  default:
+                }
+              case 'replay_complete':
+                replayComplete = true;
+              case 'stream_idle':
+                streamIdle = true;
+            }
+            if (!replayComplete || !streamIdle) return;
+            for (final run in open) {
+              controller.add(
+                RunFinishedEvent(threadId: run.threadId, runId: run.runId),
+              );
+            }
+            end();
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (!controller.isClosed) controller.addError(error, stackTrace);
+            end();
+          },
+          onDone: () {
+            if (!controller.isClosed) {
+              controller.addError(
+                StateError('The connection closed before the replay finished.'),
+              );
+            }
+            end();
+          },
+        ),
+      );
+      await channel.open();
+      await channel.join(credentials.realtime.topic, const {
+        'stream_mode': 'connect',
+        'last_seen_event_id': null,
+      });
+    } on Object catch (error, stackTrace) {
+      if (!controller.isClosed) controller.addError(error, stackTrace);
+      end();
+    }
+  }
+
+  /// Asks the runtime for the replay of the thread of [input], or returns
+  /// `null` when it has no history for it (`204`).
+  Future<IntelligenceConnectCredentials?> _requestConnect(
+    String agentId,
+    RunAgentInput input,
+    Map<String, String> headers,
+  ) async {
+    final url = Uri.parse(
+      '$_baseUrl/agent/${Uri.encodeComponent(agentId)}/connect',
+    );
+    final httpClient = _httpClientFactory();
+    try {
+      final request = http.Request('POST', url)
+        ..headers.addAll({...headers, 'Content-Type': 'application/json'})
+        // No cursor: the agent was cleared, so the replay must be a full one.
+        ..body = jsonEncode({
+          ..._simpleInput(input).toJson(),
+          'lastSeenEventId': null,
+        });
+      final response = await _send(httpClient, request);
+      if (response.statusCode == 204) return null;
+      _ensureSuccess(response, url, 'Connect');
+      final credentials = _credentialsOf(
+        response,
+        'connect credentials',
+        IntelligenceConnectCredentials.fromJson,
+      );
+      return credentials;
+    } finally {
+      httpClient.close();
+    }
+  }
+
   Future<IntelligenceRunCredentials> _requestRun(
     String agentId,
     RunAgentInput input,
@@ -257,23 +426,39 @@ class IntelligenceTransport({
         ..body = jsonEncode(_simpleInput(input).toJson());
       final response = await _send(httpClient, request);
       _ensureSuccess(response, url, 'Run');
-      final json = jsonDecode(response.body);
-      if (json is! Map<String, Object?>) {
-        throw FormatException(
-          'The runtime did not answer with run credentials.',
-          response.body,
-        );
-      }
-      try {
-        return IntelligenceRunCredentials.fromJson(json);
-      } on CheckedFromJsonException catch (error) {
-        throw FormatException(
-          'The runtime did not answer with run credentials: ${error.message}',
-          response.body,
-        );
-      }
+      final credentials = _credentialsOf(
+        response,
+        'run credentials',
+        IntelligenceRunCredentials.fromJson,
+      );
+      return credentials;
     } finally {
       httpClient.close();
+    }
+  }
+
+  /// Decodes the body of [response] with [fromJson]. Throws a
+  /// [FormatException] naming [what] when it isn't a JSON object of that
+  /// shape.
+  T _credentialsOf<T>(
+    http.Response response,
+    String what,
+    T Function(Map<String, Object?> json) fromJson,
+  ) {
+    final json = jsonDecode(response.body);
+    if (json is! Map<String, Object?>) {
+      throw FormatException(
+        'The runtime did not answer with $what.',
+        response.body,
+      );
+    }
+    try {
+      return fromJson(json);
+    } on CheckedFromJsonException catch (error) {
+      throw FormatException(
+        'The runtime did not answer with $what: ${error.message}',
+        response.body,
+      );
     }
   }
 
