@@ -434,6 +434,26 @@ void main() {
       });
     });
 
+    group('threads after close', () {
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.threads, throwsStateError);
+      });
+
+      test('closes the threads client even when the transport fails', () async {
+        final threads = client.threads;
+        when(() => transport.close()).thenThrow(StateError('boom'));
+
+        await expectLater(client.close(), throwsStateError);
+
+        await expectLater(
+          threads.list(agentId: 'default'),
+          throwsA(isA<ThreadsException>()),
+        );
+      });
+    });
+
     group('close', () {
       test('closes the transport and the agents', () async {
         final agent = client.agent('default');
