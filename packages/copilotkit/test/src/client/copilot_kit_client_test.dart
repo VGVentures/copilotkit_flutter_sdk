@@ -13,8 +13,6 @@ import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
-class _MockMemoriesClient extends Mock implements MemoriesClient;
-
 void main() {
   setUpAll(MockAgentTransport.registerFallbacks);
 
@@ -475,22 +473,44 @@ void main() {
     });
 
     group('memories', () {
-      test('is a client for the runtime', () {
+      test('is one client for the runtime, created on first use', () {
         expect(client.memories, isA<MemoriesClient>());
+        expect(client.memories, same(client.memories));
       });
 
       test('is closed with the client', () async {
-        final memories = _MockMemoriesClient();
-        client = CopilotKitClient(
-          runtimeUrl: runtimeUrl,
-          transport: transport,
-          memoriesClient: memories,
-        );
+        final memories = client.memories;
 
-        expect(client.memories, same(memories));
         await client.close();
 
-        verify(memories.close).called(1);
+        // A closed client sends nothing more.
+        await expectLater(memories.list(), throwsA(isA<MemoryException>()));
+      });
+
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.memories, throwsStateError);
+      });
+    });
+
+    group('threads after close', () {
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.threads, throwsStateError);
+      });
+
+      test('closes the threads client even when the transport fails', () async {
+        final threads = client.threads;
+        when(() => transport.close()).thenThrow(StateError('boom'));
+
+        await expectLater(client.close(), throwsStateError);
+
+        await expectLater(
+          threads.list(agentId: 'default'),
+          throwsA(isA<ThreadsException>()),
+        );
       });
     });
 

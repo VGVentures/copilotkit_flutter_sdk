@@ -102,6 +102,12 @@ class IntelligenceTransport({
   /// `RUN_FINISHED`, as the agent isn't running any more. A `204` means the
   /// runtime has no history for the thread, and the stream is empty. A channel
   /// that closes before the replay ends is an error.
+  ///
+  /// There is no timeout: a gateway that sends only one of the two markers
+  /// keeps the stream open for as long as the socket lives, and the agent
+  /// stays running. A run still going on the thread legitimately keeps the
+  /// stream open, so a fixed limit would cut it off; `@copilotkit/core` only
+  /// logs a warning after 30 seconds. Cancel the stream to end it.
   @override
   Stream<BaseEvent> connect({
     required String agentId,

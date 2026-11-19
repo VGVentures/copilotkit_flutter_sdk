@@ -84,7 +84,9 @@ class ThreadsBloc({
     Emitter<ThreadsState> emit,
   ) async {
     final cursor = state.nextCursor;
-    if (cursor == null) return;
+    // While the first page loads, the cursor belongs to the list being
+    // replaced.
+    if (cursor == null || state.isLoading) return;
     emit(state.copyWith(isFetchingNextPage: true, fetchMoreError: () => null));
     try {
       final page = await _client.threads.list(
@@ -93,6 +95,10 @@ class ThreadsBloc({
         limit: _limit,
         cursor: cursor,
       );
+      // A refresh finished meanwhile: this page continues a list that is gone.
+      if (state.nextCursor != cursor) {
+        return emit(state.copyWith(isFetchingNextPage: false));
+      }
       final known = {for (final thread in state.threads) thread.id};
       emit(
         state.copyWith(
@@ -107,7 +113,10 @@ class ThreadsBloc({
       );
     } on Object catch (error) {
       emit(
-        state.copyWith(isFetchingNextPage: false, fetchMoreError: () => error),
+        state.copyWith(
+          isFetchingNextPage: false,
+          fetchMoreError: state.nextCursor == cursor ? () => error : null,
+        ),
       );
     }
   }
@@ -166,13 +175,21 @@ class ThreadsBloc({
     );
     try {
       await _client.threads.delete(agentId: _agentId, threadId: event.threadId);
+      // A refresh may have brought the thread back while the delete ran.
       emit(
-        state.copyWith(inFlightMutationCount: state.inFlightMutationCount - 1),
+        state.copyWith(
+          threads: _without(event.threadId),
+          inFlightMutationCount: state.inFlightMutationCount - 1,
+        ),
       );
     } on Object catch (error) {
       emit(
         state.copyWith(
-          threads: removed == null ? null : _restored(removed, index),
+          // A refresh may have brought it back already.
+          threads:
+              removed == null || state.threads.any((t) => t.id == removed.id)
+              ? null
+              : _restored(removed, index),
           inFlightMutationCount: state.inFlightMutationCount - 1,
           error: () => error,
         ),
