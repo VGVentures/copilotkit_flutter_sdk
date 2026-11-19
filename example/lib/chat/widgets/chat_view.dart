@@ -55,13 +55,15 @@ class const ChatView({
 
   Future<void> _openThreads(BuildContext context) async {
     final client = CopilotKit.of(context);
-    final agentId = client.agents.keys.first;
+    // The agent this chat is on, not whichever the client opened first.
+    final agent = CopilotAgentScope.of(context).state;
+    final agentId = agent.agentId;
     final selected = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (_) => ThreadsPage(
           client: client,
           agentId: agentId,
-          currentThreadId: client.agent(agentId).state.threadId,
+          currentThreadId: agent.threadId,
         ),
       ),
     );

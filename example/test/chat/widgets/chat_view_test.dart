@@ -65,15 +65,19 @@ void main() {
 
     group('conversations', () {
       late _MockClient client;
+      late String agentThreadId;
 
       setUp(() {
         client = _MockClient();
         final threads = _MockThreadsClient();
         final real = CopilotKitClient(runtimeUrl: Uri.parse('http://x/api'));
         addTearDown(real.close);
+        // The agent the scope opens. Opened without a thread, so it connects
+        // to nothing.
         final agent = real.agent('default');
-        when(() => client.agents).thenReturn(real.agents);
-        when(() => client.agent('default')).thenReturn(agent);
+        agentThreadId = agent.state.threadId;
+        when(() => client.agent('default', threadId: any(named: 'threadId')))
+            .thenReturn(agent);
         when(client.threadEndpoints)
             .thenAnswer((_) async => const ThreadEndpoints(list: true));
         when(() => client.threads).thenReturn(threads);
@@ -110,9 +114,13 @@ void main() {
         MaterialApp(
           home: CopilotKit.value(
             client: client,
-            child: BlocProvider<CopilotChatBloc>.value(
-              value: bloc,
-              child: ChatView(onThreadSelected: onThreadSelected),
+            child: CopilotAgentScope(
+              agentId: 'default',
+              threadId: 'thread-1',
+              child: BlocProvider<CopilotChatBloc>.value(
+                value: bloc,
+                child: ChatView(onThreadSelected: onThreadSelected),
+              ),
             ),
           ),
         ),
@@ -127,6 +135,10 @@ void main() {
         await tester.tap(find.byKey(const Key('open_threads')));
         await tester.pumpAndSettle();
         expect(find.byType(ThreadsView), findsOneWidget);
+        expect(
+          tester.widget<ThreadsView>(find.byType(ThreadsView)).currentThreadId,
+          agentThreadId,
+        );
         await tester.tap(find.byKey(const Key('thread_thread-2')));
         await tester.pumpAndSettle();
 
