@@ -6,6 +6,7 @@ import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
+import 'package:copilotkit/src/threads/threads.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 import 'package:meta/meta.dart';
@@ -73,6 +74,21 @@ class CopilotKitClient({
       headers: _headers,
     ),
   );
+
+  ThreadsClient? _threads;
+  bool _closed = false;
+
+  /// The client for the thread routes of this client's runtime.
+  ///
+  /// It sends the same headers as this client and is closed with it. It is
+  /// created on first use, and throws a [StateError] after [close].
+  ThreadsClient get threads {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _threads ??= ThreadsClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
+  }
 
   /// The open agents, by agent id. A read-only view.
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
@@ -221,6 +237,9 @@ class CopilotKitClient({
   ///
   /// The client and its agents can't be used afterwards.
   Future<void> close() async {
+    _closed = true;
+    // First: closing it is synchronous, and a failure below must not skip it.
+    _threads?.close();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();
