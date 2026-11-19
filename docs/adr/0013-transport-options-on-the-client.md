@@ -44,11 +44,23 @@ once, for whichever transport the runtime selects.
    passes them to both transports. The options belong to the client, not to a
    transport, because the app doesn't choose the transport.
 2. **`onSkippedEvent` receives a `SkippedEvent`**, an SDK model with the
-   `message` of the cause and its `stackTrace`, not the `ag_ui` error. It is a
+   `message` of the cause and its `stackTrace`, not the `ag_ui` error. The
+   `message` is the one `ag_ui` gives the error. Two kinds of `ag_ui` error
+   become skipped events: the SSE transport maps both `DecodingError` and
+   `AGUIValidationError`, and the Intelligence transport maps `DecodingError`
+   (it has no validation step). It is a
    type of its own, not a variant of [ADR 0011](0011-typed-error-family.md)'s
    family: a skipped event doesn't end a run, so it is not a failure of
    one, and an exhaustive `switch` over the family stays about failures.
-3. **`httpClientFactory`, `channelFactory`, `decoder` and `simpleInput` stay
+3. **A skipped event goes to `onSkippedEvent` and nowhere else.** Without an
+   `onSkippedEvent` it is logged, as it is today, and it never reaches the
+   client's `onError`. `onError` is for errors that end or fail something;
+   [ADR 0011](0011-typed-error-family.md) says it keeps receiving the errors
+   outside its family, and this record takes skipped events out of that list.
+   Today the client builds both transports without a callback, so a skipped
+   event is logged only, and ADR 0011's mention of it describes behavior that
+   doesn't exist.
+4. **`httpClientFactory`, `channelFactory`, `decoder` and `simpleInput` stay
    internal.** They are for tests and for the SDK's own wiring. Exposing
    `httpClientFactory` would amend the public dependency rule for a need no one
    has asked for (a proxy, pinned certificates). If that need comes, it gets
@@ -80,8 +92,12 @@ once, for whichever transport the runtime selects.
 - One new model, `SkippedEvent`, in the `transport` feature, and one option
   object or two constructor parameters on the client. The feature table
   doesn't change: no new feature and no new edge.
-- Both transports map their `DecodingError` to a `SkippedEvent` before calling
-  the callback, so the mapping is tested once per transport.
+- Both transports map their `ag_ui` errors to a `SkippedEvent` before calling
+  the callback (`DecodingError` and `AGUIValidationError` for SSE,
+  `DecodingError` for Intelligence), so the mapping is tested once per
+  transport.
+- ADR 0011's sentence that `onError` keeps receiving "a skipped event" is
+  corrected in the same change that accepts both records.
 - `RuntimeSelectingTransport` must hand the options to the two transports it
   builds, which moves their construction from the client's field initializer
   into a small factory the client calls with the options.
