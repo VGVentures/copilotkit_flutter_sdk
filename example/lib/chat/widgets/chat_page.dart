@@ -8,6 +8,10 @@ class const ChatPage({
   /// Shown between the app bar and the messages, e.g. a panel of the app's
   /// own state. `null` for none.
   final Widget? header,
+
+  /// Called with the id of the thread the user switches to, e.g. to keep it
+  /// for the next launch. `null` for none.
+  final ValueChanged<String>? onThreadSelected,
   super.key,
 }) extends StatelessWidget {
   /// Id of the agent this page chats with.
@@ -16,6 +20,6 @@ class const ChatPage({
   @override
   Widget build(BuildContext context) => CopilotChatProvider(
     agentId: agentId,
-    child: ChatView(header: header),
+    child: ChatView(header: header, onThreadSelected: onThreadSelected),
   );
 }
