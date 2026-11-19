@@ -137,8 +137,15 @@ class CopilotKitClient({
   /// the in-memory or SQLite runners.
   ///
   /// Completes when the replay ends and never throws: errors go to `onError`
-  /// and to [CopilotAgentState.error], and the agent stays usable. Does
-  /// nothing while the agent is already running.
+  /// and to [CopilotAgentState.error], and the agent stays usable. Tool calls
+  /// the replay leaves without a result are closed as cancelled. While the
+  /// agent's replay is already running, for example the one `agent` started
+  /// for a given thread, it returns that replay's future. Does nothing while
+  /// the agent is running anything else.
+  ///
+  /// [stopAgent] during a replay ends it on the device only: a run still
+  /// going on the runtime keeps going, and a new run on the thread answers
+  /// with a `ThreadLockedException` until it ends.
   Future<void> connectAgent(String agentId) => _runner.connect(agent(agentId));
 
   /// Registers [tool]; every run sends it to the agent.
