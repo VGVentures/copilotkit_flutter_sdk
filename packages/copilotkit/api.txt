@@ -67,6 +67,7 @@ package:copilotkit/copilotkit.dart:
     copyWith (method: CopilotAgentState Function({Object? Function()? error, bool? isRunning, List<Message@1>? messages, SharedState? Function()? sharedState, List<ToolCallView>? toolCalls}))
     messageAdded (method: CopilotAgentState Function(Message@1), internal)
     messagesReplaced (method: CopilotAgentState Function(List<Message@1>, {required Map<String, Object?> Function(String) parse}), internal)
+    messagesWithMissing (method: List<Message@1> Function(Iterable<Message@2>), internal)
     sharedStateReplaced (method: CopilotAgentState Function(Map<String, Object?>?), internal)
     textAppended (method: CopilotAgentState Function(String, TextMessageRole, String), internal)
     toolArgumentsAppended (method: CopilotAgentState Function(String, String, {required Map<String, Object?> Function(String) parse}), internal)
@@ -82,6 +83,7 @@ package:copilotkit/copilotkit.dart:
     addContext (method: void Function(AgentContextEntry))
     agent (method: CopilotAgent Function(String, {String? threadId}))
     close (method: Future<void> Function())
+    connectAgent (method: Future<void> Function(String))
     registerTool (method: void Function(ClientTool<Object?>))
     removeContext (method: void Function(String))
     respondToToolCall (method: void Function(String, Object?))
@@ -241,6 +243,7 @@ dart:async:
   Stream (referenced)
 dart:core:
   Exception (referenced)
+  Iterable (referenced)
   List (referenced)
   Map (referenced)
   Object (referenced)

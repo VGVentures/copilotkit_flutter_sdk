@@ -26,6 +26,11 @@ class MockAgentTransport extends Mock implements AgentTransport {
     when(_anyRun).thenAnswer((_) => nextRun());
   }
 
+  /// Answers every connection with the stream [nextConnect] returns.
+  void stubConnect(Stream<ag_ui.BaseEvent> Function() nextConnect) {
+    when(_anyConnect).thenAnswer((_) => nextConnect());
+  }
+
   /// Makes every run throw [error] synchronously.
   void stubRunThrows(Object error) {
     when(_anyRun).thenThrow(error);
@@ -52,6 +57,21 @@ class MockAgentTransport extends Mock implements AgentTransport {
     ).captured.cast<ag_ui.RunAgentInput>();
   }
 
+  /// The inputs of every connection opened since the last verification, in
+  /// order.
+  List<ag_ui.RunAgentInput> connectedInputs() {
+    return verify(
+      () => connect(
+        agentId: any(named: 'agentId'),
+        input: captureAny(named: 'input'),
+        headers: any(named: 'headers'),
+      ),
+    ).captured.cast<ag_ui.RunAgentInput>();
+  }
+
+  /// Checks that no connection was opened.
+  void verifyNoConnect() => verifyNever(_anyConnect);
+
   /// Checks that no run was sent.
   void verifyNoRun() => verifyNever(_anyRun);
 
@@ -59,6 +79,12 @@ class MockAgentTransport extends Mock implements AgentTransport {
   void verifyNoStop() => verifyNever(_anyStop);
 
   Stream<ag_ui.BaseEvent> _anyRun() => run(
+    agentId: any(named: 'agentId'),
+    input: any(named: 'input'),
+    headers: any(named: 'headers'),
+  );
+
+  Stream<ag_ui.BaseEvent> _anyConnect() => connect(
     agentId: any(named: 'agentId'),
     input: any(named: 'input'),
     headers: any(named: 'headers'),

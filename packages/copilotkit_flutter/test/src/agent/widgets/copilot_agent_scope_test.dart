@@ -29,6 +29,12 @@ void main() {
       seen = [];
     });
 
+    // An agent opened on a thread connects to it, and the request in flight
+    // can only end outside the test's fake async zone.
+    Future<void> closeInRealAsync(WidgetTester tester) async {
+      await tester.runAsync(client.close);
+    }
+
     Widget build(Widget child, {CopilotKitClient? withClient}) =>
         CopilotKit.value(client: withClient ?? client, child: child);
 
@@ -53,6 +59,7 @@ void main() {
       );
 
       expect(seen.single.state.threadId, 'thread-9');
+      await closeInRealAsync(tester);
     });
 
     testWidgets('keeps the thread of an agent that is already open', (
@@ -71,6 +78,7 @@ void main() {
       );
 
       expect(seen.single.state.threadId, 'thread-1');
+      await closeInRealAsync(tester);
     });
 
     testWidgets('shares one agent between scopes with the same id', (

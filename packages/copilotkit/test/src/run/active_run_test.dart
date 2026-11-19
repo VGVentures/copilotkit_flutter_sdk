@@ -17,5 +17,13 @@ void main() {
       expect(run.subscription, same(subscription));
       await subscription.cancel();
     });
+
+    test('has no run id for a replay', () async {
+      final subscription = const Stream<ag_ui.BaseEvent>.empty().listen(null);
+      final run = ActiveRun(headers: const {}, subscription: subscription);
+
+      expect(run.runId, isNull);
+      await subscription.cancel();
+    });
   });
 }

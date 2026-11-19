@@ -108,6 +108,12 @@ void main() {
       await frames.close();
     });
 
+    group('connect', () {
+      test('streams nothing, as there is no replay over Intelligence yet', () {
+        expect(transport.connect(agentId: 'a', input: _input), emitsDone);
+      });
+    });
+
     group('run', () {
       test('asks the runtime to start the run', () async {
         final events = transport
