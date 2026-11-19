@@ -19,6 +19,11 @@ void main() {
       expect(withStatus(499).isRetryable, isFalse);
     });
 
+    test('is retryable on a timeout or a rate limit', () {
+      expect(withStatus(408).isRetryable, isTrue);
+      expect(withStatus(429).isRetryable, isTrue);
+    });
+
     test('is retryable below 400', () {
       expect(withStatus(302).isRetryable, isTrue);
     });

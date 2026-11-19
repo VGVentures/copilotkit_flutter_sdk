@@ -26,7 +26,6 @@ class CopilotKitClient({
   final Map<String, Object?>? _properties,
   final CopilotErrorHandler? _onError,
   @visibleForTesting AgentTransport? transport,
-  @visibleForTesting MemoriesClient? memoriesClient,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -36,19 +35,11 @@ class CopilotKitClient({
   /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the transport to
-  /// [runtimeUrl] in tests, and [memoriesClient] replaces the memories client.
+  /// [runtimeUrl] in tests.
   this;
 
   final Uri _runtimeUrl = runtimeUrl;
   final AgentTransport? _givenTransport = transport;
-
-  /// Lists, recalls, saves, supersedes and retires the user's memories on
-  /// the runtime, with the same `headers` as the runs.
-  ///
-  /// [close] closes it.
-  final MemoriesClient memories =
-      memoriesClient ??
-      MemoriesClient(runtimeUrl: runtimeUrl, headers: _headers);
 
   /// The transport given to the constructor, or one that works out from the
   /// runtime's `GET /info` whether it speaks SSE or Intelligence.
@@ -86,13 +77,19 @@ class CopilotKitClient({
   );
 
   ThreadsClient? _threads;
+  bool _closed = false;
 
   /// The client for the thread routes of this client's runtime.
   ///
   /// It sends the same headers as this client and is closed with it. It is
-  /// created on first use.
-  ThreadsClient get threads =>
-      _threads ??= ThreadsClient(runtimeUrl: _runtimeUrl, headers: _headers);
+  /// created on first use, and throws a [StateError] after [close].
+  ThreadsClient get threads {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _threads ??= ThreadsClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
+  }
 
   /// Reads which thread routes the runtime has, from its `GET /info`.
   ///
@@ -108,6 +105,21 @@ class CopilotKitClient({
       _report(error, stackTrace);
       return const ThreadEndpoints();
     }
+  }
+
+  MemoriesClient? _memories;
+
+  /// Lists, recalls, saves, supersedes and retires the user's memories on
+  /// the runtime, with the same `headers` as the runs.
+  ///
+  /// It is created on first use, closed with this client, and throws a
+  /// [StateError] after [close].
+  MemoriesClient get memories {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _memories ??= MemoriesClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
   }
 
   /// The open agents, by agent id. A read-only view.
@@ -173,8 +185,15 @@ class CopilotKitClient({
   /// the in-memory or SQLite runners.
   ///
   /// Completes when the replay ends and never throws: errors go to `onError`
-  /// and to [CopilotAgentState.error], and the agent stays usable. Does
-  /// nothing while the agent is already running.
+  /// and to [CopilotAgentState.error], and the agent stays usable. Tool calls
+  /// the replay leaves without a result are closed as cancelled. While the
+  /// agent's replay is already running, for example the one `agent` started
+  /// for a given thread, it returns that replay's future. Does nothing while
+  /// the agent is running anything else.
+  ///
+  /// [stopAgent] during a replay ends it on the device only: a run still
+  /// going on the runtime keeps going, and a new run on the thread answers
+  /// with a `ThreadLockedException` until it ends.
   Future<void> connectAgent(String agentId) => _runner.connect(agent(agentId));
 
   /// Registers [tool]; every run sends it to the agent.
@@ -250,13 +269,15 @@ class CopilotKitClient({
   ///
   /// The client and its agents can't be used afterwards.
   Future<void> close() async {
+    _closed = true;
+    // First: closing it is synchronous, and a failure below must not skip it.
+    _threads?.close();
+    _memories?.close();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();
     }
     await _transport.close();
-    _threads?.close();
-    memories.close();
   }
 
   void _report(Object error, StackTrace stackTrace) {

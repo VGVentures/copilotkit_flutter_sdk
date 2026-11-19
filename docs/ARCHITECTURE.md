@@ -43,8 +43,6 @@ packages/copilotkit_flutter   Flutter, re-exports copilotkit
               from an agent to a chat UI
   threads     ThreadsBloc: a thin adapter from the threads client to a
               threads UI
-  memories    MemoriesBloc: a thin adapter from the memories client to
-              a memories UI
 ```
 
 The core holds all the logic in plain Dart classes. Flutter adds widgets and
@@ -159,7 +157,6 @@ barrel:
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |
 | | `threads` | Presentation | the core |
-| | `memories` | Presentation | the core |
 
 A feature imports another feature only through its barrel
 (`package:copilotkit/src/tools/tools.dart`), never one of its files; a model may

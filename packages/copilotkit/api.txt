@@ -76,7 +76,7 @@ package:copilotkit/copilotkit.dart:
     toolCallUpdated (method: CopilotAgentState Function(String, ToolCallView Function(ToolCallView)), internal)
     toolCallsMarkedExecuting (method: CopilotAgentState Function(), internal)
   CopilotKitClient (class extends Object):
-    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, MemoriesClient? memoriesClient, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
+    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
     agents (getter: Map<String, CopilotAgent>)
     context (getter: List<AgentContextEntry>)
     memories (getter: MemoriesClient)

@@ -145,7 +145,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     child (getter: Widget)
     createState (method: State<CopilotKit> Function())
   CopilotKitClient (class extends Object):
-    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, MemoriesClient? memoriesClient, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
+    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
     agents (getter: Map<String, CopilotAgent>)
     context (getter: List<AgentContextEntry>)
     memories (getter: MemoriesClient)
