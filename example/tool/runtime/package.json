@@ -4,7 +4,8 @@
   "description": "Local Copilot Runtime for the CopilotKit Flutter SDK example app.",
   "type": "module",
   "scripts": {
-    "start": "tsx server.ts"
+    "start": "tsx server.ts",
+    "test": "tsx --test config.test.ts"
   },
   "dependencies": {
     "@copilotkit/runtime": "^1.79.0"
