@@ -91,6 +91,7 @@ package:copilotkit/copilotkit.dart:
     runAgent (method: Future<void> Function(String, {Message@1? message}))
     stopAgent (method: Future<void> Function(String))
     switchAgentThread (method: Future<void> Function(String, String))
+    threadEndpoints (method: Future<ThreadEndpoints> Function())
     unregisterTool (method: void Function(ClientTool<Object?>))
     updateContext (method: void Function(String, Map<String, Object?>))
   DeveloperMessage (class extends Message@1, final):
@@ -175,6 +176,14 @@ package:copilotkit/copilotkit.dart:
     props (getter: List<Object?>)
     copyWith (method: SystemMessage Function({String? content}), internal)
     toAgUi (method: Message@2 Function(), internal)
+  ThreadEndpoints (class extends Equatable):
+    new (const constructor: ThreadEndpoints Function({bool inspect, bool list, bool mutations, bool realtimeMetadata}))
+    fromJson (constructor: ThreadEndpoints Function(Map<String, Object?>))
+    inspect (getter: bool)
+    list (getter: bool)
+    mutations (getter: bool)
+    props (getter: List<Object?>)
+    realtimeMetadata (getter: bool)
   ThreadLockedException (class extends Equatable implements Exception):
     new (const constructor: ThreadLockedException Function({String? message}))
     message (getter: String?)
@@ -197,6 +206,7 @@ package:copilotkit/copilotkit.dart:
     name (getter: String?)
     props (getter: List<Object?>)
     updatedAt (getter: DateTime)
+    copyWith (method: ThreadRecord Function({bool? archived, String? name}))
   ThreadsClient (class extends Object):
     new (constructor: ThreadsClient Function({Future<Map<String, String>> Function()? headers, Client? httpClient, required Uri runtimeUrl, Duration timeout}))
     archive (method: Future<void> Function({required String agentId, required String threadId}))

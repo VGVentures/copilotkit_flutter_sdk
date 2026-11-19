@@ -39,6 +39,19 @@ class const ThreadRecord({
   /// wrong type.
   factory fromJson(Map<String, Object?> json) => _$ThreadRecordFromJson(json);
 
+  /// Returns a copy with [name] or [archived] changed.
+  ///
+  /// A name can be set but not cleared: the runtime names a thread, and an
+  /// app that renames it gives it a name.
+  ThreadRecord copyWith({String? name, bool? archived}) => ThreadRecord(
+    id: id,
+    agentId: agentId,
+    archived: archived ?? this.archived,
+    createdAt: createdAt,
+    updatedAt: updatedAt,
+    name: name ?? this.name,
+  );
+
   @override
   List<Object?> get props => [
     id,
