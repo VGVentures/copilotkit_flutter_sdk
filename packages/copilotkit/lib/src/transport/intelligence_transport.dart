@@ -46,6 +46,8 @@ class IntelligenceTransport({
   Duration stopTimeout = const Duration(seconds: 10),
   int maxReconnects = 5,
   Duration Function(int attempt)? reconnectDelay,
+  Duration idleFallback = const Duration(milliseconds: 100),
+  Duration idleWarning = const Duration(seconds: 30),
   void Function(Object error, StackTrace stackTrace)? onSkippedEvent,
   IntelligenceEventDecoder decoder = const IntelligenceEventDecoder(),
   SimpleInputMapper simpleInput = const SimpleInputMapper(),
@@ -66,6 +68,11 @@ class IntelligenceTransport({
   /// wait before attempt `attempt` (from 1); it defaults to a doubling wait
   /// from 100 ms up to 10 s, as `@copilotkit/core` waits.
   ///
+  /// [idleFallback] is how long [connect] waits, after a `stream_idle` that
+  /// came without `replay_complete`, before it ends the replay anyway; and
+  /// [idleWarning] is how long a replay that has sent `replay_complete` may be
+  /// silent before a warning is logged. Both are `@copilotkit/core`'s values.
+  ///
   /// [onSkippedEvent] is called with each event the transport skipped because
   /// it couldn't be decoded. Errors it throws are logged and don't end the
   /// run.
@@ -84,6 +91,8 @@ class IntelligenceTransport({
           PhoenixChannelsClient(clientUrl: clientUrl, params: params));
   final Duration _stopTimeout = stopTimeout;
   final int _maxReconnects = maxReconnects;
+  final Duration _idleFallback = idleFallback;
+  final Duration _idleWarning = idleWarning;
   final Duration Function(int attempt) _reconnectDelay =
       reconnectDelay ?? _defaultReconnectDelay;
   late final RuntimeInfoClient _info = RuntimeInfoClient(
@@ -124,11 +133,14 @@ class IntelligenceTransport({
   /// is an error. Failing to get the first credentials, or a request or join
   /// the runtime refuses, is an error at once.
   ///
-  /// There is no timeout: a gateway that sends only one of the two markers
-  /// keeps the stream open for as long as the socket lives, and the agent
-  /// stays running. A run still going on the thread legitimately keeps the
-  /// stream open, so a fixed limit would cut it off; `@copilotkit/core` only
-  /// logs a warning after 30 seconds. Cancel the stream to end it.
+  /// A `stream_idle` without `replay_complete` ends the replay after a short
+  /// wait (`idleFallback`), when the idle's `latestEventId` is the cursor the
+  /// attempt started from or the last event it saw, or when it names none.
+  /// A gateway that sends `replay_complete` but never `stream_idle` keeps the
+  /// stream open for as long as the socket lives, and the agent stays running:
+  /// a run still going on the thread legitimately does the same, so there is
+  /// no limit. After `idleWarning` of silence a warning is logged, as
+  /// `@copilotkit/core` does. Cancel the stream to end it.
   @override
   Stream<BaseEvent> connect({
     required String agentId,
@@ -416,11 +428,41 @@ class IntelligenceTransport({
       'join_token': granted.joinToken,
     });
     onChannel(channel);
+    if (granted.threadId != input.threadId) {
+      developer.log(
+        'The runtime replays thread ${granted.threadId} for '
+        '${input.threadId}; the agent keeps the id it was given.',
+        name: 'copilotkit',
+        level: 900, // WARNING
+      );
+    }
     var replayComplete = false;
     var streamIdle = false;
+    // The last event this attempt saw, to tell whether a `stream_idle` is the
+    // one that belongs to it.
+    var lastSeen = cursor;
+    Timer? fallback;
+    Timer? warning;
     final outcome = Completer<_Drop?>();
     void settle(_Drop? value) {
+      fallback?.cancel();
+      warning?.cancel();
       if (!outcome.isCompleted) outcome.complete(value);
+    }
+
+    void armWarning() {
+      warning?.cancel();
+      if (!replayComplete || outcome.isCompleted) return;
+      warning = Timer(
+        _idleWarning,
+        () => developer.log(
+          'No progress or stream_idle for ${_idleWarning.inSeconds} seconds '
+          'after replay_complete: the run may still be active or its status '
+          'unavailable.',
+          name: 'copilotkit',
+          level: 900, // WARNING
+        ),
+      );
     }
 
     // Listen before opening: early frames are lost otherwise.
@@ -435,15 +477,28 @@ class IntelligenceTransport({
               event = _decoder(frame.payload);
             } on DecodingError catch (error, stackTrace) {
               // Dealt with: a new replay must not start before it.
-              onCursor(_cursorOf(frame.payload) ?? cursor);
+              lastSeen = _cursorOf(frame.payload) ?? lastSeen;
+              onCursor(lastSeen);
               return _reportSkipped(error, stackTrace);
             }
             controller.add(event);
-            onCursor(_cursorOf(frame.payload) ?? cursor);
+            lastSeen = _cursorOf(frame.payload) ?? lastSeen;
+            onCursor(lastSeen);
+            armWarning();
           case 'replay_complete':
             replayComplete = true;
+            armWarning();
           case 'stream_idle':
             streamIdle = true;
+            // Without replay_complete, the idle may still end the replay: core
+            // completes after a short wait when it is this attempt's idle.
+            final idleId = _controlIdOf(frame.payload);
+            if (!replayComplete &&
+                (idleId == null || idleId == cursor || idleId == lastSeen)) {
+              fallback = Timer(_idleFallback, () {
+                if (!replayComplete) settle(null);
+              });
+            }
         }
         if (replayComplete && streamIdle) settle(null);
       },
@@ -498,12 +553,26 @@ class IntelligenceTransport({
     await _closeChannel(channel);
   }
 
-  /// The id of the event in an `ag_ui_event` payload, if the gateway gave one.
+  /// The id of the event in an `ag_ui_event` payload, if the gateway gave one
+  /// that a replay can resume from.
   String? _cursorOf(Map<String, Object?> payload) =>
       switch (payload['metadata']) {
-        {'cpki_event_id': final String id} => id,
+        {'cpki_event_id': final Object? id} => _durable(id),
         _ => null,
       };
+
+  /// The id of the latest event a control frame (`replay_complete`,
+  /// `stream_idle`) names, if it names a durable one.
+  String? _controlIdOf(Map<String, Object?> payload) =>
+      _durable(payload['latestEventId'] ?? payload['latest_event_id']);
+
+  /// [id] if it is an event id a replay can resume from. An id that starts
+  /// with `cpki_ingested` marks an event not stored yet, as in
+  /// `@copilotkit/core`.
+  String? _durable(Object? id) =>
+      id is String && id.trim().isNotEmpty && !id.startsWith('cpki_ingested')
+      ? id
+      : null;
 
   /// Asks the runtime for the replay of the thread of [input], or returns
   /// `null` when it has no history for it (`204`).

@@ -283,6 +283,112 @@ void main() {
         ]);
       });
 
+      group('when the gateway is quiet', () {
+        // The transport the test tears down, so none outlives it.
+        IntelligenceTransport quick() => transport = IntelligenceTransport(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          httpClientFactory: () => httpClient,
+          channelFactory: (_, _) => channel,
+          idleFallback: const Duration(milliseconds: 20),
+          idleWarning: const Duration(milliseconds: 40),
+        );
+
+        Future<bool> endsWithin(
+          IntelligenceTransport transport,
+          List<PhoenixEvent> sent,
+        ) async {
+          var done = false;
+          transport
+              .connect(agentId: 'a', input: _input)
+              .listen((_) {}, onDone: () => done = true);
+          await pumpEventQueue();
+          sent.forEach(frames.add);
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          return done;
+        }
+
+        test(
+          'ends on a stream_idle that names no event, without replay_complete',
+          () async {
+            expect(await endsWithin(quick(), [streamIdle()]), isTrue);
+          },
+        );
+
+        test(
+          'ends on a stream_idle that names the last event it saw',
+          () async {
+            final seen = _agUi({
+              'type': 'TEXT_MESSAGE_CONTENT',
+              'messageId': 'm1',
+              'delta': 'x',
+              'metadata': {'cpki_event_id': 'e1'},
+            });
+
+            expect(
+              await endsWithin(quick(), [
+                seen,
+                _frame('stream_idle', {'latestEventId': 'e1'}),
+              ]),
+              isTrue,
+            );
+          },
+        );
+
+        test(
+          'keeps going on a stream_idle that belongs to other events',
+          () async {
+            expect(
+              await endsWithin(quick(), [
+                _frame('stream_idle', {'latestEventId': 'someone-else'}),
+              ]),
+              isFalse,
+            );
+          },
+        );
+
+        test(
+          'does not end on a stream_idle when replay_complete follows',
+          () async {
+            expect(
+              await endsWithin(quick(), [streamIdle(), replayComplete()]),
+              isTrue,
+            );
+          },
+        );
+
+        test('keeps the stream open after replay_complete and warns', () async {
+          final done = await endsWithin(quick(), [replayComplete()]);
+
+          expect(done, isFalse);
+        });
+
+        test('does not resume from an event that is not stored yet', () async {
+          final ingested = _agUi({
+            'type': 'TEXT_MESSAGE_CONTENT',
+            'messageId': 'm1',
+            'delta': 'x',
+            'metadata': {'cpki_event_id': 'cpki_ingested_1'},
+          });
+          final events = quick().connect(agentId: 'a', input: _input).toList();
+          await pumpEventQueue();
+          frames.add(ingested);
+          await pumpEventQueue();
+          await frames.close();
+          await Future<void>.delayed(const Duration(milliseconds: 50));
+
+          // The second request carried no cursor.
+          final bodies = verify(() => httpClient.send(captureAny())).captured
+              .cast<http.Request>()
+              .map((r) => jsonDecode(r.body) as Map<String, Object?>)
+              .toList();
+          expect(bodies.first, containsPair('lastSeenEventId', null));
+          await events.timeout(
+            const Duration(milliseconds: 1),
+            onTimeout: () => <BaseEvent>[],
+          );
+        });
+      });
+
       group('when the channel drops', () {
         late List<StreamController<PhoenixEvent>> attempts;
         late int channelsMade;
