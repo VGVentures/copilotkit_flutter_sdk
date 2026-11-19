@@ -423,6 +423,39 @@ void main() {
         expect(agent.state.isRunning, isFalse);
       });
 
+      test('closes the tool calls a replay left without a result', () async {
+        queueReplay([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          const ag_ui.ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'ask'),
+          const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
+          const ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+          ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
+        ]);
+
+        await runner.connect(agent);
+
+        expect(agent.state.toolCalls.single.isComplete, isTrue);
+        expect(agent.state.messages.last, isA<ToolMessage>());
+        expect(agent.state.isRunning, isFalse);
+      });
+
+      test('returns the replay that is already running', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+        var first = false;
+        final started = runner.connect(agent).then((_) => first = true);
+
+        var second = false;
+        final waited = runner.connect(agent).then((_) => second = true);
+        await pumpEventQueue();
+
+        expect(second, isFalse);
+        expect(transport.connectedInputs(), hasLength(1));
+        await events.close();
+        await Future.wait([started, waited]);
+        expect([first, second], [true, true]);
+      });
+
       test('does nothing while the agent is running', () async {
         final events = StreamController<ag_ui.BaseEvent>();
         transport.stubRun(() => events.stream);
