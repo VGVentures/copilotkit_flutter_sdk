@@ -433,6 +433,29 @@ void main() {
             .called(1);
       });
 
+      test(
+        'keeps the routes it last reported when it cannot be asked',
+        () async {
+          var calls = 0;
+          when(() => transport.info(headers: any(named: 'headers')))
+              .thenAnswer((_) async {
+                if (calls++ == 0) {
+                  return RuntimeInfo.fromJson(const {
+                    'mode': 'intelligence',
+                    'threadEndpoints': {'list': true, 'mutations': true},
+                  });
+                }
+                throw StateError('offline');
+              });
+
+          await client.threadEndpoints();
+          final endpoints = await client.threadEndpoints();
+
+          expect(endpoints, const ThreadEndpoints(list: true, mutations: true));
+          expect(errors.single.$1, isA<StateError>());
+        },
+      );
+
       test('reports no route when the runtime cannot be asked', () async {
         when(() => transport.info(headers: any(named: 'headers')))
             .thenThrow(StateError('offline'));
