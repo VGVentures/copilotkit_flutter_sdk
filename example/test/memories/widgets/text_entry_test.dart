@@ -4,12 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group(TextEntry, () {
+    late TextEditingController controller;
+
+    setUp(() => controller = TextEditingController());
+    tearDown(() => controller.dispose());
+
     Future<List<String>> pump(WidgetTester tester) async {
       final submitted = <String>[];
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: TextEntry(
+              controller: controller,
               hint: 'Hint',
               icon: Icons.add,
               tooltip: 'Go',
@@ -21,7 +27,7 @@ void main() {
       return submitted;
     }
 
-    testWidgets('hands the trimmed text over and clears the field', (
+    testWidgets('hands the trimmed text over and keeps it in the field', (
       tester,
     ) async {
       final submitted = await pump(tester);
@@ -30,7 +36,7 @@ void main() {
       await tester.tap(find.byTooltip('Go'));
 
       expect(submitted, ['likes tea']);
-      expect(find.text('likes tea'), findsNothing);
+      expect(controller.text, '  likes tea ');
     });
 
     testWidgets('submits from the keyboard', (tester) async {
