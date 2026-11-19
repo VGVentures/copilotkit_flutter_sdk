@@ -15,6 +15,15 @@ final class const MemoriesState({
   /// Whether the memories are loading.
   final bool isLoading = false,
 
+  /// Whether the last recall is running.
+  final bool isRecalling = false,
+
+  /// Whether [memories] was loaded with the retired memories included.
+  ///
+  /// Retiring a memory then marks it retired instead of removing it, as the
+  /// next load would show it.
+  final bool includeInvalidated = false,
+
   /// Whether the runtime has memory to offer.
   ///
   /// It is `false` when the runtime has no memory configured or the app has
@@ -51,6 +60,8 @@ final class const MemoriesState({
     List<Memory>? memories,
     List<Memory>? recalled,
     bool? isLoading,
+    bool? isRecalling,
+    bool? includeInvalidated,
     bool? isAvailable,
     Object? Function()? error,
     int? inFlightMutationCount,
@@ -59,6 +70,8 @@ final class const MemoriesState({
     memories: memories ?? this.memories,
     recalled: recalled ?? this.recalled,
     isLoading: isLoading ?? this.isLoading,
+    isRecalling: isRecalling ?? this.isRecalling,
+    includeInvalidated: includeInvalidated ?? this.includeInvalidated,
     isAvailable: isAvailable ?? this.isAvailable,
     error: error == null ? this.error : error(),
     inFlightMutationCount: inFlightMutationCount ?? this.inFlightMutationCount,
@@ -70,6 +83,8 @@ final class const MemoriesState({
     memories,
     recalled,
     isLoading,
+    isRecalling,
+    includeInvalidated,
     isAvailable,
     error,
     inFlightMutationCount,
