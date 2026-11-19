@@ -31,7 +31,13 @@ class MemoriesBloc({required final MemoriesClient _client})
     MemoriesRequested event,
     Emitter<MemoriesState> emit,
   ) async {
-    emit(state.copyWith(isLoading: true, error: () => null));
+    emit(
+      state.copyWith(
+        isLoading: true,
+        includeInvalidated: event.includeInvalidated,
+        error: () => null,
+      ),
+    );
     try {
       final memories = await _client.list(
         includeInvalidated: event.includeInvalidated,
@@ -56,18 +62,24 @@ class MemoriesBloc({required final MemoriesClient _client})
     Emitter<MemoriesState> emit,
   ) async {
     // Bloc emits the first state even when it equals the current one.
-    if (state.error != null) emit(state.copyWith(error: () => null));
+    emit(state.copyWith(isRecalling: true, error: () => null));
     try {
       final recalled = await _client.recall(
         event.query,
         limit: event.limit,
         scope: event.scope,
       );
-      emit(state.copyWith(recalled: recalled, isAvailable: true));
+      emit(
+        state.copyWith(
+          recalled: recalled,
+          isRecalling: false,
+          isAvailable: true,
+        ),
+      );
     } on MemoryUnavailableException {
       emit(_unavailable());
     } on Object catch (error) {
-      emit(state.copyWith(error: () => error));
+      emit(state.copyWith(isRecalling: false, error: () => error));
     }
   }
 
@@ -110,18 +122,25 @@ class MemoriesBloc({required final MemoriesClient _client})
     );
     try {
       final outcome = await mutation();
+      // A supersede retires a memory too, so it leaves the recall as well.
+      final retiredId = onRetired ?? outcome?.retiredId;
       emit(
         state.copyWith(
           memories: outcome == null
-              ? _without(state.memories, onRetired)
+              ? _retired(state.memories, onRetired)
               : onOutcome!(outcome),
-          recalled: _without(state.recalled, onRetired),
+          recalled: _without(state.recalled, retiredId),
           inFlightMutationCount: state.inFlightMutationCount - 1,
           isAvailable: true,
           error: () => null,
           lastOutcome: () => outcome,
         ),
       );
+      // A list still loading may have been read before this change: load it
+      // again, which also drops the stale one (restartable).
+      if (state.isLoading) {
+        add(MemoriesRequested(includeInvalidated: state.includeInvalidated));
+      }
     } on MemoryUnavailableException {
       emit(
         _unavailable().copyWith(
@@ -143,6 +162,7 @@ class MemoriesBloc({required final MemoriesClient _client})
     memories: const [],
     recalled: const [],
     isLoading: false,
+    isRecalling: false,
     isAvailable: false,
     error: () => null,
     lastOutcome: () => null,
@@ -153,8 +173,29 @@ class MemoriesBloc({required final MemoriesClient _client})
       if (memory.id != id) memory,
   ];
 
+  /// The list without the retired memory [id], or with it marked retired
+  /// when the list was loaded with the retired memories included.
+  List<Memory> _retired(List<Memory> memories, String? id) {
+    if (!state.includeInvalidated) return _without(memories, id);
+    return [
+      for (final memory in memories)
+        if (memory.id == id)
+          Memory(
+            id: memory.id,
+            kind: memory.kind,
+            scope: memory.scope,
+            content: memory.content,
+            sourceThreadIds: memory.sourceThreadIds,
+            score: memory.score,
+            invalidatedAt: DateTime.now().toUtc(),
+          )
+        else
+          memory,
+    ];
+  }
+
   List<Memory> _withMemory(Memory memory, {String? replacing}) {
-    final memories = _without(state.memories, replacing);
+    final memories = _retired(state.memories, replacing);
     final index = memories.indexWhere((m) => m.id == memory.id);
     if (index == -1) return [memory, ...memories];
     return [...memories]..[index] = memory;

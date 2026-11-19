@@ -8,7 +8,7 @@ import {
   CopilotRuntime,
 } from "@copilotkit/runtime/v2";
 import { createCopilotNodeListener } from "@copilotkit/runtime/v2/node";
-import { identifyDemoUser, resolveLearningContainerId } from "./config.ts";
+import { defaultUser, resolveLearningContainerId } from "./config.ts";
 
 const basePath = "/api/copilotkit";
 const port = Number(process.env.PORT ?? 8200);
@@ -44,7 +44,7 @@ const runtime = intelligenceApiKey
         // first run: a thread can't move to another container later.
         getLearningContainerId: () => learningContainerId,
       }),
-      identifyUser: identifyDemoUser,
+      identifyUser: () => defaultUser,
     })
   : new CopilotRuntime({ agents });
 
