@@ -79,21 +79,39 @@ class AgentRunner({
   ///
   /// The agent is running until the replay ends, which is when a run still
   /// going on the thread ends. Completes then and never throws: errors go to
-  /// the error handler and to [CopilotAgentState.error]. Does nothing while
-  /// [agent] is already in a turn, or while a stop of its turn is still in
-  /// flight. A stop or a thread switch ends the replay, and sends no stop
-  /// request to the runtime.
-  Future<void> connect(CopilotAgent agent) async {
+  /// the error handler and to [CopilotAgentState.error]. When the replay ends,
+  /// tool calls it left without a result are closed as cancelled, so the next
+  /// run does not send a call nobody will answer. Called while the agent's
+  /// replay is already running, it returns that replay's future. Does nothing
+  /// while [agent] is in another turn, or while a stop of its turn is still in
+  /// flight. A stop or a thread switch ends the replay on the device and sends
+  /// no stop request: a run still going on the runtime keeps going.
+  Future<void> connect(CopilotAgent agent) {
     final agentId = agent.state.agentId;
-    if (_turns.containsKey(agentId) || agent.state.isRunning) return;
+    if (_replays[agentId] case final replay?
+        when identical(_turns[agentId], replay.turn)) {
+      return replay.done;
+    }
+    if (_turns.containsKey(agentId) || agent.state.isRunning) {
+      return Future.value();
+    }
     final turn = Turn(agent);
     _turns[agentId] = turn;
+    final done = _replay(agent, turn);
+    _replays[agentId] = (turn: turn, done: done);
+    return done;
+  }
+
+  Future<void> _replay(CopilotAgent agent, Turn turn) async {
+    final agentId = agent.state.agentId;
     agent.startTurn();
     try {
       await _connector(turn);
     } finally {
+      if (_replays[agentId]?.turn == turn) _replays.remove(agentId);
       if (!agent.isClosed && _turns[agentId] == turn) {
         _turns.remove(agentId);
+        _toolCalls.closeOpen(agent, FallbackToolResult.cancelled);
         agent.endTurn();
       }
     }
@@ -108,6 +126,9 @@ class AgentRunner({
   /// cancelled; see `ToolCallRunner.cancelAwaiting`.
   void cancelAwaiting(String toolName) =>
       _toolCalls.cancelAwaiting(_agentsInTurn, toolName);
+
+  /// The replays in flight, so a second [connect] can wait for the first.
+  final _replays = <String, ({Turn turn, Future<void> done})>{};
 
   /// Stops the turn of [agent]: cancels its tool handlers, closes its open
   /// tool calls and asks the runtime to stop the run in flight, if any.
