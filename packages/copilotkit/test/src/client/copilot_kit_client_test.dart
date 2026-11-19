@@ -472,6 +472,28 @@ void main() {
       });
     });
 
+    group('memories', () {
+      test('is one client for the runtime, created on first use', () {
+        expect(client.memories, isA<MemoriesClient>());
+        expect(client.memories, same(client.memories));
+      });
+
+      test('is closed with the client', () async {
+        final memories = client.memories;
+
+        await client.close();
+
+        // A closed client sends nothing more.
+        await expectLater(memories.list(), throwsA(isA<MemoryException>()));
+      });
+
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.memories, throwsStateError);
+      });
+    });
+
     group('threads after close', () {
       test('cannot be read once the client is closed', () async {
         await client.close();

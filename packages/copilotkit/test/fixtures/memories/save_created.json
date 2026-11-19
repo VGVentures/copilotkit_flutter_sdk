@@ -1,0 +1,9 @@
+{
+  "id": "mem_3",
+  "kind": "episodic",
+  "scope": "user",
+  "content": "Booked a trip to Lima.",
+  "sourceThreadIds": ["thread_c"],
+  "invalidatedAt": null,
+  "absorbed": false
+}
