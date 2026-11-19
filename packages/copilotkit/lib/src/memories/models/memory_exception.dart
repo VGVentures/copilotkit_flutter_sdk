@@ -21,11 +21,16 @@ class const MemoryException({
 
   /// Whether trying again could succeed.
   ///
-  /// A 4xx status is the caller's fault, so it is not retryable. Anything
-  /// else, a 5xx or no answer at all, may be transient.
+  /// A 4xx status is the caller's fault, so it is not retryable, except 408
+  /// (request timeout) and 429 (too many requests), which say to try again
+  /// later. Anything else, a 5xx or no answer at all, may be transient.
   bool get isRetryable {
     final status = statusCode;
-    return status == null || status < 400 || status > 499;
+    return status == null ||
+        status == 408 ||
+        status == 429 ||
+        status < 400 ||
+        status > 499;
   }
 
   @override

@@ -5,7 +5,9 @@
 export const defaultLearningContainerId = "flutter-example";
 
 /** Identity used when the app sends no demo identity header. */
-export const defaultUser = { id: "flutter-example-user", name: "Flutter example" };
+// Keeps the id Intelligence mode already used on main, so a thread the app saved
+// before the Learning container existed still belongs to the same user.
+export const defaultUser = { id: "example-user", name: "Flutter example" };
 
 // Intelligence accepts 1-64 lowercase letters or digits, joined by single hyphens.
 const containerIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -25,10 +27,4 @@ export function resolveLearningContainerId(value: string | undefined): string {
     );
   }
   return id;
-}
-
-/** Resolves the demo user from the `x-demo-user` header, or the default user. */
-export function identifyDemoUser(request: Request): { id: string; name: string } {
-  const name = request.headers.get("x-demo-user")?.trim();
-  return name ? { id: name.toLowerCase().replace(/\s+/g, "-"), name } : defaultUser;
 }
