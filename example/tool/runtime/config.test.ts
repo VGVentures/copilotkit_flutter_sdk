@@ -3,7 +3,6 @@ import { test } from "node:test";
 import {
   defaultLearningContainerId,
   defaultUser,
-  identifyDemoUser,
   resolveLearningContainerId,
 } from "./config.ts";
 
@@ -23,11 +22,6 @@ test("rejects invalid container ids", () => {
   }
 });
 
-test("identifies the user from the demo header", () => {
-  const request = new Request("http://x", { headers: { "x-demo-user": "Ada Lovelace" } });
-  assert.deepEqual(identifyDemoUser(request), { id: "ada-lovelace", name: "Ada Lovelace" });
-});
-
-test("falls back to the default user without the header", () => {
-  assert.deepEqual(identifyDemoUser(new Request("http://x")), defaultUser);
+test("keeps the user id Intelligence mode used before the container", () => {
+  assert.equal(defaultUser.id, "example-user");
 });

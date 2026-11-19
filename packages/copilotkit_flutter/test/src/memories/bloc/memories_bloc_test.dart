@@ -41,6 +41,7 @@ void main() {
 
   group(MemoriesBloc, () {
     late _MockMemoriesClient client;
+    late List<Completer<List<Memory>>> pendingLists;
 
     setUp(() => client = _MockMemoriesClient());
 
@@ -165,6 +166,70 @@ void main() {
       );
     });
 
+    group('a mutation that finishes while the list loads', () {
+      blocTest<MemoriesBloc, MemoriesState>(
+        'loads the list again so the stale one does not overwrite it',
+        setUp: () {
+          final lists = <Completer<List<Memory>>>[];
+          when(
+            () => client.list(
+              includeInvalidated: any(named: 'includeInvalidated'),
+            ),
+          ).thenAnswer((_) {
+            final pending = Completer<List<Memory>>();
+            lists.add(pending);
+            return pending.future;
+          });
+          when(() => client.retire(any())).thenAnswer((_) async {});
+          pendingLists = lists;
+        },
+        build: buildBloc,
+        act: (bloc) async {
+          bloc.add(const MemoriesRequested());
+          await pumpEventQueue();
+          bloc.add(const MemoryRetired('m1'));
+          await pumpEventQueue();
+          // The first list was read before the retirement.
+          pendingLists.first.complete([_tea, _seats]);
+          await pumpEventQueue();
+          pendingLists.last.complete([_seats]);
+        },
+        verify: (bloc) {
+          expect(pendingLists, hasLength(2));
+          expect(bloc.state.memories, [_seats]);
+          expect(bloc.state.isLoading, isFalse);
+        },
+      );
+
+      blocTest<MemoriesBloc, MemoriesState>(
+        'keeps asking for the retired memories when it loads again',
+        setUp: () {
+          final lists = <Completer<List<Memory>>>[];
+          when(
+            () => client.list(
+              includeInvalidated: any(named: 'includeInvalidated'),
+            ),
+          ).thenAnswer((_) {
+            final pending = Completer<List<Memory>>();
+            lists.add(pending);
+            return pending.future;
+          });
+          when(() => client.retire(any())).thenAnswer((_) async {});
+          pendingLists = lists;
+        },
+        build: buildBloc,
+        act: (bloc) async {
+          bloc.add(const MemoriesRequested(includeInvalidated: true));
+          await pumpEventQueue();
+          bloc.add(const MemoryRetired('m1'));
+          await pumpEventQueue();
+          pendingLists.last.complete([_tea]);
+        },
+        verify: (_) =>
+            verify(() => client.list(includeInvalidated: true)).called(2),
+      );
+    });
+
     group(MemoriesRecalled, () {
       blocTest<MemoriesBloc, MemoriesState>(
         'puts the recalled memories apart from the list',
@@ -181,6 +246,7 @@ void main() {
           const MemoriesRecalled('seats', limit: 3, scope: MemoryScope.user),
         ),
         expect: () => const [
+          MemoriesState(memories: [_tea], isRecalling: true),
           MemoriesState(memories: [_tea], recalled: [_seats]),
         ],
         verify: (_) => verify(
@@ -199,7 +265,10 @@ void main() {
         ).thenThrow(_unavailable),
         build: buildBloc,
         act: (bloc) => bloc.add(const MemoriesRecalled('seats')),
-        expect: () => const [MemoriesState(isAvailable: false)],
+        expect: () => const [
+          MemoriesState(isRecalling: true),
+          MemoriesState(isAvailable: false),
+        ],
       );
 
       blocTest<MemoriesBloc, MemoriesState>(
@@ -214,6 +283,7 @@ void main() {
         build: buildBloc,
         act: (bloc) => bloc.add(const MemoriesRecalled(' ')),
         expect: () => const [
+          MemoriesState(isRecalling: true),
           MemoriesState(error: MemoryValidationException('query is blank.')),
         ],
       );
@@ -368,6 +438,36 @@ void main() {
       );
 
       blocTest<MemoriesBloc, MemoriesState>(
+        'removes the retired memory from the recalled ones too',
+        setUp: () =>
+            when(() => client.supersede(any(), any()))
+                .thenAnswer((_) async => outcome),
+        build: buildBloc,
+        seed: () =>
+            const MemoriesState(memories: [_tea], recalled: [_tea, _seats]),
+        act: (bloc) => bloc.add(const MemorySuperseded('m1', _draft)),
+        verify: (bloc) {
+          expect(bloc.state.recalled, [_seats]);
+          expect(bloc.state.memories, [replacement]);
+        },
+      );
+
+      blocTest<MemoriesBloc, MemoriesState>(
+        'marks the retired memory instead of removing it in a full list',
+        setUp: () =>
+            when(() => client.supersede(any(), any()))
+                .thenAnswer((_) async => outcome),
+        build: buildBloc,
+        seed: () =>
+            const MemoriesState(memories: [_tea], includeInvalidated: true),
+        act: (bloc) => bloc.add(const MemorySuperseded('m1', _draft)),
+        verify: (bloc) {
+          expect(bloc.state.memories.map((m) => m.id), ['m9', 'm1']);
+          expect(bloc.state.memories.last.invalidatedAt, isNotNull);
+        },
+      );
+
+      blocTest<MemoriesBloc, MemoriesState>(
         'reports the failure and keeps the list',
         setUp: () =>
             when(() => client.supersede(any(), any())).thenThrow(_failure),
@@ -402,6 +502,24 @@ void main() {
           MemoriesState(memories: [_seats]),
         ],
         verify: (_) => verify(() => client.retire('m1')).called(1),
+      );
+
+      blocTest<MemoriesBloc, MemoriesState>(
+        'marks the memory retired in a list that includes retired ones',
+        setUp: () => when(() => client.retire(any())).thenAnswer((_) async {}),
+        build: buildBloc,
+        seed: () => const MemoriesState(
+          memories: [_seats, _tea],
+          includeInvalidated: true,
+        ),
+        act: (bloc) => bloc.add(const MemoryRetired('m1')),
+        verify: (bloc) {
+          expect(bloc.state.memories.map((m) => m.id), ['m2', 'm1']);
+          expect(bloc.state.memories.first.invalidatedAt, isNull);
+          final retired = bloc.state.memories.last;
+          expect(retired.invalidatedAt, isNotNull);
+          expect(retired.content, _tea.content);
+        },
       );
 
       blocTest<MemoriesBloc, MemoriesState>(

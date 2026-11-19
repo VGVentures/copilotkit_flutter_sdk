@@ -27,6 +27,7 @@ void main() {
     late _MockCopilotKitClient client;
     late _MockThreadsClient threads;
     late Completer<void> pendingDelete;
+    late Completer<ThreadPage> pendingPage;
 
     setUp(() {
       client = _MockCopilotKitClient();
@@ -220,6 +221,74 @@ void main() {
             fetchMoreError: _failure(ThreadsErrorCode.listFailed),
           ),
         ],
+      );
+    });
+
+    group('ThreadsNextPageRequested during a refresh', () {
+      blocTest<ThreadsBloc, ThreadsState>(
+        'waits for the first page that is loading',
+        build: build,
+        seed: () => loaded(nextCursor: 'c1').copyWith(isLoading: true),
+        act: (bloc) => bloc.add(const ThreadsNextPageRequested()),
+        expect: () => <ThreadsState>[],
+        verify: (_) => verifyNever(
+          () => threads.list(
+            agentId: any(named: 'agentId'),
+            includeArchived: any(named: 'includeArchived'),
+            limit: any(named: 'limit'),
+            cursor: any(named: 'cursor'),
+          ),
+        ),
+      );
+
+      blocTest<ThreadsBloc, ThreadsState>(
+        'drops a page that continues a list a refresh has replaced',
+        setUp: () {
+          stubList(ThreadPage(threads: [a, b], nextCursor: 'c2'));
+          final pending = Completer<ThreadPage>();
+          when(() => threads.list(agentId: 'default', cursor: 'c1'))
+              .thenAnswer((_) => pending.future);
+          pendingPage = pending;
+        },
+        build: build,
+        seed: () => loaded(threads: [a], nextCursor: 'c1'),
+        act: (bloc) async {
+          bloc.add(const ThreadsNextPageRequested());
+          await pumpEventQueue();
+          bloc.add(const ThreadsRequested());
+          await pumpEventQueue();
+          pendingPage.complete(ThreadPage(threads: [c], nextCursor: 'c3'));
+        },
+        verify: (bloc) {
+          expect(bloc.state.threads, [a, b]);
+          expect(bloc.state.nextCursor, 'c2');
+          expect(bloc.state.isFetchingNextPage, isFalse);
+        },
+      );
+
+      blocTest<ThreadsBloc, ThreadsState>(
+        'ignores the failure of a page a refresh has replaced',
+        setUp: () {
+          stubList(ThreadPage(threads: [a, b], nextCursor: 'c2'));
+          final pending = Completer<ThreadPage>();
+          when(() => threads.list(agentId: 'default', cursor: 'c1'))
+              .thenAnswer((_) => pending.future);
+          pendingPage = pending;
+        },
+        build: build,
+        seed: () => loaded(threads: [a], nextCursor: 'c1'),
+        act: (bloc) async {
+          bloc.add(const ThreadsNextPageRequested());
+          await pumpEventQueue();
+          bloc.add(const ThreadsRequested());
+          await pumpEventQueue();
+          pendingPage.completeError(_failure(ThreadsErrorCode.listFailed));
+        },
+        verify: (bloc) {
+          expect(bloc.state.threads, [a, b]);
+          expect(bloc.state.fetchMoreError, isNull);
+          expect(bloc.state.isFetchingNextPage, isFalse);
+        },
       );
     });
 
@@ -418,6 +487,54 @@ void main() {
           // c was at index 2, but only a is left, so it goes after a.
           expect(bloc.state.threads, [a, c]);
           expect(bloc.state.error, isA<ThreadsException>());
+          expect(bloc.state.isMutating, isFalse);
+        },
+      );
+
+      blocTest<ThreadsBloc, ThreadsState>(
+        'does not list a thread twice when a refresh brought it back first',
+        setUp: () {
+          stubList(ThreadPage(threads: [a, b, c]));
+          pendingDelete = Completer<void>();
+          when(() => threads.delete(agentId: 'default', threadId: 'b'))
+              .thenAnswer((_) => pendingDelete.future);
+        },
+        build: build,
+        seed: loaded,
+        act: (bloc) async {
+          bloc.add(const ThreadDeleted('b'));
+          await pumpEventQueue();
+          bloc.add(const ThreadsRequested());
+          await pumpEventQueue();
+          pendingDelete.completeError(
+            _failure(ThreadsErrorCode.mutationFailed),
+          );
+        },
+        verify: (bloc) {
+          expect(bloc.state.threads, [a, b, c]);
+          expect(bloc.state.error, isA<ThreadsException>());
+        },
+      );
+
+      blocTest<ThreadsBloc, ThreadsState>(
+        'removes a thread a refresh brought back when its delete succeeds',
+        setUp: () {
+          stubList(ThreadPage(threads: [a, b, c]));
+          pendingDelete = Completer<void>();
+          when(() => threads.delete(agentId: 'default', threadId: 'b'))
+              .thenAnswer((_) => pendingDelete.future);
+        },
+        build: build,
+        seed: loaded,
+        act: (bloc) async {
+          bloc.add(const ThreadDeleted('b'));
+          await pumpEventQueue();
+          bloc.add(const ThreadsRequested());
+          await pumpEventQueue();
+          pendingDelete.complete();
+        },
+        verify: (bloc) {
+          expect(bloc.state.threads, [a, c]);
           expect(bloc.state.isMutating, isFalse);
         },
       );

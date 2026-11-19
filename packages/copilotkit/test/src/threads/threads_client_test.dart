@@ -202,10 +202,48 @@ void main() {
           throwsA(
             isA<ThreadsException>()
                 .having((e) => e.code, 'code', ThreadsErrorCode.requestTimeout)
-                .having((e) => e.message, 'message', contains('0s')),
+                .having((e) => e.message, 'message', contains('20 ms')),
           ),
         );
       });
+    });
+
+    test(
+      'aborts the request when the runtime does not answer in time',
+      () async {
+        Future<void>? abortTrigger;
+        client = ThreadsClient(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit'),
+          httpClient: MockClient.streaming((request, _) {
+            abortTrigger = (request as http.Abortable).abortTrigger;
+            return Completer<http.StreamedResponse>().future;
+          }),
+          timeout: const Duration(milliseconds: 20),
+        );
+
+        await expectLater(
+          client.delete(agentId: 'default', threadId: 't'),
+          throwsA(isA<ThreadsException>()),
+        );
+
+        await expectLater(abortTrigger, completes);
+      },
+    );
+
+    test('names a timeout of a second or more in seconds', () async {
+      client = build(timeout: const Duration(seconds: 1));
+      answer = (_) => Completer<http.Response>().future;
+
+      await expectLater(
+        client.list(agentId: 'default'),
+        throwsA(
+          isA<ThreadsException>().having(
+            (e) => e.message,
+            'message',
+            contains('1s'),
+          ),
+        ),
+      );
     });
 
     group('rename', () {

@@ -153,6 +153,67 @@ void main() {
       expect(find.byKey(const Key('thread_menu_a')), findsNothing);
     });
 
+    testWidgets('offers no change for the thread the chat is on', (
+      tester,
+    ) async {
+      await pump(
+        tester,
+        ThreadsState(threads: [_thread('a'), _thread('b')], canMutate: true),
+        current: 'a',
+      );
+      await open(tester);
+
+      expect(find.byKey(const Key('thread_menu_a')), findsNothing);
+      expect(find.byKey(const Key('thread_menu_b')), findsOneWidget);
+    });
+
+    testWidgets('says so when a change fails while the list is showing', (
+      tester,
+    ) async {
+      final failed = ThreadsState(threads: [_thread('a')], error: 'boom');
+      whenListen(
+        bloc,
+        Stream.value(failed),
+        initialState: ThreadsState(threads: [_thread('a')]),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<ThreadsBloc>.value(
+            value: bloc,
+            child: const ThreadsView(currentThreadId: null),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(
+        find.text('Could not change that conversation. Try again.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('does not show a snack bar for a failed first load', (
+      tester,
+    ) async {
+      whenListen(
+        bloc,
+        Stream.value(const ThreadsState(error: 'boom')),
+        initialState: const ThreadsState(),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: BlocProvider<ThreadsBloc>.value(
+            value: bloc,
+            child: const ThreadsView(currentThreadId: null),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byKey(const Key('threads_error')), findsOneWidget);
+    });
+
     testWidgets('archives and deletes from the menu', (tester) async {
       await pump(
         tester,

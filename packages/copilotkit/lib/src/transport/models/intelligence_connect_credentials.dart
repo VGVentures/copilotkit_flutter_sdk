@@ -12,8 +12,8 @@ part 'intelligence_connect_credentials.g.dart';
 // Equatable's getters would be serialized too, so only annotated fields are.
 @JsonSerializable(createToJson: false, ignoreUnannotated: true)
 class const IntelligenceConnectCredentials({
-  /// The thread to replay. The runtime may answer with a different id than the
-  /// one requested, and then this is the one to use.
+  /// The thread the runtime replays. The transport doesn't use it: it joins
+  /// [realtime]'s topic, and the agent keeps the thread id it was given.
   @JsonKey() required final String threadId,
 
   /// The token to join the channel with. It is single-use.
