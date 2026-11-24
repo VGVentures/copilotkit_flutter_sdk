@@ -161,8 +161,9 @@ can't act on, so it stays in `onError` alone.
 
 `onError` keeps its `Object` signature and receives the same value that goes
 to `state.error`. It also keeps receiving errors that are not part of the
-family, because they don't end a run: a tool handler that throws, a skipped
-event, a response that can't be encoded. The family is the errors of a run,
+family, because they don't end a run: a tool handler that throws, a
+response that can't be encoded. A skipped event is not one of them: it goes to
+`onSkippedEvent` ([ADR 0013](0013-transport-options-on-the-client.md)). The family is the errors of a run,
 not every error the SDK reports.
 
 ## Alternatives
