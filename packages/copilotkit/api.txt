@@ -79,6 +79,7 @@ package:copilotkit/copilotkit.dart:
     new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
     agents (getter: Map<String, CopilotAgent>)
     context (getter: List<AgentContextEntry>)
+    threads (getter: ThreadsClient)
     tools (getter: Map<String, ClientTool<Object?>>)
     addContext (method: void Function(AgentContextEntry))
     agent (method: CopilotAgent Function(String, {String? threadId}))
@@ -179,6 +180,44 @@ package:copilotkit/copilotkit.dart:
     message (getter: String?)
     props (getter: List<Object?>)
     toString (method: String Function())
+  ThreadPage (class extends Equatable):
+    new (const constructor: ThreadPage Function({String? nextCursor, required List<ThreadRecord> threads}))
+    fromJson (constructor: ThreadPage Function(Map<String, Object?>))
+    hasNext (getter: bool)
+    nextCursor (getter: String?)
+    props (getter: List<Object?>)
+    threads (getter: List<ThreadRecord>)
+  ThreadRecord (class extends Equatable):
+    new (const constructor: ThreadRecord Function({required String agentId, required bool archived, required DateTime createdAt, required String id, String? name, required DateTime updatedAt}))
+    fromJson (constructor: ThreadRecord Function(Map<String, Object?>))
+    agentId (getter: String)
+    archived (getter: bool)
+    createdAt (getter: DateTime)
+    id (getter: String)
+    name (getter: String?)
+    props (getter: List<Object?>)
+    updatedAt (getter: DateTime)
+  ThreadsClient (class extends Object):
+    new (constructor: ThreadsClient Function({Future<Map<String, String>> Function()? headers, Client? httpClient, required Uri runtimeUrl, Duration timeout}))
+    archive (method: Future<void> Function({required String agentId, required String threadId}))
+    close (method: void Function())
+    delete (method: Future<void> Function({required String agentId, required String threadId}))
+    list (method: Future<ThreadPage> Function({required String agentId, String? cursor, bool includeArchived, int? limit}))
+    rename (method: Future<ThreadRecord> Function({required String agentId, required String name, required String threadId}))
+    unarchive (method: Future<ThreadRecord> Function({required String agentId, required String threadId}))
+  ThreadsErrorCode (enum):
+    listFailed (enum constant: ThreadsErrorCode)
+    mutationFailed (enum constant: ThreadsErrorCode)
+    requestTimeout (enum constant: ThreadsErrorCode)
+    values (static const getter: List<ThreadsErrorCode>)
+  ThreadsException (class extends Equatable implements Exception):
+    new (const constructor: ThreadsException Function({required ThreadsErrorCode code, required String message, int? statusCode}))
+    code (getter: ThreadsErrorCode)
+    isRetryable (getter: bool)
+    message (getter: String)
+    props (getter: List<Object?>)
+    statusCode (getter: int?)
+    toString (method: String Function())
   ToolCall@1 (class extends Equatable):
     new (const constructor: ToolCall@1 Function({required String arguments, String? encryptedValue, required String id, required String name}))
     fromAgUi (constructor: ToolCall@1 Function(ToolCall@2), internal)
@@ -242,6 +281,8 @@ dart:async:
   Future (referenced)
   Stream (referenced)
 dart:core:
+  DateTime (referenced)
+  Duration (referenced)
   Exception (referenced)
   Iterable (referenced)
   List (referenced)
@@ -251,6 +292,7 @@ dart:core:
   String (referenced)
   Uri (referenced)
   bool (referenced)
+  int (referenced)
 package:ack/src/schemas/schema.dart:
   ObjectSchema (referenced)
 package:ag_ui/src/events/events.dart:
@@ -262,5 +304,7 @@ package:ag_ui/src/types/tool.dart:
   ToolCall@2 (referenced)
 package:equatable/src/equatable.dart:
   Equatable (referenced)
+package:http/src/client.dart:
+  Client (referenced)
 package:json_utils/src/json_patcher.dart:
   JsonPatcher (referenced)
