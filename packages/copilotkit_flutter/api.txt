@@ -160,6 +160,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     runAgent (method: Future<void> Function(String, {Message@1? message}))
     stopAgent (method: Future<void> Function(String))
     switchAgentThread (method: Future<void> Function(String, String))
+    threadEndpoints (method: Future<ThreadEndpoints> Function())
     unregisterTool (method: void Function(ClientTool<Object?>))
     updateContext (method: void Function(String, Map<String, Object?>))
   CopilotTool (class<T> extends StatelessWidget):
@@ -250,6 +251,22 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     props (getter: List<Object?>)
     copyWith (method: SystemMessage Function({String? content}), internal)
     toAgUi (method: Message@2 Function(), internal)
+  ThreadArchived (class extends ThreadsEvent, final):
+    new (const constructor: ThreadArchived Function(String))
+    props (getter: List<Object?>)
+    threadId (getter: String)
+  ThreadDeleted (class extends ThreadsEvent, final):
+    new (const constructor: ThreadDeleted Function(String))
+    props (getter: List<Object?>)
+    threadId (getter: String)
+  ThreadEndpoints (class extends Equatable):
+    new (const constructor: ThreadEndpoints Function({bool inspect, bool list, bool mutations, bool realtimeMetadata}))
+    fromJson (constructor: ThreadEndpoints Function(Map<String, Object?>))
+    inspect (getter: bool)
+    list (getter: bool)
+    mutations (getter: bool)
+    props (getter: List<Object?>)
+    realtimeMetadata (getter: bool)
   ThreadLockedException (class extends Equatable implements Exception):
     new (const constructor: ThreadLockedException Function({String? message}))
     message (getter: String?)
@@ -272,6 +289,18 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     name (getter: String?)
     props (getter: List<Object?>)
     updatedAt (getter: DateTime)
+    copyWith (method: ThreadRecord Function({bool? archived, String? name}))
+  ThreadRenamed (class extends ThreadsEvent, final):
+    new (const constructor: ThreadRenamed Function(String, String))
+    name (getter: String)
+    props (getter: List<Object?>)
+    threadId (getter: String)
+  ThreadUnarchived (class extends ThreadsEvent, final):
+    new (const constructor: ThreadUnarchived Function(String))
+    props (getter: List<Object?>)
+    threadId (getter: String)
+  ThreadsBloc (class extends Bloc<ThreadsEvent, ThreadsState>):
+    new (constructor: ThreadsBloc Function({required String agentId, required CopilotKitClient client, bool includeArchived, int? limit}))
   ThreadsClient (class extends Object):
     new (constructor: ThreadsClient Function({Future<Map<String, String>> Function()? headers, Client? httpClient, required Uri runtimeUrl, Duration timeout}))
     archive (method: Future<void> Function({required String agentId, required String threadId}))
@@ -285,6 +314,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     mutationFailed (enum constant: ThreadsErrorCode)
     requestTimeout (enum constant: ThreadsErrorCode)
     values (static const getter: List<ThreadsErrorCode>)
+  ThreadsEvent (class extends Equatable, sealed (immediate subtypes: ThreadArchived, ThreadDeleted, ThreadRenamed, ThreadUnarchived, ThreadsNextPageRequested, ThreadsRequested))
   ThreadsException (class extends Equatable implements Exception):
     new (const constructor: ThreadsException Function({required ThreadsErrorCode code, required String message, int? statusCode}))
     code (getter: ThreadsErrorCode)
@@ -293,6 +323,27 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     props (getter: List<Object?>)
     statusCode (getter: int?)
     toString (method: String Function())
+  ThreadsNextPageRequested (class extends ThreadsEvent, final):
+    new (const constructor: ThreadsNextPageRequested Function())
+    props (getter: List<Object?>)
+  ThreadsRequested (class extends ThreadsEvent, final):
+    new (const constructor: ThreadsRequested Function())
+    props (getter: List<Object?>)
+  ThreadsState (class extends Equatable, final):
+    new (const constructor: ThreadsState Function({bool canMutate, Object? error, Object? fetchMoreError, int inFlightMutationCount, bool isAvailable, bool isFetchingNextPage, bool isLoading, String? nextCursor, List<ThreadRecord> threads}))
+    canMutate (getter: bool)
+    error (getter: Object?)
+    fetchMoreError (getter: Object?)
+    hasNextPage (getter: bool)
+    inFlightMutationCount (getter: int)
+    isAvailable (getter: bool)
+    isFetchingNextPage (getter: bool)
+    isLoading (getter: bool)
+    isMutating (getter: bool)
+    nextCursor (getter: String?)
+    props (getter: List<Object?>)
+    threads (getter: List<ThreadRecord>)
+    copyWith (method: ThreadsState Function({bool? canMutate, Object? Function()? error, Object? Function()? fetchMoreError, int? inFlightMutationCount, bool? isAvailable, bool? isFetchingNextPage, bool? isLoading, String? Function()? nextCursor, List<ThreadRecord>? threads}))
   ToolCall@1 (class extends Equatable):
     new (const constructor: ToolCall@1 Function({required String arguments, String? encryptedValue, required String id, required String name}))
     fromAgUi (constructor: ToolCall@1 Function(ToolCall@2), internal)

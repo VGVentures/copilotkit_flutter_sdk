@@ -90,6 +90,22 @@ class CopilotKitClient({
     );
   }
 
+  /// Reads which thread routes the runtime has, from its `GET /info`.
+  ///
+  /// Never throws: when the runtime can't be asked, the error goes to
+  /// `onError` and no route is reported as available.
+  Future<ThreadEndpoints> threadEndpoints() async {
+    try {
+      final info = await _transport.info(
+        headers: await _headers?.call() ?? const {},
+      );
+      return info.threadEndpoints;
+    } on Object catch (error, stackTrace) {
+      _report(error, stackTrace);
+      return const ThreadEndpoints();
+    }
+  }
+
   /// The open agents, by agent id. A read-only view.
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
 
