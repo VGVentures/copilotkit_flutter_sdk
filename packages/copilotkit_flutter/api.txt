@@ -188,6 +188,8 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     new (const constructor: HumanInTheLoopTool<T> Function({required T Function(Map<String, Object?>) decode, required String description, bool followUp, required String name, required ObjectSchema parameters}))
     followUp (getter: bool)
     props (getter: List<Object?>)
+  MemoriesBloc (class extends Bloc<MemoriesEvent, MemoriesState>):
+    new (constructor: MemoriesBloc Function({required MemoriesClient client}))
   MemoriesClient (class extends Object):
     defaultRecallLimit (static const getter: int)
     maxRecallLimit (static const getter: int)
@@ -198,6 +200,31 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     retire (method: Future<void> Function(String))
     save (method: Future<MemoryMutationOutcome> Function(NewMemory))
     supersede (method: Future<MemoryMutationOutcome> Function(String, NewMemory))
+  MemoriesEvent (class extends Equatable, sealed (immediate subtypes: MemoriesRecalled, MemoriesRequested, MemoryRetired, MemorySaved, MemorySuperseded))
+  MemoriesRecalled (class extends MemoriesEvent, final):
+    new (const constructor: MemoriesRecalled Function(String, {int? limit, MemoryScope? scope}))
+    limit (getter: int?)
+    props (getter: List<Object?>)
+    query (getter: String)
+    scope (getter: MemoryScope?)
+  MemoriesRequested (class extends MemoriesEvent, final):
+    new (const constructor: MemoriesRequested Function({bool includeInvalidated}))
+    includeInvalidated (getter: bool)
+    props (getter: List<Object?>)
+  MemoriesState (class extends Equatable, final):
+    new (const constructor: MemoriesState Function({Object? error, int inFlightMutationCount, bool includeInvalidated, bool isAvailable, bool isLoading, bool isRecalling, MemoryMutationOutcome? lastOutcome, List<Memory> memories, List<Memory> recalled}))
+    error (getter: Object?)
+    inFlightMutationCount (getter: int)
+    includeInvalidated (getter: bool)
+    isAvailable (getter: bool)
+    isLoading (getter: bool)
+    isMutating (getter: bool)
+    isRecalling (getter: bool)
+    lastOutcome (getter: MemoryMutationOutcome?)
+    memories (getter: List<Memory>)
+    props (getter: List<Object?>)
+    recalled (getter: List<Memory>)
+    copyWith (method: MemoriesState Function({Object? Function()? error, int? inFlightMutationCount, bool? includeInvalidated, bool? isAvailable, bool? isLoading, bool? isRecalling, MemoryMutationOutcome? Function()? lastOutcome, List<Memory>? memories, List<Memory>? recalled}))
   Memory (class extends Equatable):
     new (const constructor: Memory Function({required String content, required String id, DateTime? invalidatedAt, required MemoryKind kind, required MemoryScope scope, double? score, required List<String> sourceThreadIds}))
     fromJson (constructor: Memory Function(Map<String, Object?>))
@@ -239,12 +266,25 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     memory (getter: Memory)
     props (getter: List<Object?>)
     retiredId (getter: String?)
+  MemoryRetired (class extends MemoriesEvent, final):
+    new (const constructor: MemoryRetired Function(String))
+    id (getter: String)
+    props (getter: List<Object?>)
+  MemorySaved (class extends MemoriesEvent, final):
+    new (const constructor: MemorySaved Function(NewMemory))
+    memory (getter: NewMemory)
+    props (getter: List<Object?>)
   MemoryScope (enum):
     project (enum constant: MemoryScope)
     user (enum constant: MemoryScope)
     values (static const getter: List<MemoryScope>)
     fromWireName (static method: MemoryScope? Function(Object?))
     wireName (getter: String)
+  MemorySuperseded (class extends MemoriesEvent, final):
+    new (const constructor: MemorySuperseded Function(String, NewMemory))
+    id (getter: String)
+    memory (getter: NewMemory)
+    props (getter: List<Object?>)
   MemoryUnavailableException (class extends Equatable implements Exception):
     new (const constructor: MemoryUnavailableException Function(int))
     props (getter: List<Object?>)
