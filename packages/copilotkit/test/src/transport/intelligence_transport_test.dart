@@ -109,8 +109,363 @@ void main() {
     });
 
     group('connect', () {
-      test('streams nothing, as there is no replay over Intelligence yet', () {
-        expect(transport.connect(agentId: 'a', input: _input), emitsDone);
+      const connectCredentials = <String, Object?>{
+        'threadId': 'server-thread',
+        'joinToken': 'token-1',
+        'realtime': {
+          'clientUrl': 'wss://realtime.test/client',
+          'topic': 'thread:server-thread',
+        },
+      };
+
+      PhoenixEvent started(String runId) => _agUi({
+        'type': 'RUN_STARTED',
+        'threadId': 'server-thread',
+        'runId': runId,
+      });
+
+      PhoenixEvent finished(String runId) => _agUi({
+        'type': 'RUN_FINISHED',
+        'threadId': 'server-thread',
+        'runId': runId,
+      });
+
+      PhoenixEvent text(String delta) => _agUi({
+        'type': 'TEXT_MESSAGE_CONTENT',
+        'messageId': 'm1',
+        'delta': delta,
+      });
+
+      PhoenixEvent replayComplete() =>
+          _frame('replay_complete', {'latestEventId': null});
+
+      PhoenixEvent streamIdle() => _frame('stream_idle', {});
+
+      Future<List<BaseEvent>> replay(
+        List<PhoenixEvent> sent, {
+        Map<String, String> headers = const {},
+      }) async {
+        final events = transport
+            .connect(agentId: 'a', input: _input, headers: headers)
+            .toList();
+        await pumpEventQueue();
+        sent.forEach(frames.add);
+        return await events;
+      }
+
+      setUp(() => stubHttp(200, connectCredentials));
+
+      test('asks the runtime for a full replay of the thread', () async {
+        final events = await replay(
+          [replayComplete(), streamIdle()],
+          headers: {'Authorization': 'Bearer token'},
+        );
+
+        final request = sentRequest();
+        expect(request.method, 'POST');
+        expect(
+          request.url,
+          Uri.parse('http://runtime.test/api/copilotkit/agent/a/connect'),
+        );
+        expect(request.headers['Authorization'], 'Bearer token');
+        final body = jsonDecode(request.body) as Map<String, Object?>;
+        expect(body['threadId'], 'thread-1');
+        expect(body, containsPair('lastSeenEventId', null));
+        expect(events, isEmpty);
+      });
+
+      test('turns a recorded replay into events', () async {
+        final rows = loadFixture('intelligence_connect_replay').rawEvents;
+        stubHttp(200, rows.firstWhere((row) => row['kind'] == 'http')['body']!);
+
+        final events = await replay([
+          for (final row in rows)
+            if (row['kind'] == 'frame')
+              _frame(
+                row['event']! as String,
+                row['payload']! as Map<String, Object?>,
+              ),
+        ]);
+
+        // The recording lacks the end of the run, so it is closed for it.
+        expect(events, [
+          isA<RunStartedEvent>(),
+          isA<TextMessageStartEvent>(),
+          isA<TextMessageContentEvent>(),
+          isA<RunFinishedEvent>(),
+        ]);
+        expect(
+          (events.first as RunStartedEvent).input?.messages.single.id,
+          'u1',
+        );
+        expect(skipped, isEmpty);
+      });
+
+      test('joins in connect mode with no cursor', () async {
+        await replay([replayComplete(), streamIdle()]);
+
+        expect(joinedUrl, Uri.parse('wss://realtime.test/client'));
+        expect(joinedParams, {'join_token': 'token-1'});
+        verifyInOrder([
+          channel.open,
+          () => channel.join('thread:server-thread', const {
+            'stream_mode': 'connect',
+            'last_seen_event_id': null,
+          }),
+        ]);
+      });
+
+      test('streams the replayed events and ends when it is idle', () async {
+        final events = await replay([
+          _frame('connected', {}),
+          started('r1'),
+          text('Hello'),
+          finished('r1'),
+          replayComplete(),
+          streamIdle(),
+        ]);
+
+        expect(events, [
+          isA<RunStartedEvent>(),
+          isA<TextMessageContentEvent>(),
+          isA<RunFinishedEvent>(),
+        ]);
+        verify(channel.close).called(1);
+      });
+
+      test('keeps streaming after a RUN_FINISHED until it is idle', () async {
+        final events = await replay([
+          started('r1'),
+          finished('r1'),
+          replayComplete(),
+          started('r2'),
+          text('Live'),
+          finished('r2'),
+          streamIdle(),
+        ]);
+
+        expect(events, hasLength(5));
+      });
+
+      test('does not end on stream_idle alone', () async {
+        final received = <BaseEvent>[];
+        var done = false;
+        transport
+            .connect(agentId: 'a', input: _input)
+            .listen(received.add, onDone: () => done = true);
+        await pumpEventQueue();
+
+        frames.add(streamIdle());
+        await pumpEventQueue();
+        expect(done, isFalse);
+
+        frames
+          ..add(text('late'))
+          ..add(replayComplete());
+        await pumpEventQueue();
+        expect(done, isTrue);
+        expect(received, [isA<TextMessageContentEvent>()]);
+      });
+
+      test('ends a run the replay left open with RUN_FINISHED', () async {
+        final events = await replay([
+          started('r1'),
+          text('Hello'),
+          replayComplete(),
+          streamIdle(),
+        ]);
+
+        final received = events;
+        expect(received.last, isA<RunFinishedEvent>());
+        expect((received.last as RunFinishedEvent).runId, 'r1');
+        expect((received.last as RunFinishedEvent).threadId, 'server-thread');
+      });
+
+      test('does not end a run that RUN_ERROR already ended', () async {
+        final events = await replay([
+          started('r1'),
+          _agUi({'type': 'RUN_ERROR', 'message': 'boom'}),
+          replayComplete(),
+          streamIdle(),
+        ]);
+
+        expect(events, [isA<RunStartedEvent>(), isA<RunErrorEvent>()]);
+      });
+
+      test('ends a RUN_ERROR with no run open', () async {
+        final events = await replay([
+          _agUi({'type': 'RUN_ERROR', 'message': 'boom'}),
+          replayComplete(),
+          streamIdle(),
+        ]);
+
+        expect(events, [isA<RunErrorEvent>()]);
+      });
+
+      test('skips an event it cannot decode and reports it', () async {
+        final events = await replay([
+          _agUi({'type': 'NOT_AN_EVENT'}),
+          replayComplete(),
+          streamIdle(),
+        ]);
+
+        expect(events, isEmpty);
+        expect(skipped, hasLength(1));
+      });
+
+      test('is empty when the runtime has no history', () async {
+        stubHttp(204, '');
+
+        expect(
+          await transport.connect(agentId: 'a', input: _input).toList(),
+          isEmpty,
+        );
+        verifyNever(channel.open);
+        verifyNever(() => channel.join(any(), any()));
+      });
+
+      test('fails when the runtime rejects the request', () async {
+        stubHttp(500, 'down');
+
+        await expectLater(
+          transport.connect(agentId: 'a', input: _input).toList(),
+          throwsA(
+            isA<http.ClientException>().having(
+              (e) => e.message,
+              'message',
+              contains('Connect failed with status 500'),
+            ),
+          ),
+        );
+      });
+
+      test('fails when the answer is not a JSON object', () async {
+        stubHttp(200, '[]');
+
+        await expectLater(
+          transport.connect(agentId: 'a', input: _input).toList(),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('connect credentials'),
+            ),
+          ),
+        );
+      });
+
+      test('fails when the answer lacks a field', () async {
+        stubHttp(200, {'threadId': 't'});
+
+        await expectLater(
+          transport.connect(agentId: 'a', input: _input).toList(),
+          throwsA(isA<FormatException>()),
+        );
+      });
+
+      test('fails when the join is refused', () async {
+        when(() => channel.join(any(), any())).thenThrow(
+          const PhoenixReplyException(
+            status: 'error',
+            response: 'unauthorized',
+          ),
+        );
+
+        await expectLater(
+          transport.connect(agentId: 'a', input: _input).toList(),
+          throwsA(isA<PhoenixReplyException>()),
+        );
+        verify(channel.close).called(1);
+      });
+
+      test('fails when the channel closes before the replay ends', () async {
+        final events = transport.connect(agentId: 'a', input: _input).toList();
+        await pumpEventQueue();
+
+        await frames.close();
+
+        await expectLater(
+          events,
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('before the replay finished'),
+            ),
+          ),
+        );
+      });
+
+      test('fails with the error that dropped the connection', () async {
+        final events = transport.connect(agentId: 'a', input: _input).toList();
+        await pumpEventQueue();
+
+        frames.addError(const PhoenixClosedException());
+
+        await expectLater(events, throwsA(isA<PhoenixClosedException>()));
+        verify(channel.close).called(1);
+      });
+
+      test('closes the channel when cancelled', () async {
+        final subscription = transport
+            .connect(agentId: 'a', input: _input)
+            .listen((_) {});
+        await pumpEventQueue();
+
+        await subscription.cancel();
+        await pumpEventQueue();
+
+        verify(channel.close).called(1);
+      });
+
+      test(
+        'does not join when cancelled before the runtime answered',
+        () async {
+          final answer = Completer<http.StreamedResponse>();
+          when(() => httpClient.send(any())).thenAnswer((_) => answer.future);
+          final subscription = transport
+              .connect(agentId: 'a', input: _input)
+              .listen((_) {});
+          await pumpEventQueue();
+
+          await subscription.cancel();
+          answer.complete(
+            http.StreamedResponse(
+              Stream.value(utf8.encode(jsonEncode(connectCredentials))),
+              200,
+            ),
+          );
+          await pumpEventQueue();
+
+          verifyNever(() => channel.join(any(), any()));
+        },
+      );
+
+      test('sends nothing when the transport closes first', () async {
+        final events = transport.connect(agentId: 'a', input: _input);
+
+        await transport.close();
+
+        expect(await events.toList(), isEmpty);
+        verifyNever(() => httpClient.send(any()));
+      });
+
+      test('pauses and resumes the channel with the subscription', () async {
+        final received = <BaseEvent>[];
+        final subscription = transport
+            .connect(agentId: 'a', input: _input)
+            .listen(received.add);
+        await pumpEventQueue();
+
+        subscription.pause();
+        frames.add(text('held'));
+        await pumpEventQueue();
+        expect(received, isEmpty);
+
+        subscription.resume();
+        await pumpEventQueue();
+        expect(received, [isA<TextMessageContentEvent>()]);
+        await subscription.cancel();
       });
     });
 
