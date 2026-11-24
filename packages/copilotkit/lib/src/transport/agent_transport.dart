@@ -19,6 +19,21 @@ abstract interface class AgentTransport {
     Map<String, String> headers = const {},
   });
 
+  /// Opens the thread of [input] on [agentId] and streams the events that
+  /// rebuild it: the history of the thread and, when a run of it is still
+  /// going, that run's events as they happen.
+  ///
+  /// [input] carries the thread id and an empty conversation; a replay
+  /// cursor can travel in it later without changing this signature. The
+  /// stream is empty when the runtime has no history for the thread.
+  /// [headers] are sent with the request. Cancelling the subscription closes
+  /// the underlying connection.
+  Stream<BaseEvent> connect({
+    required String agentId,
+    required RunAgentInput input,
+    Map<String, String> headers = const {},
+  });
+
   /// Asks the runtime to stop run [runId] of [agentId] on [threadId].
   ///
   /// Throws when the runtime rejects the request or doesn't answer in time.

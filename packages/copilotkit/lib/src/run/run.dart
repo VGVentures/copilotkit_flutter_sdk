@@ -3,5 +3,6 @@ export 'agent_runner.dart';
 export 'models/run_result.dart';
 export 'run_input_builder.dart';
 export 'run_streamer.dart';
+export 'thread_connector.dart';
 export 'tool_call_runner.dart';
 export 'turn.dart';

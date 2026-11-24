@@ -107,6 +107,22 @@ class const CopilotAgentState({
   CopilotAgentState messageAdded(Message message) =>
       copyWith(messages: [...messages, message]);
 
+  /// The [messages] followed by those of [incoming] that have an id and
+  /// that no message of the conversation has.
+  ///
+  /// A message without an id is skipped: it would get a new id every time,
+  /// and so would be added again.
+  @internal
+  List<Message> messagesWithMissing(Iterable<ag_ui.Message> incoming) {
+    final known = {for (final message in messages) message.id};
+    return [
+      ...messages,
+      for (final message in incoming)
+        if (message.id case final id? when known.add(id))
+          Message.fromAgUi(message),
+    ];
+  }
+
   /// Returns this state with [messages] as its conversation, and its
   /// [toolCalls] rebuilt from them, so calls that only exist in [messages]
   /// (a loaded history, a resync) render like live ones.

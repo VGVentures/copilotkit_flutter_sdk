@@ -87,6 +87,18 @@ class IntelligenceTransport({
   final Map<String, IntelligenceRunCredentials> _credentials = {};
   bool _closed = false;
 
+  /// Streams nothing: the history of a thread is not replayed over
+  /// Intelligence yet.
+  ///
+  /// An agent opened on a thread then starts empty, as if the runtime had no
+  /// history for it. Replay needs the connect handshake with a cursor.
+  @override
+  Stream<BaseEvent> connect({
+    required String agentId,
+    required RunAgentInput input,
+    Map<String, String> headers = const {},
+  }) => const Stream.empty();
+
   @override
   Stream<BaseEvent> run({
     required String agentId,

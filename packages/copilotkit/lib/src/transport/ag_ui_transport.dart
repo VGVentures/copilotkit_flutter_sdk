@@ -63,7 +63,25 @@ class AgUiTransport({
     required String agentId,
     required RunAgentInput input,
     Map<String, String> headers = const {},
-  }) {
+  }) => _stream('run', agentId, input, headers);
+
+  /// Posts [input] to the connect route. A runtime without history for the
+  /// thread answers `204 No Content`, which is an empty stream.
+  @override
+  Stream<BaseEvent> connect({
+    required String agentId,
+    required RunAgentInput input,
+    Map<String, String> headers = const {},
+  }) => _stream('connect', agentId, input, headers);
+
+  /// Streams the events of the route [route] of [agentId], which takes
+  /// [input] as a POST.
+  Stream<BaseEvent> _stream(
+    String route,
+    String agentId,
+    RunAgentInput input,
+    Map<String, String> headers,
+  ) {
     _ensureOpen();
     final httpClient = _httpClientFactory();
     final client = AgUiClient(
@@ -91,7 +109,7 @@ class AgUiTransport({
         if (_closed) return;
         subscription = client
             .runAgent(
-              'agent/${Uri.encodeComponent(agentId)}/run',
+              'agent/${Uri.encodeComponent(agentId)}/$route',
               _simpleInput(input),
             )
             .listen(

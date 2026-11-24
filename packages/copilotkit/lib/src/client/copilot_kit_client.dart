@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' as developer;
 
@@ -66,6 +67,11 @@ class CopilotKitClient({
       properties: _properties,
     ),
     toolCalls: ToolCallRunner(tools: _tools, onError: _report),
+    connector: ThreadConnector(
+      transport: _transport,
+      onError: _report,
+      headers: _headers,
+    ),
   );
 
   /// The open agents, by agent id. A read-only view.
@@ -85,12 +91,21 @@ class CopilotKitClient({
   /// [switchAgentThread] moves it to another thread.
   ///
   /// Keep a thread across launches by saving [CopilotAgentState.threadId] in
-  /// the app and passing it here the next time. A thread that already has a
-  /// run going answers a new run with a `ThreadLockedException`.
-  CopilotAgent agent(String agentId, {String? threadId}) => _agents.putIfAbsent(
-    agentId,
-    () => CopilotAgent(agentId: agentId, threadId: threadId),
-  );
+  /// the app and passing it here the next time. An agent opened on a given
+  /// [threadId] connects to it right away, as [connectAgent] does, so its
+  /// conversation is restored when the runtime keeps the thread's history.
+  /// A thread that already has a run going answers a new run with a
+  /// `ThreadLockedException`.
+  CopilotAgent agent(String agentId, {String? threadId}) {
+    final open = _agents[agentId];
+    if (open != null) return open;
+    final created = _agents[agentId] = CopilotAgent(
+      agentId: agentId,
+      threadId: threadId,
+    );
+    if (threadId != null) unawaited(_runner.connect(created));
+    return created;
+  }
 
   /// Moves the agent [agentId] to the thread [threadId], opening it there if
   /// it isn't open.
@@ -98,10 +113,11 @@ class CopilotKitClient({
   /// Stops the agent's turn first, as [stopAgent] does, then clears its
   /// messages, shared state, tool calls and error: the agent is on the new
   /// thread, empty, as soon as the turn has ended locally. No event of the
-  /// old turn is applied to the new thread. The returned future completes
-  /// once the runtime has answered the request to stop the old run; a
-  /// failure of that request goes to `onError`. Does nothing when the agent
-  /// is on that thread already.
+  /// old turn is applied to the new thread. The agent then connects to the
+  /// new thread, as [connectAgent] does, without the returned future waiting
+  /// for it. The returned future completes once the runtime has answered the
+  /// request to stop the old run; a failure of that request goes to
+  /// `onError`. Does nothing when the agent is on that thread already.
   Future<void> switchAgentThread(String agentId, String threadId) async {
     final open = _agents[agentId];
     if (open == null) {
@@ -110,6 +126,27 @@ class CopilotKitClient({
     }
     await _runner.switchThread(open, threadId);
   }
+
+  /// Restores the conversation of the agent [agentId], opening it if needed,
+  /// from the history its runtime keeps for the agent's thread.
+  ///
+  /// Replaces the agent's messages and shared state with the replay, and
+  /// keeps [CopilotAgentState.isRunning] `true` until it ends, which is when a
+  /// run still going on the thread ends. A thread with no history leaves
+  /// the agent empty. It needs a runtime whose runner keeps history, such as
+  /// the in-memory or SQLite runners.
+  ///
+  /// Completes when the replay ends and never throws: errors go to `onError`
+  /// and to [CopilotAgentState.error], and the agent stays usable. Tool calls
+  /// the replay leaves without a result are closed as cancelled. While the
+  /// agent's replay is already running, for example the one `agent` started
+  /// for a given thread, it returns that replay's future. Does nothing while
+  /// the agent is running anything else.
+  ///
+  /// [stopAgent] during a replay ends it on the device only: a run still
+  /// going on the runtime keeps going, and a new run on the thread answers
+  /// with a `ThreadLockedException` until it ends.
+  Future<void> connectAgent(String agentId) => _runner.connect(agent(agentId));
 
   /// Registers [tool]; every run sends it to the agent.
   ///

@@ -15,8 +15,9 @@ constructor, with production defaults, so tests can replace each one. The
 facade composes them: `CopilotKitClient` builds a `ToolRegistry`, an
 `AgentContextStore` and an `AgentRunner`. The runner takes a `RunStreamer`,
 which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
-which runs the tool calls between runs with a `ToolCallExecutor` (see
-[Data flow](ARCHITECTURE.md#data-flow)).
+which runs the tool calls between runs with a `ToolCallExecutor`. It also
+takes a `ThreadConnector`, which rebuilds an agent's conversation from the
+runtime's replay of its thread (see [Data flow](ARCHITECTURE.md#data-flow)).
 
 ```dart
 // Good: the mapper gets its JSON helpers injected

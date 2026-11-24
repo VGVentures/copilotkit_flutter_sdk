@@ -10,7 +10,9 @@ import 'mock_agent_transport.dart';
 /// An [AgentRunner], with its [RunStreamer] and [ToolCallRunner], on a
 /// mocked transport, with its own tools, context and agent.
 ///
-/// Each run streams the next entry of [runs]; stops always succeed.
+/// Each run streams the next entry of [runs], each connection the next
+/// entry of [connects] (an empty replay when none is queued); stops always
+/// succeed.
 class RunnerHarness {
   /// Creates a harness with no queued runs.
   ///
@@ -23,6 +25,9 @@ class RunnerHarness {
   }) {
     transport
       ..stubRun(() => runs.removeAt(0))
+      ..stubConnect(
+        () => connects.isEmpty ? const Stream.empty() : connects.removeAt(0),
+      )
       ..stubStop();
     when(transport.close).thenAnswer((_) async {});
     final report = onError ?? (error, _) => errors.add(error);
@@ -35,11 +40,17 @@ class RunnerHarness {
       properties: properties,
     );
     toolCalls = ToolCallRunner(tools: tools, onError: report);
+    connector = ThreadConnector(
+      transport: transport,
+      onError: report,
+      headers: headers,
+    );
     runner = AgentRunner(
       transport: transport,
       onError: report,
       streamer: streamer,
       toolCalls: toolCalls,
+      connector: connector,
     );
   }
 
@@ -58,6 +69,9 @@ class RunnerHarness {
   /// Event streams for the next runs, consumed in order.
   final List<Stream<ag_ui.BaseEvent>> runs = [];
 
+  /// Event streams for the next connections, consumed in order.
+  final List<Stream<ag_ui.BaseEvent>> connects = [];
+
   /// The agent the tests run.
   final CopilotAgent agent = CopilotAgent(agentId: 'default');
 
@@ -66,6 +80,9 @@ class RunnerHarness {
 
   /// Runs the tool calls of [runner].
   late final ToolCallRunner toolCalls;
+
+  /// Replays the threads of [runner].
+  late final ThreadConnector connector;
 
   /// The runner under test.
   late final AgentRunner runner;
