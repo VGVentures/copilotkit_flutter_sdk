@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/memories/memories.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
 import 'package:copilotkit/src/threads/threads.dart';
@@ -104,6 +105,21 @@ class CopilotKitClient({
       _report(error, stackTrace);
       return const ThreadEndpoints();
     }
+  }
+
+  MemoriesClient? _memories;
+
+  /// Lists, recalls, saves, supersedes and retires the user's memories on
+  /// the runtime, with the same `headers` as the runs.
+  ///
+  /// It is created on first use, closed with this client, and throws a
+  /// [StateError] after [close].
+  MemoriesClient get memories {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _memories ??= MemoriesClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
   }
 
   /// The open agents, by agent id. A read-only view.
@@ -256,6 +272,7 @@ class CopilotKitClient({
     _closed = true;
     // First: closing it is synchronous, and a failure below must not skip it.
     _threads?.close();
+    _memories?.close();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();

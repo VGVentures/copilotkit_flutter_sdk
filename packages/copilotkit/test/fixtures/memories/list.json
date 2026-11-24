@@ -1,0 +1,22 @@
+{
+  "memories": [
+    {
+      "id": "mem_2",
+      "kind": "operational",
+      "scope": "project",
+      "content": "Always answer in metric units.",
+      "sourceThreadIds": [],
+      "invalidatedAt": null,
+      "organizationId": "org_1",
+      "projectId": "proj_1"
+    },
+    {
+      "id": "mem_1",
+      "kind": "topical",
+      "scope": "user",
+      "content": "Prefers window seats.",
+      "sourceThreadIds": ["thread_a", "thread_b"],
+      "invalidatedAt": "2026-05-01T10:30:00.000Z"
+    }
+  ]
+}
