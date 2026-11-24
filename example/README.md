@@ -71,6 +71,61 @@ physical device use the LAN URL. In Chrome use `localhost`.
 > API keys. The runtime still starts and `/info` still responds, but every
 > message fails. Use the model that the error message recommends.
 
+## Learning with Intelligence
+
+With a CopilotKit Intelligence project, the runtime records the app's
+conversations as threads, and Automatic Learning turns them into Insights and
+reviewable Skills. This is optional: without `CPK_INTELLIGENCE_API_KEY` the
+runtime serves plain SSE, exactly as before.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `CPK_INTELLIGENCE_API_KEY` | none | Project API key. Setting it turns Intelligence mode on. |
+| `CPK_INTELLIGENCE_LEARNING_CONTAINER_ID` | `flutter-example` | Learning container that threads are assigned to. |
+
+`example/tool/.env.example` lists them. The key is server-side only: keep it in
+your shell or in the git-ignored `example/tool/.env`, never in the app or in a
+committed file. The container id must be 1-64 lowercase letters, numbers or
+single hyphens (for example `expense-review`); the runtime refuses to start
+with an invalid one.
+
+<!-- prettier-ignore -->
+> [!IMPORTANT]
+> A thread's container is permanent. The runtime assigns it before the
+> thread's first run, and the thread can never move to another container or
+> be backfilled. The app keeps one thread id across launches (see
+> `lib/app/thread_id_store.dart`) and opens its agent on it, so a device's
+> conversation stays in one thread. Create the container before the first
+> message. To start a new thread, clear the app's data.
+
+Set it up:
+
+1. Log in with `npx copilotkit@latest login` and
+   `npx copilotkit@latest project select`, or open the
+   [Intelligence dashboard](https://dashboard.operations.copilotkit.ai/). The
+   project needs Learning available.
+2. In the dashboard, open Learning and create a container whose id matches
+   `CPK_INTELLIGENCE_LEARNING_CONTAINER_ID` (default `flutter-example`).
+3. Put `CPK_INTELLIGENCE_API_KEY` in `example/tool/.env` and start the runtime.
+   Its first line names the mode:
+   `Copilot Runtime (<model>, Intelligence, Learning container "<id>")`.
+   If every message fails with `404 {"error":"Failed to initialize thread"}`,
+   the container doesn't exist in the project yet. Create it, then send
+   again.
+4. Run the app and chat. The app reuses one thread per install, so collect
+   several threads by clearing the app's data between conversations or by using
+   several devices or simulators.
+5. In the dashboard, check that the threads appear under AG-UI Streams and that
+   the container's readiness count goes up.
+6. An automatic run needs 15 eligible threads by default and is scheduled daily
+   (02:00 UTC by default). To check sooner, choose **Start manual run now** on
+   the container.
+7. When the run finishes, open the container's Insights. They should describe
+   patterns from your conversations (todos, weather, approvals). Skills are
+   proposed there for review; nothing reaches the agent until you publish one.
+
+Tap and navigation capture (trajectories) is not part of this example.
+
 ## Run the app
 
 Pass the runtime URL with `--dart-define`. Flutter is pinned in the root
@@ -221,10 +276,45 @@ This check confirms that the conversation history reaches the agent.
 The app keeps its thread id, so a conversation stays on the same thread after
 a restart.
 
-- Send a message, then close and reopen the app. The chat starts empty, but a
-  runtime in Intelligence mode shows the new messages on the same thread as the
-  first ones (AG-UI Streams in the Intelligence dashboard), not on a new one.
+- Send a message, then close and reopen the app (not the runtime). The chat
+  opens on the same thread and replays it: the earlier messages and the todo
+  list come back. The local runtime keeps history in memory, so restarting the
+  runtime loses it, and the chat then starts empty.
+- With a thread the runtime has no history for, for example right after
+  clearing the app's data, the chat starts empty and nothing fails.
 - Clear the app's data (or reinstall it) to start on a new thread.
+- To see what the runtime replays for a thread, post to its connect route.
+  The stream has the `RUN_STARTED`, text and `RUN_FINISHED` events of every
+  run, and a thread without history answers `204 No Content`:
+
+  ```sh
+  curl -i -N -X POST http://localhost:8200/api/copilotkit/agent/default/connect \
+    -H 'Content-Type: application/json' \
+    -H 'Accept: text/event-stream' \
+    -d '{"threadId":"<thread id>","runId":"c1","state":{},"messages":[],"tools":[],"context":[],"forwardedProps":{}}'
+  ```
+
+### Conversations
+
+Needs a runtime in Intelligence mode (`CPK_INTELLIGENCE_*` set), which keeps threads.
+
+- [ ] Tap the conversations icon in the app bar: the list shows the thread you chatted on, marked as selected.
+- [ ] Send a message, reopen the list: the thread is named after it.
+- [ ] Tap another thread: its messages replace the chat's. Restart the app: it opens on that thread.
+- [ ] Tap "+": the chat is empty, and your next message starts a new thread.
+- [ ] Archive a thread from its menu: it leaves the list. Delete another: it leaves the list at once.
+- [ ] On a runtime without Intelligence the list says it keeps no conversations.
+
+### Memories
+
+Needs a runtime with memory (Intelligence mode).
+
+- [ ] Tap the memories icon in the app bar: the screen lists what is remembered, or says nothing is yet.
+- [ ] Type a fact under "Remember something" and tap add: it appears at the top of the list.
+- [ ] Add the same fact again: a notice says it was already remembered.
+- [ ] Search for a word of a memory: the matches show under "Search results".
+- [ ] Tap the bin on a memory: it leaves the list.
+- [ ] On a runtime without memory the screen says it keeps none.
 
 ### Errors and recovery
 

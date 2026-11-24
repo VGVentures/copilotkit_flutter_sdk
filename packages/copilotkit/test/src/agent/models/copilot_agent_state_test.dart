@@ -350,6 +350,30 @@ void main() {
         );
       });
 
+      test('messagesWithMissing appends the messages it does not have', () {
+        const known = UserMessage(id: 'u1', content: 'Hi');
+        final state = empty.messageAdded(known);
+
+        final messages = state.messagesWithMissing([
+          ag_ui.UserMessage(id: 'u1', content: 'Hi'),
+          ag_ui.UserMessage(id: 'u2', content: 'Again'),
+          ag_ui.UserMessage(id: 'u2', content: 'Again'),
+        ]);
+
+        expect(messages, [
+          known,
+          const UserMessage(id: 'u2', content: 'Again'),
+        ]);
+      });
+
+      test('messagesWithMissing skips a message without an id', () {
+        final messages = empty.messagesWithMissing(const [
+          ag_ui.ReasoningMessage(content: 'Thinking'),
+        ]);
+
+        expect(messages, isEmpty);
+      });
+
       test('messagesReplaced rebuilds the tool calls from the messages', () {
         final state = empty.messagesReplaced(const [
           AssistantMessage(

@@ -1,10 +1,13 @@
+import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' as developer;
 
 import 'package:copilotkit/src/agent/agent.dart';
 import 'package:copilotkit/src/context/context.dart';
+import 'package:copilotkit/src/memories/memories.dart';
 import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
+import 'package:copilotkit/src/threads/threads.dart';
 import 'package:copilotkit/src/tools/tools.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 import 'package:meta/meta.dart';
@@ -66,7 +69,62 @@ class CopilotKitClient({
       properties: _properties,
     ),
     toolCalls: ToolCallRunner(tools: _tools, onError: _report),
+    connector: ThreadConnector(
+      transport: _transport,
+      onError: _report,
+      headers: _headers,
+    ),
   );
+
+  ThreadsClient? _threads;
+  bool _closed = false;
+
+  /// The client for the thread routes of this client's runtime.
+  ///
+  /// It sends the same headers as this client and is closed with it. It is
+  /// created on first use, and throws a [StateError] after [close].
+  ThreadsClient get threads {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _threads ??= ThreadsClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
+  }
+
+  ThreadEndpoints? _lastEndpoints;
+
+  /// Reads which thread routes the runtime has, from its `GET /info`.
+  ///
+  /// Never throws: when the runtime can't be asked, the error goes to
+  /// `onError`, and the routes it last reported are returned, or none if it
+  /// never answered. A network blip then doesn't make a runtime that has
+  /// threads look like one without.
+  Future<ThreadEndpoints> threadEndpoints() async {
+    try {
+      final info = await _transport.info(
+        headers: await _headers?.call() ?? const {},
+      );
+      return _lastEndpoints = info.threadEndpoints;
+    } on Object catch (error, stackTrace) {
+      _report(error, stackTrace);
+      return _lastEndpoints ?? const ThreadEndpoints();
+    }
+  }
+
+  MemoriesClient? _memories;
+
+  /// Lists, recalls, saves, supersedes and retires the user's memories on
+  /// the runtime, with the same `headers` as the runs.
+  ///
+  /// It is created on first use, closed with this client, and throws a
+  /// [StateError] after [close].
+  MemoriesClient get memories {
+    if (_closed) throw StateError('CopilotKitClient is closed.');
+    return _memories ??= MemoriesClient(
+      runtimeUrl: _runtimeUrl,
+      headers: _headers,
+    );
+  }
 
   /// The open agents, by agent id. A read-only view.
   Map<String, CopilotAgent> get agents => UnmodifiableMapView(_agents);
@@ -85,12 +143,21 @@ class CopilotKitClient({
   /// [switchAgentThread] moves it to another thread.
   ///
   /// Keep a thread across launches by saving [CopilotAgentState.threadId] in
-  /// the app and passing it here the next time. A thread that already has a
-  /// run going answers a new run with a `ThreadLockedException`.
-  CopilotAgent agent(String agentId, {String? threadId}) => _agents.putIfAbsent(
-    agentId,
-    () => CopilotAgent(agentId: agentId, threadId: threadId),
-  );
+  /// the app and passing it here the next time. An agent opened on a given
+  /// [threadId] connects to it right away, as [connectAgent] does, so its
+  /// conversation is restored when the runtime keeps the thread's history.
+  /// A thread that already has a run going answers a new run with a
+  /// `ThreadLockedException`.
+  CopilotAgent agent(String agentId, {String? threadId}) {
+    final open = _agents[agentId];
+    if (open != null) return open;
+    final created = _agents[agentId] = CopilotAgent(
+      agentId: agentId,
+      threadId: threadId,
+    );
+    if (threadId != null) unawaited(_runner.connect(created));
+    return created;
+  }
 
   /// Moves the agent [agentId] to the thread [threadId], opening it there if
   /// it isn't open.
@@ -98,10 +165,11 @@ class CopilotKitClient({
   /// Stops the agent's turn first, as [stopAgent] does, then clears its
   /// messages, shared state, tool calls and error: the agent is on the new
   /// thread, empty, as soon as the turn has ended locally. No event of the
-  /// old turn is applied to the new thread. The returned future completes
-  /// once the runtime has answered the request to stop the old run; a
-  /// failure of that request goes to `onError`. Does nothing when the agent
-  /// is on that thread already.
+  /// old turn is applied to the new thread. The agent then connects to the
+  /// new thread, as [connectAgent] does, without the returned future waiting
+  /// for it. The returned future completes once the runtime has answered the
+  /// request to stop the old run; a failure of that request goes to
+  /// `onError`. Does nothing when the agent is on that thread already.
   Future<void> switchAgentThread(String agentId, String threadId) async {
     final open = _agents[agentId];
     if (open == null) {
@@ -110,6 +178,27 @@ class CopilotKitClient({
     }
     await _runner.switchThread(open, threadId);
   }
+
+  /// Restores the conversation of the agent [agentId], opening it if needed,
+  /// from the history its runtime keeps for the agent's thread.
+  ///
+  /// Replaces the agent's messages and shared state with the replay, and
+  /// keeps [CopilotAgentState.isRunning] `true` until it ends, which is when a
+  /// run still going on the thread ends. A thread with no history leaves
+  /// the agent empty. It needs a runtime whose runner keeps history, such as
+  /// the in-memory or SQLite runners.
+  ///
+  /// Completes when the replay ends and never throws: errors go to `onError`
+  /// and to [CopilotAgentState.error], and the agent stays usable. Tool calls
+  /// the replay leaves without a result are closed as cancelled. While the
+  /// agent's replay is already running, for example the one `agent` started
+  /// for a given thread, it returns that replay's future. Does nothing while
+  /// the agent is running anything else.
+  ///
+  /// [stopAgent] during a replay ends it on the device only: a run still
+  /// going on the runtime keeps going, and a new run on the thread answers
+  /// with a `ThreadLockedException` until it ends.
+  Future<void> connectAgent(String agentId) => _runner.connect(agent(agentId));
 
   /// Registers [tool]; every run sends it to the agent.
   ///
@@ -184,6 +273,10 @@ class CopilotKitClient({
   ///
   /// The client and its agents can't be used afterwards.
   Future<void> close() async {
+    _closed = true;
+    // First: closing it is synchronous, and a failure below must not skip it.
+    _threads?.close();
+    _memories?.close();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();

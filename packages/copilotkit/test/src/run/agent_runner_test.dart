@@ -390,6 +390,162 @@ void main() {
       });
     });
 
+    group('connect', () {
+      void queueReplay(List<ag_ui.BaseEvent> events) =>
+          harness.connects.add(Stream.fromIterable(events));
+
+      test('restores the conversation and ends the turn', () async {
+        queueReplay(loadFixture('connect_replay').events);
+        final running = recordRunning();
+
+        await runner.connect(agent);
+
+        expect(agent.state.messages, hasLength(4));
+        expect(agent.state.isRunning, isFalse);
+        await pumpEventQueue();
+        expect(running, [true, true, true, true, true, true, true, false]);
+        transport.verifyNoRun();
+        expect(errors, isEmpty);
+      });
+
+      test('keeps the agent running while a run is still going', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+
+        final connected = runner.connect(agent);
+        events.add(ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'));
+        await pumpEventQueue();
+
+        expect(agent.state.isRunning, isTrue);
+        events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
+        await events.close();
+        await connected;
+        expect(agent.state.isRunning, isFalse);
+      });
+
+      test('closes the tool calls a replay left without a result', () async {
+        queueReplay([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          const ag_ui.ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'ask'),
+          const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{}'),
+          const ag_ui.ToolCallEndEvent(toolCallId: 'c1'),
+          ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
+        ]);
+
+        await runner.connect(agent);
+
+        expect(agent.state.toolCalls.single.isComplete, isTrue);
+        expect(agent.state.messages.last, isA<ToolMessage>());
+        expect(agent.state.isRunning, isFalse);
+      });
+
+      test('closes a tool call a replay cut off before its end', () async {
+        queueReplay([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          const ag_ui.ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'ask'),
+          const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{"a'),
+          // No end for the call and no RUN_FINISHED: the stream just stops.
+        ]);
+
+        await runner.connect(agent);
+
+        final call = agent.state.toolCalls.single;
+        expect(call.isComplete, isTrue);
+        expect(call.status, isNot(ToolCallStatus.inProgress));
+        expect(agent.state.isRunning, isFalse);
+      });
+
+      test('returns the replay that is already running', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+        var first = false;
+        final started = runner.connect(agent).then((_) => first = true);
+
+        var second = false;
+        final waited = runner.connect(agent).then((_) => second = true);
+        await pumpEventQueue();
+
+        expect(second, isFalse);
+        expect(transport.connectedInputs(), hasLength(1));
+        await events.close();
+        await Future.wait([started, waited]);
+        expect([first, second], [true, true]);
+      });
+
+      test('does nothing while the agent is running', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        transport.stubRun(() => events.stream);
+        final run = runner.run(agent);
+        await pumpEventQueue();
+
+        await runner.connect(agent);
+
+        transport.verifyNoConnect();
+        await runner.stop(agent);
+        await run;
+      });
+
+      test('a run does nothing while the agent connects', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+        final connected = runner.connect(agent);
+
+        await runner.run(
+          agent,
+          message: const UserMessage(id: 'u', content: 'Hi'),
+        );
+
+        transport.verifyNoRun();
+        expect(agent.state.messages, isEmpty);
+        await events.close();
+        await connected;
+      });
+
+      test('a stop ends the replay without a stop request', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+        final connected = runner.connect(agent);
+        events.add(ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'));
+        await pumpEventQueue();
+
+        await runner.stop(agent);
+        await connected;
+
+        expect(agent.state.isRunning, isFalse);
+        transport.verifyNoStop();
+        expect(errors, isEmpty);
+      });
+
+      test('reports a failed connection and leaves the agent usable', () async {
+        final failure = StateError('runtime down');
+        harness.connects.add(Stream.error(failure));
+
+        await runner.connect(agent);
+
+        expect(errors, [same(failure)]);
+        expect(agent.state.isRunning, isFalse);
+        queueRun([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'),
+        ]);
+        await runner.run(agent);
+        expect(agent.state.error, isNull);
+      });
+
+      test('ends quietly when the agent closes meanwhile', () async {
+        final events = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(events.stream);
+        final connected = runner.connect(agent);
+        await pumpEventQueue();
+
+        await agent.close();
+        await runner.close();
+        await connected;
+
+        expect(errors, isEmpty);
+      });
+    });
+
     group('switchThread', () {
       late StreamController<ag_ui.BaseEvent> events;
       late bool cancelled;
@@ -428,6 +584,7 @@ void main() {
             ..fail(StateError('old'));
 
           await runner.switchThread(agent, 'thread-2');
+          await pumpEventQueue();
 
           expect(
             agent.state,
@@ -436,6 +593,46 @@ void main() {
           transport.verifyNoStop();
         },
       );
+
+      test(
+        'connects to the new thread and restores its conversation',
+        () async {
+          harness.connects.add(
+            Stream.fromIterable(loadFixture('connect_replay').events),
+          );
+
+          await runner.switchThread(agent, 'thread-2');
+          await pumpEventQueue();
+
+          expect(threadId(), 'thread-2');
+          expect(agent.state.messages, hasLength(4));
+          expect(agent.state.isRunning, isFalse);
+          expect(transport.connectedInputs().single.threadId, 'thread-2');
+        },
+      );
+
+      test('does not connect when the agent is on that thread', () async {
+        await runner.switchThread(agent, oldThread);
+        await pumpEventQueue();
+
+        transport.verifyNoConnect();
+      });
+
+      test('a switch while connecting ends the old replay', () async {
+        final replay = StreamController<ag_ui.BaseEvent>();
+        harness.connects.add(replay.stream);
+        final connected = runner.connect(agent);
+        replay.add(ag_ui.RunStartedEvent(threadId: oldThread, runId: 'r'));
+        await pumpEventQueue();
+
+        await runner.switchThread(agent, 'thread-2');
+        await connected;
+        await pumpEventQueue();
+
+        expect(threadId(), 'thread-2');
+        expect(agent.state.isRunning, isFalse);
+        transport.verifyNoStop();
+      });
 
       test('does nothing when the agent is on that thread already', () async {
         await startStreaming();
@@ -455,6 +652,7 @@ void main() {
 
         await runner.switchThread(agent, 'thread-2');
         await run;
+        await pumpEventQueue();
 
         expect(cancelled, isTrue);
         expect(
@@ -510,6 +708,7 @@ void main() {
         await startStreaming();
         await runner.switchThread(agent, 'thread-2');
         await run;
+        await pumpEventQueue();
         final changes = <CopilotAgentState>[];
         agent.stream.listen(changes.add);
 
@@ -537,6 +736,7 @@ void main() {
           await runner.switchThread(agent, 'thread-2');
           handlerDone.complete('late result');
           await run;
+          await pumpEventQueue();
 
           expect(sentInputs(), hasLength(1));
           expect(
@@ -550,6 +750,7 @@ void main() {
         await startStreaming();
         await runner.switchThread(agent, 'thread-2');
         await run;
+        await pumpEventQueue();
         queueRun([
           ag_ui.RunStartedEvent(threadId: 'thread-2', runId: 'r2'),
           const ag_ui.RunFinishedEvent(threadId: 'thread-2', runId: 'r2'),
@@ -597,6 +798,7 @@ void main() {
 
         cancel.complete();
         await Future.wait([stopped, switched, run]);
+        await pumpEventQueue();
 
         expect(threadId(), 'thread-2');
         expect(agent.state.isRunning, isFalse);

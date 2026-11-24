@@ -22,6 +22,10 @@ packages/phoenix_channels_client
                               events, and never reconnects
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
+  threads     ThreadsClient: the agent's threads over the runtime's REST
+              routes, and their models
+  memories    MemoriesClient: the user's memories over the runtime's REST
+              routes, and their models
   tools       client tools, their calls and the user's answers
   context     the app data shared with the agent
   messages    the conversation's messages and their AG-UI mapping
@@ -37,6 +41,10 @@ packages/copilotkit_flutter   Flutter, re-exports copilotkit
   context     CopilotContext
   chat        CopilotChatProvider, and CopilotChatBloc: a thin adapter
               from an agent to a chat UI
+  threads     ThreadsBloc: a thin adapter from the threads client to a
+              threads UI
+  memories    MemoriesBloc: a thin adapter from the memories client to
+              a memories UI
 ```
 
 The core holds all the logic in plain Dart classes. Flutter adds widgets and
@@ -71,7 +79,9 @@ agent                   State: CopilotAgent, a state holder, and the mapper
 messages, tools,        Domain: the SDK's models and the registries over
 context                 them, with no I/O
   ▼
-transport, json_utils   Data: the wire and JSON, with no SDK logic
+transport, threads,
+memories,               Data: the wire and JSON, with no SDK logic
+json_utils
 ```
 
 These are VGV's layers fitted to an SDK. The data layer is the same: it
@@ -137,15 +147,19 @@ barrel:
 | Package | Feature | Layer | May import |
 | --- | --- | --- | --- |
 | `copilotkit` | `transport` | Data | — |
+| | `threads` | Data | — |
+| | `memories` | Data | — |
 | | `tools` | Domain | — |
 | | `context` | Domain | — |
 | | `messages` | Domain | — |
 | | `agent` | State | `messages`, `tools`, `json_utils` |
 | | `run` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
-| | `client` | Client | `run`, `transport`, `messages`, `agent`, `tools`, `context` |
+| | `client` | Client | `run`, `transport`, `threads`, `memories`, `messages`, `agent`, `tools`, `context` |
 | `copilotkit_flutter` | `client` | Presentation | the core |
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |
+| | `threads` | Presentation | the core |
+| | `memories` | Presentation | the core |
 
 A feature imports another feature only through its barrel
 (`package:copilotkit/src/tools/tools.dart`), never one of its files; a model may
@@ -232,6 +246,11 @@ When a run ends with tool calls, `AgentRunner` hands the turn to its
 `ToolResponses` until the app calls `CopilotKitClient.respondToToolCall`
 ([ADR 0009](adr/0009-human-in-the-loop-responses.md)). Each result is applied
 to the agent as an event, and `AgentRunner` starts the next run.
+
+An agent opened on an existing thread, or switched to one, gets its
+conversation back through `AgentRunner`'s `ThreadConnector`: it clears the
+agent, asks the transport to `connect` to the thread, and applies the replayed
+events like those of a run. A turn holds the replay, so a stop cancels it.
 
 ## The example app
 

@@ -35,5 +35,14 @@ void main() {
 
       expect(second, first);
     });
+
+    test('keeps the thread id it is asked to save', () async {
+      final preferences = await preferencesWith({});
+      final store = ThreadIdStore(preferences: preferences);
+
+      await store.save('thread-2');
+
+      expect(await store(), 'thread-2');
+    });
   });
 }

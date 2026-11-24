@@ -1,5 +1,6 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/app/error_logger.dart';
+import 'package:example/app/thread_id_store.dart';
 import 'package:example/chat/chat.dart';
 import 'package:example/demo/demo.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,10 @@ class const App({
 
   /// The conversation's thread, kept across launches (see `ThreadIdStore`).
   required final String threadId,
+
+  /// Keeps the thread the user switches to, so the next launch opens it.
+  /// `null` for none.
+  final ThreadIdStore? _threadIdStore,
 
   /// Receives the SDK's errors.
   final ErrorLogger _logger = const ErrorLogger(),
@@ -27,7 +32,10 @@ class const App({
               child: CopilotAgentScope(
                 agentId: ChatPage.agentId,
                 threadId: threadId,
-                child: const ChatPage(header: TodoPanel()),
+                child: ChatPage(
+                  header: const TodoPanel(),
+                  onThreadSelected: _threadIdStore?.save,
+                ),
               ),
             )
           : const _MissingRuntimeScreen(),

@@ -28,4 +28,7 @@ class const ThreadIdStore({
     await _preferences.setString(key, created);
     return created;
   }
+
+  /// Keeps [threadId] as the thread to open on the next launch.
+  Future<void> save(String threadId) => _preferences.setString(key, threadId);
 }

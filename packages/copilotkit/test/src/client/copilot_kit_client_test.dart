@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
 import 'package:uuid/uuid.dart';
@@ -24,6 +25,7 @@ void main() {
     setUp(() {
       transport = MockAgentTransport();
       when(() => transport.close()).thenAnswer((_) async {});
+      transport.stubConnect(() => const Stream.empty());
       errors = [];
       client = CopilotKitClient(
         runtimeUrl: runtimeUrl,
@@ -114,6 +116,7 @@ void main() {
 
       test('opens the agent on the given thread', () async {
         final agent = client.agent('default', threadId: 'thread-9');
+        await pumpEventQueue();
         stubRun(
           Stream.fromIterable([
             ag_ui.RunStartedEvent(threadId: 'thread-9', runId: 'r'),
@@ -233,6 +236,7 @@ void main() {
     group('switchAgentThread', () {
       test('moves the agent to the thread and stops its run', () async {
         final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
         final events = StreamController<ag_ui.BaseEvent>();
         stubRun(events.stream);
         transport.stubStop();
@@ -245,6 +249,7 @@ void main() {
 
         await client.switchAgentThread('default', 'thread-2');
         await run;
+        await pumpEventQueue();
 
         expect(
           agent.state,
@@ -269,7 +274,9 @@ void main() {
 
       test('sends the new thread with the next run', () async {
         client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
         await client.switchAgentThread('default', 'thread-2');
+        await pumpEventQueue();
         stubRun(
           Stream.fromIterable([
             ag_ui.RunStartedEvent(threadId: 'thread-2', runId: 'r'),
@@ -280,6 +287,99 @@ void main() {
         await client.runAgent('default');
 
         expect(sentInput().threadId, 'thread-2');
+      });
+    });
+
+    group('connectAgent', () {
+      final replay = [
+        ag_ui.RunStartedEvent(
+          threadId: 'thread-1',
+          runId: 'r1',
+          input: ag_ui.RunAgentInput(
+            threadId: 'thread-1',
+            runId: 'r1',
+            messages: [ag_ui.UserMessage(id: 'u1', content: 'Hi')],
+            tools: const [],
+            context: const [],
+          ),
+        ),
+        const ag_ui.TextMessageStartEvent(messageId: 'a1'),
+        const ag_ui.TextMessageContentEvent(messageId: 'a1', delta: 'Hello'),
+        const ag_ui.TextMessageEndEvent(messageId: 'a1'),
+        const ag_ui.RunFinishedEvent(threadId: 'thread-1', runId: 'r1'),
+      ];
+
+      test('restores the conversation of the thread', () async {
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.connectAgent('default');
+
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+        expect(agent.state.isRunning, isFalse);
+        expect(agent.state.error, isNull);
+        final input = transport.connectedInputs().last;
+        expect(input.threadId, 'thread-1');
+        expect(input.messages, isEmpty);
+      });
+
+      test('opens an agent that is not open', () async {
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.connectAgent('default');
+
+        expect(client.agents.keys, ['default']);
+        transport.connectedInputs();
+      });
+
+      test('restores an agent opened on a given thread', () async {
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+      });
+
+      test('does not connect an agent opened without a thread', () async {
+        client.agent('default');
+        await pumpEventQueue();
+
+        transport.verifyNoConnect();
+      });
+
+      test('restores the agent after a thread switch', () async {
+        final agent = client.agent('default', threadId: 'thread-1');
+        await pumpEventQueue();
+        transport.stubConnect(() => Stream.fromIterable(replay));
+
+        await client.switchAgentThread('default', 'thread-2');
+        await pumpEventQueue();
+
+        expect(agent.state.threadId, 'thread-2');
+        expect(agent.state.messages.map((m) => m.text), ['Hi', 'Hello']);
+        expect(transport.connectedInputs().last.threadId, 'thread-2');
+      });
+
+      test('reports a failed connection and leaves the agent usable', () async {
+        final agent = client.agent('default');
+        final failure = StateError('runtime down');
+        transport.stubConnect(() => Stream.error(failure));
+
+        await client.connectAgent('default');
+
+        expect(errors.map((e) => e.$1), [same(failure)]);
+        expect(agent.state.error, same(failure));
+        expect(agent.state.isRunning, isFalse);
+        stubRun(
+          Stream.fromIterable([
+            ag_ui.RunStartedEvent(threadId: 'thread-1', runId: 'r'),
+            const ag_ui.RunFinishedEvent(threadId: 'thread-1', runId: 'r'),
+          ]),
+        );
+        await client.runAgent('default');
+        expect(agent.state.error, isNull);
       });
     });
 
@@ -314,6 +414,126 @@ void main() {
 
         expect(client.agents, isEmpty);
         transport.verifyNoStop();
+      });
+    });
+
+    group('threadEndpoints', () {
+      test('reports the routes the runtime says it has', () async {
+        when(() => transport.info(headers: any(named: 'headers'))).thenAnswer(
+          (_) async => RuntimeInfo.fromJson(const {
+            'mode': 'intelligence',
+            'threadEndpoints': {'list': true, 'mutations': true},
+          }),
+        );
+
+        final endpoints = await client.threadEndpoints();
+
+        expect(endpoints, const ThreadEndpoints(list: true, mutations: true));
+        verify(() => transport.info(headers: {'Authorization': 'Bearer token'}))
+            .called(1);
+      });
+
+      test(
+        'keeps the routes it last reported when it cannot be asked',
+        () async {
+          var calls = 0;
+          when(() => transport.info(headers: any(named: 'headers')))
+              .thenAnswer((_) async {
+                if (calls++ == 0) {
+                  return RuntimeInfo.fromJson(const {
+                    'mode': 'intelligence',
+                    'threadEndpoints': {'list': true, 'mutations': true},
+                  });
+                }
+                throw StateError('offline');
+              });
+
+          await client.threadEndpoints();
+          final endpoints = await client.threadEndpoints();
+
+          expect(endpoints, const ThreadEndpoints(list: true, mutations: true));
+          expect(errors.single.$1, isA<StateError>());
+        },
+      );
+
+      test('reports no route when the runtime cannot be asked', () async {
+        when(() => transport.info(headers: any(named: 'headers')))
+            .thenThrow(StateError('offline'));
+
+        final endpoints = await client.threadEndpoints();
+
+        expect(endpoints, const ThreadEndpoints());
+        expect(errors.single.$1, isA<StateError>());
+      });
+
+      test('sends no headers when the client has no builder', () async {
+        client = CopilotKitClient(runtimeUrl: runtimeUrl, transport: transport);
+        when(() => transport.info(headers: any(named: 'headers')))
+            .thenAnswer((_) async => RuntimeInfo.fromJson(const {}));
+
+        await client.threadEndpoints();
+
+        verify(() => transport.info()).called(1);
+      });
+    });
+
+    group('threads', () {
+      test('is one client for the runtime, created on first use', () {
+        expect(client.threads, same(client.threads));
+      });
+
+      test('is closed with the client', () async {
+        final threads = client.threads;
+
+        await client.close();
+
+        // A closed client sends nothing more.
+        await expectLater(
+          threads.list(agentId: 'default'),
+          throwsA(isA<ThreadsException>()),
+        );
+      });
+    });
+
+    group('memories', () {
+      test('is one client for the runtime, created on first use', () {
+        expect(client.memories, isA<MemoriesClient>());
+        expect(client.memories, same(client.memories));
+      });
+
+      test('is closed with the client', () async {
+        final memories = client.memories;
+
+        await client.close();
+
+        // A closed client sends nothing more.
+        await expectLater(memories.list(), throwsA(isA<MemoryException>()));
+      });
+
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.memories, throwsStateError);
+      });
+    });
+
+    group('threads after close', () {
+      test('cannot be read once the client is closed', () async {
+        await client.close();
+
+        expect(() => client.threads, throwsStateError);
+      });
+
+      test('closes the threads client even when the transport fails', () async {
+        final threads = client.threads;
+        when(() => transport.close()).thenThrow(StateError('boom'));
+
+        await expectLater(client.close(), throwsStateError);
+
+        await expectLater(
+          threads.list(agentId: 'default'),
+          throwsA(isA<ThreadsException>()),
+        );
       });
     });
 

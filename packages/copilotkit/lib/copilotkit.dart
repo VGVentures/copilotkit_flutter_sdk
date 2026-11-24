@@ -7,8 +7,10 @@ library;
 export 'src/agent/agent.dart';
 export 'src/client/client.dart';
 export 'src/context/context.dart' hide AgentContextStore;
+export 'src/memories/memories.dart';
 export 'src/messages/messages.dart';
 export 'src/run/run.dart' show CopilotErrorHandler, HeadersBuilder;
+export 'src/threads/threads.dart';
 export 'src/tools/tools.dart'
     hide
         FallbackToolResult,
@@ -16,4 +18,5 @@ export 'src/tools/tools.dart'
         ToolCallOutcome,
         ToolRegistry,
         ToolResponses;
-export 'src/transport/transport.dart' show ThreadLockedException;
+export 'src/transport/transport.dart'
+    show ThreadEndpoints, ThreadLockedException;
