@@ -3,6 +3,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/chat/widgets/chat_view.dart';
 import 'package:example/chat/widgets/composer.dart';
 import 'package:example/chat/widgets/message_list.dart';
+import 'package:example/memories/widgets/memories_view.dart';
 import 'package:example/threads/widgets/threads_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,6 +13,8 @@ import 'package:mocktail/mocktail.dart';
 class _MockClient extends Mock implements CopilotKitClient;
 
 class _MockThreadsClient extends Mock implements ThreadsClient;
+
+class _MockMemoriesClient extends Mock implements MemoriesClient;
 
 class _MockCopilotChatBloc extends MockBloc<CopilotChatEvent, CopilotChatState>
     implements CopilotChatBloc;
@@ -144,6 +147,22 @@ void main() {
 
         verify(() => client.switchAgentThread('default', 'thread-2')).called(1);
         expect(selected, ['thread-2']);
+      });
+
+      testWidgets('opens the memories', (tester) async {
+        final memories = _MockMemoriesClient();
+        when(() => client.memories).thenReturn(memories);
+        when(
+          () => memories.list(
+            includeInvalidated: any(named: 'includeInvalidated'),
+          ),
+        ).thenAnswer((_) async => const []);
+        await pumpWith(tester);
+
+        await tester.tap(find.byKey(const Key('open_memories')));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(MemoriesView), findsOneWidget);
       });
 
       testWidgets('stays on the thread when the list is left', (tester) async {

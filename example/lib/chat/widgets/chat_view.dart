@@ -1,6 +1,7 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/chat/widgets/composer.dart';
 import 'package:example/chat/widgets/message_list.dart';
+import 'package:example/memories/memories.dart';
 import 'package:example/threads/threads.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -24,6 +25,17 @@ class const ChatView({
       appBar: AppBar(
         title: const Text('CopilotKit'),
         actions: [
+          IconButton(
+            key: const Key('open_memories'),
+            tooltip: 'Memories',
+            icon: const Icon(Icons.psychology_outlined),
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) =>
+                    MemoriesPage(client: CopilotKit.of(context).memories),
+              ),
+            ),
+          ),
           IconButton(
             key: const Key('open_threads'),
             tooltip: 'Conversations',
