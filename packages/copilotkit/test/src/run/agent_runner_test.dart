@@ -439,6 +439,22 @@ void main() {
         expect(agent.state.isRunning, isFalse);
       });
 
+      test('closes a tool call a replay cut off before its end', () async {
+        queueReplay([
+          ag_ui.RunStartedEvent(threadId: threadId(), runId: 'r'),
+          const ag_ui.ToolCallStartEvent(toolCallId: 'c1', toolCallName: 'ask'),
+          const ag_ui.ToolCallArgsEvent(toolCallId: 'c1', delta: '{"a'),
+          // No end for the call and no RUN_FINISHED: the stream just stops.
+        ]);
+
+        await runner.connect(agent);
+
+        final call = agent.state.toolCalls.single;
+        expect(call.isComplete, isTrue);
+        expect(call.status, isNot(ToolCallStatus.inProgress));
+        expect(agent.state.isRunning, isFalse);
+      });
+
       test('returns the replay that is already running', () async {
         final events = StreamController<ag_ui.BaseEvent>();
         harness.connects.add(events.stream);
