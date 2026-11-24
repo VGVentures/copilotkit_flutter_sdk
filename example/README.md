@@ -294,6 +294,17 @@ a restart.
     -d '{"threadId":"<thread id>","runId":"c1","state":{},"messages":[],"tools":[],"context":[],"forwardedProps":{}}'
   ```
 
+### Conversations
+
+Needs a runtime in Intelligence mode (`CPK_INTELLIGENCE_*` set), which keeps threads.
+
+- [ ] Tap the conversations icon in the app bar: the list shows the thread you chatted on, marked as selected.
+- [ ] Send a message, reopen the list: the thread is named after it.
+- [ ] Tap another thread: its messages replace the chat's. Restart the app: it opens on that thread.
+- [ ] Tap "+": the chat is empty, and your next message starts a new thread.
+- [ ] Archive a thread from its menu: it leaves the list. Delete another: it leaves the list at once.
+- [ ] On a runtime without Intelligence the list says it keeps no conversations.
+
 ### Errors and recovery
 
 These checks cover runtime failures.

@@ -1,6 +1,7 @@
 import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/chat/widgets/composer.dart';
 import 'package:example/chat/widgets/message_list.dart';
+import 'package:example/threads/threads.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -9,6 +10,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class const ChatView({
   /// Shown between the app bar and the messages. `null` for none.
   final Widget? header,
+
+  /// Called with the id of the thread the user switches to. `null` for none.
+  final ValueChanged<String>? onThreadSelected,
   super.key,
 }) extends StatelessWidget {
   @override
@@ -17,7 +21,17 @@ class const ChatView({
       (bloc) => bloc.state.error != null,
     );
     return Scaffold(
-      appBar: AppBar(title: const Text('CopilotKit')),
+      appBar: AppBar(
+        title: const Text('CopilotKit'),
+        actions: [
+          IconButton(
+            key: const Key('open_threads'),
+            tooltip: 'Conversations',
+            icon: const Icon(Icons.forum_outlined),
+            onPressed: () => _openThreads(context),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -37,5 +51,24 @@ class const ChatView({
         ),
       ),
     );
+  }
+
+  Future<void> _openThreads(BuildContext context) async {
+    final client = CopilotKit.of(context);
+    // The agent this chat is on, not whichever the client opened first.
+    final agent = CopilotAgentScope.of(context).state;
+    final agentId = agent.agentId;
+    final selected = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ThreadsPage(
+          client: client,
+          agentId: agentId,
+          currentThreadId: agent.threadId,
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await client.switchAgentThread(agentId, selected);
+    onThreadSelected?.call(selected);
   }
 }
