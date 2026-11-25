@@ -1,3 +1,5 @@
+export 'models/thread_metadata_event.dart';
+export 'models/thread_metadata_operation.dart';
 export 'models/thread_page.dart';
 export 'models/thread_record.dart';
 export 'models/threads_error_code.dart';

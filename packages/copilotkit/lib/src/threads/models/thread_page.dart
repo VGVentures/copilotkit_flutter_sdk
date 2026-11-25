@@ -8,6 +8,11 @@ class const ThreadPage({
 
   /// The cursor of the next page, or `null` on the last one.
   final String? nextCursor,
+
+  /// The code of the user's thread metadata channel, or `null` when the
+  /// runtime has no real-time service. Pass it to
+  /// `CopilotKitClient.watchThreads` to follow changes live.
+  final String? joinCode,
 }) extends Equatable {
   /// Creates a page of [threads].
   this;
@@ -28,6 +33,7 @@ class const ThreadPage({
           ThreadRecord.fromJson(thread! as Map<String, Object?>),
       ]),
       nextCursor: json['nextCursor'] as String?,
+      joinCode: json['joinCode'] as String?,
     );
   }
 
@@ -35,5 +41,5 @@ class const ThreadPage({
   bool get hasNext => nextCursor != null;
 
   @override
-  List<Object?> get props => [threads, nextCursor];
+  List<Object?> get props => [threads, nextCursor, joinCode];
 }

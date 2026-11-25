@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
@@ -580,6 +581,222 @@ void main() {
           );
         },
       );
+    });
+
+    group('live thread metadata', () {
+      late StreamController<ThreadMetadataEvent> live;
+      final newer = DateTime.utc(2027);
+
+      ThreadRecord thread(
+        String id, {
+        String agentId = 'default',
+        bool archived = false,
+        String? name,
+      }) => ThreadRecord(
+        id: id,
+        agentId: agentId,
+        archived: archived,
+        createdAt: DateTime.utc(2026),
+        updatedAt: newer,
+        name: name,
+      );
+
+      ThreadMetadataEvent change(
+        ThreadMetadataOperation operation,
+        String threadId, [
+        ThreadRecord? thread,
+      ]) => ThreadMetadataEvent(
+        operation: operation,
+        threadId: threadId,
+        occurredAt: newer,
+        thread: thread,
+      );
+
+      setUp(() {
+        live = StreamController<ThreadMetadataEvent>();
+        when(client.threadEndpoints).thenAnswer(
+          (_) async => const ThreadEndpoints(
+            list: true,
+            mutations: true,
+            realtimeMetadata: true,
+          ),
+        );
+        stubList(ThreadPage(threads: [a, b, c], joinCode: 'code-1'));
+        when(() => client.watchThreads(any())).thenAnswer((_) => live.stream);
+      });
+
+      // A stream nobody listened to never reports that it closed.
+      tearDown(() => unawaited(live.close()));
+
+      /// A bloc that loaded [a], [b] and [c] and follows the channel.
+      Future<ThreadsBloc> following({bool includeArchived = false}) async {
+        final bloc = build(includeArchived: includeArchived)
+          ..add(const ThreadsRequested());
+        await pumpEventQueue();
+        return bloc;
+      }
+
+      Future<List<ThreadRecord>> after(
+        ThreadsBloc bloc,
+        List<ThreadMetadataEvent> events,
+      ) async {
+        events.forEach(live.add);
+        await pumpEventQueue();
+        return bloc.state.threads;
+      }
+
+      test('follows the channel of the list it loaded', () async {
+        final bloc = await following();
+
+        verify(() => client.watchThreads('code-1')).called(1);
+        expect(live.hasListener, isTrue);
+        await bloc.close();
+        expect(live.hasListener, isFalse);
+      });
+
+      test('does not follow without real-time thread metadata', () async {
+        when(client.threadEndpoints).thenAnswer(
+          (_) async => const ThreadEndpoints(list: true, mutations: true),
+        );
+        final bloc = await following();
+
+        verifyNever(() => client.watchThreads(any()));
+        await bloc.close();
+      });
+
+      test('does not follow without a join code', () async {
+        stubList(ThreadPage(threads: [a, b, c]));
+        final bloc = await following();
+
+        verifyNever(() => client.watchThreads(any()));
+        await bloc.close();
+      });
+
+      test('adds a created thread first', () async {
+        final bloc = await following();
+        final d = thread('d');
+
+        expect(
+          await after(bloc, [change(ThreadMetadataOperation.created, 'd', d)]),
+          [d, a, b, c],
+        );
+        await bloc.close();
+      });
+
+      test('puts a renamed thread in place, and first', () async {
+        final bloc = await following();
+        final renamed = thread('c', name: 'Renamed');
+        final event = change(ThreadMetadataOperation.renamed, 'c', renamed);
+
+        expect(await after(bloc, [event]), [renamed, a, b]);
+        // The service may push an event twice.
+        expect(await after(bloc, [event]), [renamed, a, b]);
+        await bloc.close();
+      });
+
+      test('removes a deleted thread', () async {
+        final bloc = await following();
+
+        expect(
+          await after(bloc, [change(ThreadMetadataOperation.deleted, 'b')]),
+          [a, c],
+        );
+        await bloc.close();
+      });
+
+      test('removes an archived thread from a list without them', () async {
+        final bloc = await following();
+        final archived = thread('b', archived: true);
+
+        expect(
+          await after(bloc, [
+            change(ThreadMetadataOperation.archived, 'b', archived),
+          ]),
+          [a, c],
+        );
+        await bloc.close();
+      });
+
+      test('keeps an archived thread in a list with them', () async {
+        final bloc = await following(includeArchived: true);
+        final archived = thread('b', archived: true);
+
+        expect(
+          await after(bloc, [
+            change(ThreadMetadataOperation.archived, 'b', archived),
+          ]),
+          [archived, a, c],
+        );
+        await bloc.close();
+      });
+
+      test('ignores threads of other agents and events without one', () async {
+        final bloc = await following();
+
+        expect(
+          await after(bloc, [
+            change(
+              ThreadMetadataOperation.created,
+              'x',
+              thread('x', agentId: 'other'),
+            ),
+            change(ThreadMetadataOperation.updated, 'a'),
+          ]),
+          [a, b, c],
+        );
+        await bloc.close();
+      });
+
+      test('does not bring back a thread while it is deleted', () async {
+        final pending = Completer<void>();
+        when(() => threads.delete(agentId: 'default', threadId: 'b'))
+            .thenAnswer((_) => pending.future);
+        final bloc = await following()
+          ..add(const ThreadDeleted('b'));
+        await pumpEventQueue();
+
+        expect(
+          await after(bloc, [
+            change(ThreadMetadataOperation.renamed, 'b', thread('b')),
+          ]),
+          [a, c],
+        );
+        pending.complete();
+        await pumpEventQueue();
+        expect(bloc.state.threads, [a, c]);
+        await bloc.close();
+      });
+
+      test('keeps the list when the channel fails for good', () async {
+        final bloc = await following();
+
+        live.addError(
+          const ThreadsException(
+            code: ThreadsErrorCode.realtimeUnavailable,
+            message: 'gave up',
+          ),
+        );
+        await live.close();
+        await pumpEventQueue();
+
+        expect(bloc.state.threads, [a, b, c]);
+        expect(bloc.state.error, isNull);
+        await bloc.close();
+      });
+
+      test('stops following the old list on a new request', () async {
+        final first = live;
+        final bloc = await following();
+        live = StreamController<ThreadMetadataEvent>();
+
+        bloc.add(const ThreadsRequested());
+        await pumpEventQueue();
+
+        expect(first.hasListener, isFalse);
+        expect(live.hasListener, isTrue);
+        await first.close();
+        await bloc.close();
+      });
     });
   });
 }

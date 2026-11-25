@@ -1,17 +1,23 @@
+// cspell:ignore realtime
 /// @docImport 'package:copilotkit/src/client/client.dart';
 library;
 
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:copilotkit/src/threads/models/thread_metadata_event.dart';
 import 'package:copilotkit/src/threads/models/thread_page.dart';
 import 'package:copilotkit/src/threads/models/thread_record.dart';
 import 'package:copilotkit/src/threads/models/threads_error_code.dart';
 import 'package:copilotkit/src/threads/models/threads_exception.dart';
+import 'package:copilotkit/src/threads/thread_metadata_listener.dart';
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
+import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 
 /// Lists, renames, archives, unarchives and deletes the threads of an agent,
-/// through the `/threads` routes of a Copilot Runtime.
+/// through the `/threads` routes of a Copilot Runtime, and follows changes to
+/// them live with [watch].
 ///
 /// Listing works on a runtime that keeps threads. Changing a thread needs a
 /// runtime with Intelligence: its `RuntimeInfo.threadEndpoints` say which
@@ -27,6 +33,9 @@ class ThreadsClient({
   Future<Map<String, String>> Function()? headers,
   http.Client? httpClient,
   Duration timeout = const Duration(seconds: 15),
+  @visibleForTesting
+  PhoenixChannelsClient Function(Uri socketUrl, Map<String, String> params)?
+  channelFactory,
 }) {
   /// Creates a client for the thread routes of the runtime at [runtimeUrl],
   /// e.g. `https://host/api/copilotkit`.
@@ -35,6 +44,7 @@ class ThreadsClient({
   /// that gets no answer within [timeout] fails with
   /// [ThreadsErrorCode.requestTimeout]. The client sends through [httpClient],
   /// which defaults to [http.Client.new], and [close] closes it.
+  /// [channelFactory] replaces the Phoenix client of [watch] in tests.
   this;
 
   final Uri _baseUrl = Uri.parse(
@@ -43,6 +53,8 @@ class ThreadsClient({
   final Future<Map<String, String>> Function()? _headers = headers;
   final http.Client _httpClient = httpClient ?? http.Client();
   final Duration _timeout = timeout;
+  final PhoenixChannelsClient Function(Uri, Map<String, String>)?
+  _channelFactory = channelFactory;
 
   /// Returns a page of the threads of [agentId], newest first.
   ///
@@ -130,6 +142,48 @@ class ThreadsClient({
       body: {'agentId': agentId},
     );
   }
+
+  /// Asks the runtime for a join token of the user's thread metadata channel,
+  /// through `POST /threads/subscribe`.
+  ///
+  /// Throws a [ThreadsException] with [ThreadsErrorCode.subscribeFailed] when
+  /// the runtime fails, which a runtime without Intelligence always does.
+  Future<String> subscribe() async {
+    const code = ThreadsErrorCode.subscribeFailed;
+    final response = await _send(
+      'POST',
+      _baseUrl.replace(pathSegments: [..._baseUrl.pathSegments, 'subscribe']),
+      code: code,
+      body: const {},
+    );
+    try {
+      return switch (_object(response)) {
+        {'joinToken': final String token} when token.isNotEmpty => token,
+        _ => throw const FormatException('The body has no joinToken.'),
+      };
+    } on Object catch (error) {
+      throw _invalid(code, response, 'credentials', error);
+    }
+  }
+
+  /// Follows the user's thread metadata channel, [joinCode] from
+  /// [ThreadPage.joinCode], on the real-time socket at [socketUrl], the
+  /// runtime's `RuntimeInfo.intelligence.wsUrl`.
+  ///
+  /// Each socket asks [subscribe] for its token. A socket that drops is
+  /// opened again after a growing delay; after 5 failures in a row the stream
+  /// emits a [ThreadsException] with [ThreadsErrorCode.realtimeUnavailable]
+  /// and ends. The service may push an event more than once, so apply events
+  /// in a way that repeating one changes nothing.
+  Stream<ThreadMetadataEvent> watch({
+    required Uri socketUrl,
+    required String joinCode,
+  }) => ThreadMetadataListener(
+    socketUrl: socketUrl,
+    joinCode: joinCode,
+    joinToken: subscribe,
+    channelFactory: _channelFactory,
+  ).events;
 
   /// Closes the client it sends through.
   void close() => _httpClient.close();

@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'dart:async';
 import 'dart:collection';
 import 'dart:developer' as developer;
@@ -26,6 +27,7 @@ class CopilotKitClient({
   final Map<String, Object?>? _properties,
   final CopilotErrorHandler? _onError,
   @visibleForTesting AgentTransport? transport,
+  @visibleForTesting ThreadsClient? threads,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -35,7 +37,7 @@ class CopilotKitClient({
   /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the transport to
-  /// [runtimeUrl] in tests.
+  /// [runtimeUrl] in tests, and [threads] the client of its thread routes.
   this;
 
   final Uri _runtimeUrl = runtimeUrl;
@@ -76,7 +78,7 @@ class CopilotKitClient({
     ),
   );
 
-  ThreadsClient? _threads;
+  ThreadsClient? _threads = threads;
   bool _closed = false;
 
   /// The client for the thread routes of this client's runtime.
@@ -89,6 +91,29 @@ class CopilotKitClient({
       runtimeUrl: _runtimeUrl,
       headers: _headers,
     );
+  }
+
+  /// Follows changes to the user's threads live, from any device: the
+  /// events of the thread metadata channel [joinCode], which
+  /// [ThreadPage.joinCode] gives.
+  ///
+  /// Reads the real-time socket from the runtime's `GET /info` first. The
+  /// stream emits a [ThreadsException] with
+  /// [ThreadsErrorCode.realtimeUnavailable] and ends when the runtime has no
+  /// real-time service, or when the socket fails 5 times in a row; see
+  /// [ThreadsClient.watch]. Cancel the subscription to stop following.
+  Stream<ThreadMetadataEvent> watchThreads(String joinCode) async* {
+    final info = await _transport.info(
+      headers: await _headers?.call() ?? const {},
+    );
+    final socketUrl = info.intelligence?.wsUrl ?? '';
+    if (socketUrl.isEmpty) {
+      throw const ThreadsException(
+        code: ThreadsErrorCode.realtimeUnavailable,
+        message: 'The runtime has no real-time service.',
+      );
+    }
+    yield* threads.watch(socketUrl: Uri.parse(socketUrl), joinCode: joinCode);
   }
 
   ThreadEndpoints? _lastEndpoints;

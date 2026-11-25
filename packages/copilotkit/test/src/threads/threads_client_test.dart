@@ -1,6 +1,9 @@
+// cspell:ignore realtime
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:copilotkit/src/threads/models/thread_metadata_event.dart';
+import 'package:copilotkit/src/threads/models/thread_metadata_operation.dart';
 import 'package:copilotkit/src/threads/models/thread_record.dart';
 import 'package:copilotkit/src/threads/models/threads_error_code.dart';
 import 'package:copilotkit/src/threads/models/threads_exception.dart';
@@ -8,11 +11,15 @@ import 'package:copilotkit/src/threads/threads_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 import 'package:test/test.dart';
 
+import '../../helpers/thread_metadata_fixture.dart';
 import '../../helpers/threads_fixture.dart';
 
 class _MockHttpClient extends Mock implements http.Client;
+
+class _MockChannel extends Mock implements PhoenixChannelsClient;
 
 void main() {
   group(ThreadsClient, () {
@@ -24,6 +31,7 @@ void main() {
       Uri? runtimeUrl,
       Duration timeout = const Duration(seconds: 15),
       Future<Map<String, String>> Function()? headers,
+      PhoenixChannelsClient Function(Uri, Map<String, String>)? channelFactory,
     }) => ThreadsClient(
       runtimeUrl: runtimeUrl ?? Uri.parse('http://runtime.test/api/copilotkit'),
       headers: headers ?? () async => {'Authorization': 'Bearer token'},
@@ -32,6 +40,7 @@ void main() {
         return answer(request);
       }),
       timeout: timeout,
+      channelFactory: channelFactory,
     );
 
     void reply(int status, [Object? body]) =>
@@ -368,6 +377,101 @@ void main() {
             ),
           ),
         );
+      });
+    });
+
+    group('subscribe', () {
+      test('asks for a join token of the metadata channel', () async {
+        reply(200, threadMetadataBody('subscribe'));
+
+        final token = await client.subscribe();
+
+        final request = sent.single;
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/copilotkit/threads/subscribe');
+        expect(request.headers['Authorization'], 'Bearer token');
+        expect(sentBody(), isEmpty);
+        expect(token, '<redacted>');
+      });
+
+      test('fails when the runtime fails', () async {
+        reply(422, {'error': 'Missing CopilotKitIntelligence configuration'});
+
+        await expectLater(
+          client.subscribe(),
+          throwsA(
+            isA<ThreadsException>()
+                .having((e) => e.code, 'code', ThreadsErrorCode.subscribeFailed)
+                .having((e) => e.statusCode, 'statusCode', 422),
+          ),
+        );
+      });
+
+      test('fails without a join token', () async {
+        for (final body in [
+          <String, Object?>{},
+          {'joinToken': ''},
+        ]) {
+          reply(200, body);
+
+          await expectLater(
+            client.subscribe(),
+            throwsA(
+              isA<ThreadsException>()
+                  .having(
+                    (e) => e.code,
+                    'code',
+                    ThreadsErrorCode.subscribeFailed,
+                  )
+                  .having((e) => e.message, 'message', contains('joinToken')),
+            ),
+          );
+        }
+      });
+    });
+
+    group('watch', () {
+      test('joins the channel with a token from subscribe', () async {
+        reply(200, {'joinToken': 'token-1'});
+        final channel = _MockChannel();
+        final frames = StreamController<PhoenixEvent>.broadcast();
+        when(() => channel.events).thenAnswer((_) => frames.stream);
+        when(channel.open).thenAnswer((_) async {});
+        when(() => channel.join(any(), any())).thenAnswer((_) async => null);
+        when(channel.close).thenAnswer((_) => frames.close());
+        late Uri socketUrl;
+        late Map<String, String> params;
+        client = build(
+          channelFactory: (url, given) {
+            socketUrl = url;
+            params = given;
+            return channel;
+          },
+        );
+        final events = <ThreadMetadataEvent>[];
+
+        final subscription = client
+            .watch(
+              socketUrl: Uri.parse('wss://realtime.test/client'),
+              joinCode: 'code-1',
+            )
+            .listen(events.add);
+        await pumpEventQueue();
+        frames.add(
+          PhoenixEvent(
+            topic: 'user_meta:code-1',
+            event: 'thread_metadata',
+            payload: threadMetadataPayload('created'),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(sent.single.url.path, '/api/copilotkit/threads/subscribe');
+        expect(socketUrl, Uri.parse('wss://realtime.test/client'));
+        expect(params, {'join_token': 'token-1'});
+        verify(() => channel.join('user_meta:code-1', {})).called(1);
+        expect(events.single.operation, ThreadMetadataOperation.created);
+        await subscription.cancel();
       });
     });
 
