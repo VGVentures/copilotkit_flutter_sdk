@@ -28,6 +28,9 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
   memories    MemoriesClient: the user's memories over the runtime's REST
               routes, their changes live over the real-time service's
               memory channels, and their models
+  trajectory  TrajectorySession: captures what the user does as a
+              trajectory for Automatic Learning, in batches over the
+              real-time service (internal, through the client)
   tools       client tools, their calls and the user's answers
   context     the app data shared with the agent
   messages    the conversation's messages and their AG-UI mapping
@@ -151,12 +154,13 @@ barrel:
 | `copilotkit` | `transport` | Data | — |
 | | `threads` | Data | — |
 | | `memories` | Data | — |
+| | `trajectory` | Data | — |
 | | `tools` | Domain | — |
 | | `context` | Domain | — |
 | | `messages` | Domain | — |
 | | `agent` | State | `messages`, `tools`, `json_utils` |
 | | `run` | Client | `transport`, `messages`, `agent`, `tools`, `context`, `json_utils` |
-| | `client` | Client | `run`, `transport`, `threads`, `memories`, `messages`, `agent`, `tools`, `context` |
+| | `client` | Client | `run`, `transport`, `threads`, `memories`, `trajectory`, `messages`, `agent`, `tools`, `context` |
 | `copilotkit_flutter` | `client` | Presentation | the core |
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |

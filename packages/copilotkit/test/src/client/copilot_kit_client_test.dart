@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:ack/ack.dart';
 import 'package:ag_ui/ag_ui.dart' as ag_ui;
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit/src/trajectory/trajectory.dart';
 import 'package:copilotkit/src/transport/models/runtime_info.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:test/test.dart';
@@ -15,6 +16,8 @@ import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
 class _MockThreadsClient extends Mock implements ThreadsClient;
+
+class _MockTrajectorySession extends Mock implements TrajectorySession;
 
 void main() {
   setUpAll(() {
@@ -497,6 +500,78 @@ void main() {
         await client.threadEndpoints();
 
         verify(() => transport.info()).called(1);
+      });
+    });
+
+    group('trajectory', () {
+      late _MockTrajectorySession trajectory;
+
+      setUp(() {
+        trajectory = _MockTrajectorySession();
+        when(() => trajectory.start(trajectoryId: any(named: 'trajectoryId')))
+            .thenAnswer((_) async => 't1');
+        when(trajectory.stop).thenAnswer((_) async {});
+        when(() => trajectory.trajectoryId).thenReturn('t1');
+        client = CopilotKitClient(
+          runtimeUrl: runtimeUrl,
+          transport: transport,
+          trajectory: trajectory,
+        );
+      });
+
+      test('starts, emits, records and stops through the session', () async {
+        expect(await client.startTrajectory(trajectoryId: 't1'), 't1');
+        expect(client.trajectoryId, 't1');
+        client
+          ..emitTrajectoryEvent('deal.approved', const {'id': 1})
+          ..recordTrajectoryEvent(TrajectoryBuiltInEvent.navigation, const {
+            'to': '/a',
+          });
+        await client.stopTrajectory();
+
+        verify(() => trajectory.start(trajectoryId: 't1')).called(1);
+        verify(() => trajectory.emit('deal.approved', const {'id': 1}))
+            .called(1);
+        verify(
+          () => trajectory.record(TrajectoryBuiltInEvent.navigation, const {
+            'to': '/a',
+          }),
+        ).called(1);
+        verify(trajectory.stop).called(1);
+      });
+
+      test('links the thread of each run', () async {
+        stubRun(const Stream.empty());
+        final agent = client.agent('default');
+
+        await client.runAgent('default');
+
+        verify(() => trajectory.linkThread(agent.state.threadId)).called(1);
+      });
+
+      test('stops the capture on close', () async {
+        await client.close();
+
+        verify(trajectory.stop).called(1);
+      });
+
+      test('reports a failed capture to onError by default', () async {
+        client = CopilotKitClient(
+          runtimeUrl: Uri.parse('http://127.0.0.1:1/api/copilotkit'),
+          onError: (error, stackTrace) => errors.add((error, stackTrace)),
+          transport: transport,
+        );
+
+        expect(await client.startTrajectory(trajectoryId: 't1'), isNull);
+
+        expect(
+          errors.single.$1,
+          isA<TrajectoryException>().having(
+            (e) => e.code,
+            'code',
+            'CONNECTION_FAILED',
+          ),
+        );
       });
     });
 

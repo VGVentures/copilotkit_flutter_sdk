@@ -107,6 +107,25 @@ and be answered in any order. An answer for an unknown, already answered or
 non-human-in-the-loop call is ignored. See
 [ADR 0009](https://github.com/VGVentures/copilotkit_flutter_sdk/blob/main/docs/adr/0009-human-in-the-loop-responses.md).
 
+## Trajectories
+
+A trajectory records what the user does in the app, for Automatic Learning:
+Intelligence links it to the threads the user ran and learns from both.
+
+```dart
+await client.startTrajectory(); // completes with the id, or null
+client.emitTrajectoryEvent('deal.approved', {'dealId': 'd-1'});
+await client.stopTrajectory();
+```
+
+Events are batched and sent over the runtime's real-time service: every
+2 seconds, at 50 events, or before 64 KiB, with 16 KiB per event at most.
+Each thread an agent runs on while capturing is linked to the trajectory.
+Problems, such as a project without trajectories
+(`TRAJECTORIES_NOT_ENABLED`), go to `onError` as a `TrajectoryException`.
+A dropped connection reconnects; a refusal ends the capture. Names of
+`TrajectoryBuiltInEvent`s are kept for the SDK's own collectors.
+
 ## Web and CORS
 
 The core has no `dart:io` dependency and runs on the web, compiled to
