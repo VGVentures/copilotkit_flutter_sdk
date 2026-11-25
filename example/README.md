@@ -234,6 +234,19 @@ This check covers `CopilotComponent` (`lib/demo/widgets/bar_chart_demo.dart`).
   with the chart's name fills in bar by bar while the arguments stream, and
   Q2 is the longest bar.
 
+### Streamed document
+
+These checks cover state rendering with the runtime's `document` agent
+(`tool/runtime/document_agent.ts`), which streams the document it writes
+into its shared state.
+
+- Tap the document icon in the app bar, then ask "Write a short note about
+  Flutter". A **LIVE** badge shows, and the text fills in as it streams
+  (how many pieces depends on the model). The badge goes away when the agent
+  answers.
+- Edit a word in the document, then ask "Add one sentence at the end". The
+  new version keeps your edit.
+
 ### Human in the loop
 
 These checks cover the `confirmAction` approval tool.
