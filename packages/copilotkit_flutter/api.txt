@@ -158,7 +158,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     registerTool (method: void Function(ClientTool<Object?>))
     removeContext (method: void Function(String))
     respondToToolCall (method: void Function(String, Object?))
-    runAgent (method: Future<void> Function(String, {Message@1? message}))
+    runAgent (method: Future<bool> Function(String, {Message@1? message}))
     stopAgent (method: Future<void> Function(String))
     switchAgentThread (method: Future<void> Function(String, String))
     threadEndpoints (method: Future<ThreadEndpoints> Function())

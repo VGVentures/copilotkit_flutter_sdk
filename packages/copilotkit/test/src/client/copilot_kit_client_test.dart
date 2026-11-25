@@ -210,10 +210,27 @@ void main() {
         final agent = client.agent('default');
         stubRun(Stream.error(failure));
 
-        await client.runAgent('default');
+        expect(await client.runAgent('default'), isTrue);
 
         expect(errors.single.$1, same(failure));
         expect(agent.state.error, same(failure));
+      });
+
+      test('returns false for a second call during a turn', () async {
+        final agent = client.agent('default');
+        final events = StreamController<ag_ui.BaseEvent>();
+        stubRun(events.stream);
+        final first = client.runAgent('default');
+        await pumpEventQueue();
+
+        expect(await client.runAgent('default', message: message), isFalse);
+        expect(agent.state.messages, isEmpty);
+
+        events.add(
+          ag_ui.RunFinishedEvent(threadId: agent.state.threadId, runId: 'r'),
+        );
+        await events.close();
+        expect(await first, isTrue);
       });
 
       test(

@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+Amended by [ADR 0014](0014-run-agent-during-a-turn.md): `runAgent` reports a
+dropped call through its return value.
+
 ## Context
 
 A human-in-the-loop (HITL) tool is a tool call whose result is a user's

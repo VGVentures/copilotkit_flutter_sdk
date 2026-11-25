@@ -42,7 +42,7 @@ void main() {
       agent = _MockCopilotAgent();
       when(() => client.agent('default')).thenReturn(agent);
       when(() => client.runAgent(any(), message: any(named: 'message')))
-          .thenAnswer((_) async {});
+          .thenAnswer((_) async => true);
       when(() => client.stopAgent(any())).thenAnswer((_) async {});
       changes = StreamController<CopilotAgentState>.broadcast();
       when(() => agent.state).thenReturn(_agentState);
@@ -199,6 +199,18 @@ void main() {
       'ChatMessageSent ignores blank text',
       build: buildBloc,
       act: (bloc) => bloc.add(const ChatMessageSent('   ')),
+      verify: (_) => verifyNever(
+        () => client.runAgent(any(), message: any(named: 'message')),
+      ),
+    );
+
+    blocTest<CopilotChatBloc, CopilotChatState>(
+      'ChatMessageSent does not run the agent while it is running',
+      setUp: () =>
+          when(() => agent.state)
+              .thenReturn(_agentState.copyWith(isRunning: true)),
+      build: buildBloc,
+      act: (bloc) => bloc.add(const ChatMessageSent('Hi')),
       verify: (_) => verifyNever(
         () => client.runAgent(any(), message: any(named: 'message')),
       ),

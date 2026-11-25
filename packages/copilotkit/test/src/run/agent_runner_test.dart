@@ -64,18 +64,20 @@ void main() {
       late StreamController<ag_ui.BaseEvent> events;
 
       test(
-        'drops the given message when the agent is already running',
+        'returns false and drops the message when the agent is already running',
         () async {
           events = StreamController<ag_ui.BaseEvent>();
           runs.add(events.stream);
           final first = runner.run(agent);
           await pumpEventQueue();
 
-          await runner.run(agent, message: message);
+          expect(await runner.run(agent, message: message), isFalse);
+          expect(sentInputs(), hasLength(1));
+          expect(agent.state.messages, isEmpty);
 
           events.add(ag_ui.RunFinishedEvent(threadId: threadId(), runId: 'r'));
           await events.close();
-          await first;
+          expect(await first, isTrue);
           expect(agent.state.messages, isEmpty);
         },
       );
@@ -113,7 +115,7 @@ void main() {
       test('reports transport errors and ends the run', () async {
         runs.add(Stream.error(failure));
 
-        await runner.run(agent);
+        expect(await runner.run(agent), isTrue);
 
         expect(errors.single, same(failure));
         expect(agent.state.isRunning, isFalse);
@@ -333,7 +335,7 @@ void main() {
         expect(sentInputs(), hasLength(1));
         cancel.complete();
         await stop;
-        await again;
+        expect(await again, isFalse);
         await run;
         expect(agent.state.isRunning, isFalse);
         expect(errors, isEmpty);

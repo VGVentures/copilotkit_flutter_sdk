@@ -257,10 +257,12 @@ class CopilotKitClient({
   /// Runs a turn of the agent [agentId], opening it if needed, after
   /// appending [message] if given.
   ///
-  /// Completes when the turn ends and never throws: errors go to `onError`
-  /// and to [CopilotAgentState.error]. Does nothing while the agent is
-  /// already running, so the message is dropped too.
-  Future<void> runAgent(String agentId, {Message? message}) =>
+  /// Completes with `true` when the turn ends, whatever its outcome, and
+  /// never throws: errors go to `onError` and to [CopilotAgentState.error].
+  /// Completes with `false` at once when nothing ran because the agent is
+  /// already running; [message] was not appended then, so the caller still
+  /// owns it.
+  Future<bool> runAgent(String agentId, {Message? message}) =>
       _runner.run(agent(agentId), message: message);
 
   /// Stops the turn of the agent [agentId], if it is running.
