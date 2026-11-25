@@ -167,6 +167,17 @@ cd packages/copilotkit
 fvm dart run tool/round_trip.dart --url http://localhost:8200/api/copilotkit
 ```
 
+To check the replay, the thread routes and a reconnect against a running
+runtime, run the live tests. They are skipped unless
+`COPILOTKIT_LIVE_RUNTIME_URL` is set, and every run adds a thread, so point
+them at a runtime without a Learning container:
+
+```sh
+cd packages/copilotkit
+COPILOTKIT_LIVE_RUNTIME_URL=http://localhost:8200/api/copilotkit \
+  fvm dart run test/live_test.dart
+```
+
 ### Step 6: Commit your changes
 
 Stage the changes that belong together and commit them with a message in

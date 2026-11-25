@@ -211,7 +211,10 @@ by `test/src/tools/models/tool_call_view_test.dart`. Tests of a package as a
 whole sit at the top of `test/`, outside the mirror: `test/api_test.dart`
 checks the public API against the package's `api.txt` (the summary of what
 its library exports, from `package:api_summary`), and
-`test/fixtures_test.dart` checks the wire fixtures.
+`test/fixtures_test.dart` checks the wire fixtures. `copilotkit`'s
+`test/live_test.dart` runs against a real runtime and is skipped unless
+`COPILOTKIT_LIVE_RUNTIME_URL` is set, so it never runs on CI
+([ADR 0015](adr/0015-live-tests-behind-a-flag.md)).
 
 ## Data flow
 
