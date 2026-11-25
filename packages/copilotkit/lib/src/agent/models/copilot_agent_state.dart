@@ -45,10 +45,10 @@ class const CopilotAgentState({
   ///
   /// It stays `true` while a [HumanInTheLoopTool] call waits for the user,
   /// because the turn is still open: [CopilotKitClient.runAgent] does nothing
-  /// for the agent until it ends, and the chat bloc ignores sent messages
-  /// while it is `true`. Use [awaitingResponseIds] to tell an agent that
-  /// waits for the user from one that is streaming, for example to pause the
-  /// app's own automatic runs.
+  /// for the agent and returns `false` until it ends, and the chat bloc
+  /// ignores sent messages while it is `true`. Use [awaitingResponseIds] to
+  /// tell an agent that waits for the user from one that is streaming, for
+  /// example to pause the app's own automatic runs.
   final bool isRunning = false,
 
   /// Tool calls made by the agent, in call order.

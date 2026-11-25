@@ -99,7 +99,7 @@ client.respondToToolCall(call.id, {'decision': 'approve'});
 ```
 
 The agent's `isRunning` stays `true` while a call waits, because the turn is
-still open (`runAgent` does nothing until it ends); use
+still open (`runAgent` does nothing and returns `false` until it ends); use
 `awaitingResponseIds` to tell the agent waits for the user. Stopping the agent
 answers the call as cancelled, so a stop always ends the turn. So does
 unregistering the tool while a call waits. Several calls can wait together

@@ -65,10 +65,12 @@ class CopilotChatBloc({
 
   void _onMessageSent(ChatMessageSent event, Emitter<CopilotChatState> emit) {
     final text = event.text.trim();
-    if (text.isEmpty) return;
-    // The client drops the run, message included, when the agent is
-    // already running. The turn reports to the agent's state, which this
-    // bloc mirrors, so it isn't awaited.
+    // The client would drop the message during a turn. The runner marks the
+    // agent as running in the same synchronous step that starts a turn, so
+    // this reads the state the client would read.
+    if (text.isEmpty || _agent.state.isRunning) return;
+    // The turn reports to the agent's state, which this bloc mirrors, so it
+    // isn't awaited.
     unawaited(
       _client.runAgent(
         _agent.state.agentId,

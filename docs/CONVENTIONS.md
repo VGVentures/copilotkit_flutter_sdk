@@ -17,7 +17,10 @@ facade composes them: `CopilotKitClient` builds a `ToolRegistry`, an
 which streams each run with a `RunInputBuilder`, and a `ToolCallRunner`,
 which runs the tool calls between runs with a `ToolCallExecutor`. It also
 takes a `ThreadConnector`, which rebuilds an agent's conversation from the
-runtime's replay of its thread (see [Data flow](ARCHITECTURE.md#data-flow)).
+runtime's replay of its thread (see [Data flow](ARCHITECTURE.md#data-flow)). A
+`runAgent` that can't start a turn reports it through its return value, not
+through `onError`, which is for failures of a run, a stop or a handler (see
+[ADR 0014](adr/0014-run-agent-during-a-turn.md)).
 
 ```dart
 // Good: the mapper gets its JSON helpers injected
@@ -151,6 +154,10 @@ state holder and a widget tree: it mirrors the holder's `stream` with
 `emit.forEach` and turns UI events into calls on the client. Logic it needs,
 like mapping messages to chat rows, comes from an injected class
 (`ChatRowMapper`).
+
+A bloc doesn't send an event's work into a client call that the client would
+drop; it reads the state it mirrors and returns. `CopilotChatBloc` ignores a
+`ChatMessageSent` while the agent `isRunning`.
 
 A bloc for the feature `[feature]` lives in `[feature_dir]/bloc/` as three
 files at the same level: `[feature]_bloc.dart`, `[feature]_event.dart` and

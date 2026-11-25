@@ -1,6 +1,6 @@
 # 0014. `runAgent` during a turn
 
-**Status:** Proposed
+**Status:** Accepted
 
 Amends [ADR 0009](0009-human-in-the-loop-responses.md).
 
