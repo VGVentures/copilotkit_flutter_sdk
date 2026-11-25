@@ -45,6 +45,9 @@ const runtime = intelligenceApiKey
         getLearningContainerId: () => learningContainerId,
       }),
       identifyUser: () => defaultUser,
+      // Lets the agent and the app read and change the user's memories, and
+      // read the project's. Without it the /memories routes answer 404.
+      memory: { access: () => ({ user: "read-write", project: "read" }) },
     })
   : new CopilotRuntime({ agents });
 

@@ -1,21 +1,28 @@
+// cspell:ignore realtime
 /// @docImport 'package:copilotkit/src/client/client.dart';
 library;
 
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:copilotkit/src/memories/memory_channel_listener.dart';
 import 'package:copilotkit/src/memories/models/memory.dart';
+import 'package:copilotkit/src/memories/models/memory_channel_credentials.dart';
 import 'package:copilotkit/src/memories/models/memory_error_code.dart';
 import 'package:copilotkit/src/memories/models/memory_exception.dart';
+import 'package:copilotkit/src/memories/models/memory_metadata_event.dart';
 import 'package:copilotkit/src/memories/models/memory_mutation_outcome.dart';
 import 'package:copilotkit/src/memories/models/memory_scope.dart';
 import 'package:copilotkit/src/memories/models/memory_unavailable_exception.dart';
 import 'package:copilotkit/src/memories/models/memory_validation_exception.dart';
 import 'package:copilotkit/src/memories/models/new_memory.dart';
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
+import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 
 /// Lists, recalls, saves, supersedes and retires the memories of the user,
-/// through the `/memories` routes of a Copilot Runtime.
+/// through the `/memories` routes of a Copilot Runtime, and follows changes
+/// to them live with [watch].
 ///
 /// The runtime has these routes only when it has `memory.access` configured
 /// and an Intelligence project that is entitled to memory. Every method
@@ -34,6 +41,9 @@ class MemoriesClient({
   Future<Map<String, String>> Function()? headers,
   http.Client? httpClient,
   Duration timeout = const Duration(seconds: 15),
+  @visibleForTesting
+  PhoenixChannelsClient Function(Uri socketUrl, Map<String, String> params)?
+  channelFactory,
 }) {
   /// Creates a client for the memory routes of the runtime at [runtimeUrl],
   /// e.g. `https://host/api/copilotkit`.
@@ -42,6 +52,7 @@ class MemoriesClient({
   /// that gets no answer within [timeout] fails with
   /// [MemoryErrorCode.requestTimeout]. The client sends through [httpClient],
   /// which defaults to [http.Client.new], and [close] closes it.
+  /// [channelFactory] replaces the Phoenix client of [watch] in tests.
   this;
 
   /// The most memories a recall returns, whatever limit it is asked for.
@@ -62,6 +73,12 @@ class MemoriesClient({
   final Future<Map<String, String>> Function()? _headers = headers;
   final http.Client _httpClient = httpClient ?? http.Client();
   final Duration _timeout = timeout;
+  final PhoenixChannelsClient Function(Uri, Map<String, String>)?
+  _channelFactory = channelFactory;
+  final String _runtimeUrl = runtimeUrl.toString().replaceFirst(
+    RegExp(r'/+$'),
+    '',
+  );
 
   /// Returns the memories of the user, newest first.
   ///
@@ -164,6 +181,70 @@ class MemoriesClient({
       _itemUrl(id),
       code: MemoryErrorCode.mutationFailed,
       unavailableStatuses: _unavailableItemStatuses,
+    );
+  }
+
+  /// Asks the runtime for the credentials of the user's and the project's
+  /// memory channels, through `POST /memories/subscribe`.
+  ///
+  /// Throws a [MemoryException] with [MemoryErrorCode.credentialsFailed]
+  /// when the runtime fails or grants no channel.
+  Future<MemoryChannelCredentials> subscribe() async {
+    const code = MemoryErrorCode.credentialsFailed;
+    final response = await _send(
+      'POST',
+      '$_baseUrl/subscribe',
+      code: code,
+      body: const {},
+    );
+    try {
+      return MemoryChannelCredentials.fromJson(_object(response, code));
+    } on FormatException catch (error) {
+      throw MemoryException(
+        code: code,
+        message: 'The runtime sent invalid credentials: ${error.message}',
+        statusCode: response.statusCode,
+      );
+    }
+  }
+
+  /// Follows changes to the user's and the project's memories live, from
+  /// any device or agent run, on the runtime's real-time service.
+  ///
+  /// Reads the service's socket from the runtime's `GET /info`, then follows
+  /// the channels [subscribe] grants, with fresh credentials for each socket.
+  /// [onConnected] is called each time the user's channel joins. A socket
+  /// that drops is opened again after a growing delay. The stream emits a
+  /// [MemoryException] with [MemoryErrorCode.realtimeUnavailable] and ends
+  /// when the runtime has no real-time service, or after 5 failures in a
+  /// row. The service may push an event more than once, so apply events in a
+  /// way that repeating one changes nothing.
+  Stream<MemoryMetadataEvent> watch({void Function()? onConnected}) async* {
+    yield* MemoryChannelListener(
+      socketUrl: await _socketUrl(),
+      credentials: subscribe,
+      onConnected: onConnected,
+      channelFactory: _channelFactory,
+    ).events;
+  }
+
+  /// The socket of the runtime's real-time service, from its `GET /info`.
+  Future<Uri> _socketUrl() async {
+    const code = MemoryErrorCode.realtimeUnavailable;
+    final response = await _send(
+      'GET',
+      '$_runtimeUrl/info',
+      code: code,
+      unavailableStatuses: const {},
+    );
+    if (_object(response, code)
+        case {'intelligence': {'wsUrl': final String url}}
+        when url.isNotEmpty) {
+      return Uri.parse(url);
+    }
+    throw const MemoryException(
+      code: code,
+      message: 'The runtime has no real-time service.',
     );
   }
 

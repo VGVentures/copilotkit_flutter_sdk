@@ -26,7 +26,8 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
               routes, their changes live over the real-time service's
               thread metadata channel, and their models
   memories    MemoriesClient: the user's memories over the runtime's REST
-              routes, and their models
+              routes, their changes live over the real-time service's
+              memory channels, and their models
   tools       client tools, their calls and the user's answers
   context     the app data shared with the agent
   messages    the conversation's messages and their AG-UI mapping

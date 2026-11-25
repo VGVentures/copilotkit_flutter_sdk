@@ -1,4 +1,6 @@
-/// The code of a `MemoryException`, the same ones `@copilotkit/core` uses.
+// cspell:ignore realtime
+/// The code of a `MemoryException`: the ones `@copilotkit/core` uses, plus
+/// [realtimeUnavailable], which core has no code for.
 enum MemoryErrorCode {
   /// Listing the memories failed.
   listFailed('MEMORY_LIST_FAILED'),
@@ -13,7 +15,11 @@ enum MemoryErrorCode {
   mutationFailed('MEMORY_MUTATION_FAILED'),
 
   /// The runtime didn't answer in time.
-  requestTimeout('MEMORY_REQUEST_TIMEOUT');
+  requestTimeout('MEMORY_REQUEST_TIMEOUT'),
+
+  /// Live changes can't be followed: the runtime has no real-time service,
+  /// or the channel failed too many times in a row.
+  realtimeUnavailable('MEMORY_REALTIME_UNAVAILABLE');
 
   new(this.wireName);
 

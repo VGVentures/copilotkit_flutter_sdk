@@ -10,6 +10,8 @@ void main() {
         'MEMORY_CREDENTIALS_FAILED',
         'MEMORY_MUTATION_FAILED',
         'MEMORY_REQUEST_TIMEOUT',
+        // This SDK's own: core has no code for a channel that gave up.
+        'MEMORY_REALTIME_UNAVAILABLE',
       ]);
     });
   });

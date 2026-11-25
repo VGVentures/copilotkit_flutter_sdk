@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
@@ -43,7 +44,11 @@ void main() {
     late _MockMemoriesClient client;
     late List<Completer<List<Memory>>> pendingLists;
 
-    setUp(() => client = _MockMemoriesClient());
+    setUp(() {
+      client = _MockMemoriesClient();
+      when(() => client.watch(onConnected: any(named: 'onConnected')))
+          .thenAnswer((_) => const Stream.empty());
+    });
 
     MemoriesBloc buildBloc() => MemoriesBloc(client: client);
 
@@ -91,7 +96,10 @@ void main() {
         act: (bloc) => bloc.add(const MemoriesRequested()),
         expect: () => const [
           MemoriesState(isLoading: true, memories: [_tea], recalled: [_tea]),
-          MemoriesState(isAvailable: false),
+          MemoriesState(
+            isAvailable: false,
+            realtimeStatus: MemoryRealtimeStatus.unavailable,
+          ),
         ],
       );
 
@@ -131,6 +139,7 @@ void main() {
           MemoriesState(isLoading: true, memories: [_tea]),
           MemoriesState(
             memories: [_tea],
+            realtimeStatus: MemoryRealtimeStatus.unavailable,
             error: MemoryException(
               code: MemoryErrorCode.listFailed,
               message: 'Request failed: 500',
@@ -267,7 +276,10 @@ void main() {
         act: (bloc) => bloc.add(const MemoriesRecalled('seats')),
         expect: () => const [
           MemoriesState(isRecalling: true),
-          MemoriesState(isAvailable: false),
+          MemoriesState(
+            isAvailable: false,
+            realtimeStatus: MemoryRealtimeStatus.unavailable,
+          ),
         ],
       );
 
@@ -368,7 +380,10 @@ void main() {
         act: (bloc) => bloc.add(const MemorySaved(_draft)),
         expect: () => const [
           MemoriesState(inFlightMutationCount: 1),
-          MemoriesState(isAvailable: false),
+          MemoriesState(
+            isAvailable: false,
+            realtimeStatus: MemoryRealtimeStatus.unavailable,
+          ),
         ],
       );
 
@@ -533,6 +548,214 @@ void main() {
           MemoriesState(memories: [_tea], error: _failure),
         ],
       );
+    });
+
+    group('live memories', () {
+      late StreamController<MemoryMetadataEvent> live;
+      late void Function() connect;
+      final at = DateTime.utc(2026, 11, 25);
+
+      MemoryMetadataEvent change(
+        MemoryMetadataOperation operation,
+        String id, [
+        Memory? memory,
+      ]) => MemoryMetadataEvent(
+        operation: operation,
+        memoryId: id,
+        occurredAt: at,
+        memory: memory,
+      );
+
+      setUp(() {
+        live = StreamController<MemoryMetadataEvent>();
+        when(
+          () =>
+              client.list(includeInvalidated: any(named: 'includeInvalidated')),
+        ).thenAnswer((_) async => [_tea, _seats]);
+        when(
+          () => client.watch(onConnected: any(named: 'onConnected')),
+        ).thenAnswer((invocation) {
+          connect = invocation.namedArguments[#onConnected]! as void Function();
+          return live.stream;
+        });
+      });
+
+      // A stream nobody listened to never reports that it closed.
+      tearDown(() => unawaited(live.close()));
+
+      Future<MemoriesBloc> following({bool includeInvalidated = false}) async {
+        final bloc = buildBloc()
+          ..add(MemoriesRequested(includeInvalidated: includeInvalidated));
+        await pumpEventQueue();
+        return bloc;
+      }
+
+      Future<List<Memory>> after(
+        MemoriesBloc bloc,
+        List<MemoryMetadataEvent> events,
+      ) async {
+        events.forEach(live.add);
+        await pumpEventQueue();
+        return bloc.state.memories;
+      }
+
+      test('is connecting until the channel joins, then connected', () async {
+        final bloc = await following();
+
+        expect(bloc.state.realtimeStatus, MemoryRealtimeStatus.connecting);
+        connect();
+        await pumpEventQueue();
+        expect(bloc.state.realtimeStatus, MemoryRealtimeStatus.connected);
+        await bloc.close();
+        expect(live.hasListener, isFalse);
+      });
+
+      test('adds a created memory first, once', () async {
+        final bloc = await following();
+        final event = change(MemoryMetadataOperation.created, 'm3', _coffee);
+
+        expect(await after(bloc, [event, event]), [_coffee, _tea, _seats]);
+        await bloc.close();
+      });
+
+      test('puts an updated memory in place', () async {
+        final bloc = await following();
+        const warmer = Memory(
+          id: 'm2',
+          kind: MemoryKind.episodic,
+          scope: MemoryScope.user,
+          content: 'Prefers aisle seats.',
+          sourceThreadIds: [],
+        );
+
+        expect(
+          await after(bloc, [
+            change(MemoryMetadataOperation.updated, 'm2', warmer),
+          ]),
+          [_tea, warmer],
+        );
+        await bloc.close();
+      });
+
+      test('removes an invalidated memory, from the recall too', () async {
+        when(
+          () => client.recall(
+            any(),
+            limit: any(named: 'limit'),
+            scope: any(named: 'scope'),
+          ),
+        ).thenAnswer((_) async => [_tea]);
+        final bloc = await following()
+          ..add(const MemoriesRecalled('tea'));
+        await pumpEventQueue();
+
+        expect(
+          await after(bloc, [
+            change(MemoryMetadataOperation.invalidated, 'm1'),
+          ]),
+          [_seats],
+        );
+        expect(bloc.state.recalled, isEmpty);
+        await bloc.close();
+      });
+
+      test('marks an invalidated memory retired when retired ones are '
+          'listed', () async {
+        final bloc = await following(includeInvalidated: true);
+
+        final memories = await after(bloc, [
+          change(MemoryMetadataOperation.invalidated, 'm1'),
+        ]);
+
+        expect(memories.map((memory) => memory.isRetired), [true, false]);
+        await bloc.close();
+      });
+
+      test('does not bring back a memory after it was invalidated', () async {
+        final bloc = await following();
+
+        expect(
+          await after(bloc, [
+            change(MemoryMetadataOperation.invalidated, 'm1'),
+            // A stale copy the service repeated.
+            change(MemoryMetadataOperation.created, 'm1', _tea),
+          ]),
+          [_seats],
+        );
+        await bloc.close();
+      });
+
+      test('does not bring back a memory it retired itself', () async {
+        when(() => client.retire('m1')).thenAnswer((_) async {});
+        final bloc = await following()
+          ..add(const MemoryRetired('m1'));
+        await pumpEventQueue();
+
+        expect(
+          await after(bloc, [
+            change(MemoryMetadataOperation.created, 'm1', _tea),
+          ]),
+          [_seats],
+        );
+        await bloc.close();
+      });
+
+      test('ignores an event without a memory', () async {
+        final bloc = await following();
+
+        expect(
+          await after(bloc, [change(MemoryMetadataOperation.updated, 'm1')]),
+          [_tea, _seats],
+        );
+        await bloc.close();
+      });
+
+      test('is unavailable when the channel fails for good, and keeps the '
+          'list', () async {
+        final bloc = await following();
+        connect();
+        await pumpEventQueue();
+
+        live.addError(
+          const MemoryException(
+            code: MemoryErrorCode.realtimeUnavailable,
+            message: 'gave up',
+          ),
+        );
+        await live.close();
+        await pumpEventQueue();
+
+        expect(bloc.state.realtimeStatus, MemoryRealtimeStatus.unavailable);
+        expect(bloc.state.memories, [_tea, _seats]);
+        expect(bloc.state.error, isNull);
+        await bloc.close();
+      });
+
+      test('ignores the join of a list it replaced', () async {
+        final bloc = await following();
+        final stale = connect;
+        live = StreamController<MemoryMetadataEvent>();
+
+        bloc.add(const MemoriesRequested());
+        await pumpEventQueue();
+        stale();
+        await pumpEventQueue();
+
+        expect(bloc.state.realtimeStatus, MemoryRealtimeStatus.connecting);
+        await bloc.close();
+      });
+
+      test('is unavailable when the runtime has no memory', () async {
+        when(
+          () =>
+              client.list(includeInvalidated: any(named: 'includeInvalidated')),
+        ).thenThrow(_unavailable);
+        final bloc = await following();
+
+        expect(bloc.state.realtimeStatus, MemoryRealtimeStatus.unavailable);
+        verifyNever(() => client.watch(onConnected: any(named: 'onConnected')));
+        await bloc.close();
+      });
     });
   });
 }
