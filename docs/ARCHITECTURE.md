@@ -23,7 +23,8 @@ packages/phoenix_channels_client
 packages/copilotkit           pure Dart, no Flutter and no bloc
   transport   sends runs to the Copilot Runtime over AG-UI
   threads     ThreadsClient: the agent's threads over the runtime's REST
-              routes, and their models
+              routes, their changes live over the real-time service's
+              thread metadata channel, and their models
   memories    MemoriesClient: the user's memories over the runtime's REST
               routes, and their models
   tools       client tools, their calls and the user's answers
@@ -42,7 +43,7 @@ packages/copilotkit_flutter   Flutter, re-exports copilotkit
   chat        CopilotChatProvider, and CopilotChatBloc: a thin adapter
               from an agent to a chat UI
   threads     ThreadsBloc: a thin adapter from the threads client to a
-              threads UI
+              threads UI, kept live by the thread metadata channel
   memories    MemoriesBloc: a thin adapter from the memories client to
               a memories UI
 ```

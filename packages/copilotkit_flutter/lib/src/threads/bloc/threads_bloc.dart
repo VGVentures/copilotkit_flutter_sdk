@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/copilotkit.dart';
@@ -17,6 +18,13 @@ part 'threads_state.dart';
 /// It reads the routes the runtime has once per [ThreadsRequested], and
 /// leaves changes alone when the runtime has no thread mutations (see
 /// [ThreadsState.canMutate]).
+///
+/// When the runtime has real-time thread metadata, each [ThreadsRequested]
+/// that loads the list then follows it live with
+/// [CopilotKitClient.watchThreads] until the next [ThreadsRequested] or
+/// [close]: threads created, renamed, archived or deleted on any device show
+/// up without a refresh. If the channel fails for good, the list stays as it
+/// was last updated.
 class ThreadsBloc({
   required final CopilotKitClient _client,
   required final String _agentId,
@@ -60,23 +68,34 @@ class ThreadsBloc({
         ),
       );
     }
+    final ThreadPage page;
     try {
-      final page = await _client.threads.list(
+      page = await _client.threads.list(
         agentId: _agentId,
         includeArchived: _includeArchived,
         limit: _limit,
       );
-      emit(
-        state.copyWith(
-          threads: page.threads,
-          isLoading: false,
-          isAvailable: true,
-          nextCursor: () => page.nextCursor,
-        ),
-      );
     } on Object catch (error) {
-      emit(state.copyWith(isLoading: false, error: () => error));
+      return emit(state.copyWith(isLoading: false, error: () => error));
     }
+    emit(
+      state.copyWith(
+        threads: page.threads,
+        isLoading: false,
+        isAvailable: true,
+        nextCursor: () => page.nextCursor,
+      ),
+    );
+    final joinCode = page.joinCode;
+    if (!endpoints.realtimeMetadata || joinCode == null) return;
+    // Runs until the next ThreadsRequested restarts this handler, which
+    // cancels it, so events of an older list never reach a newer one.
+    await emit.forEach(
+      _client.watchThreads(joinCode),
+      onData: (event) => state.copyWith(threads: _applied(event)),
+      // The channel gave up: the list stays as it was last updated.
+      onError: (_, _) => state,
+    );
   }
 
   Future<void> _onNextPage(
@@ -164,6 +183,7 @@ class ThreadsBloc({
     Emitter<ThreadsState> emit,
   ) async {
     if (!_canMutate(emit)) return;
+    _deleting.add(event.threadId);
     final index = state.threads.indexWhere((t) => t.id == event.threadId);
     final removed = index == -1 ? null : state.threads[index];
     emit(
@@ -194,7 +214,36 @@ class ThreadsBloc({
           error: () => error,
         ),
       );
+    } finally {
+      _deleting.remove(event.threadId);
     }
+  }
+
+  /// The ids of the threads whose deletion is running. A live event for one
+  /// of them must not bring it back before the runtime answers.
+  final _deleting = <String>{};
+
+  /// The threads after the live [event]: a deletion, or an archive the list
+  /// doesn't show, removes the thread; any other change puts the thread in
+  /// place or adds it, newest first.
+  ///
+  /// The real-time service may push an event more than once, which changes
+  /// nothing the second time.
+  List<ThreadRecord> _applied(ThreadMetadataEvent event) {
+    final thread = event.thread;
+    if (event.operation == ThreadMetadataOperation.deleted) {
+      return _without(event.threadId);
+    }
+    if (thread == null ||
+        thread.agentId != _agentId ||
+        _deleting.contains(thread.id)) {
+      return state.threads;
+    }
+    if (thread.archived && !_includeArchived) return _without(thread.id);
+    final known = state.threads.any((t) => t.id == thread.id);
+    return [
+      ...known ? _replaced(thread) : [...state.threads, thread],
+    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
   }
 
   /// Runs [mutation] while counting it as in flight, then puts the list it

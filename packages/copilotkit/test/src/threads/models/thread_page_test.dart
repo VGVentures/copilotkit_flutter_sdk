@@ -2,6 +2,7 @@ import 'package:copilotkit/src/threads/models/thread_page.dart';
 import 'package:copilotkit/src/threads/models/thread_record.dart';
 import 'package:test/test.dart';
 
+import '../../../helpers/thread_metadata_fixture.dart';
 import '../../../helpers/threads_fixture.dart';
 
 const _thread = <String, Object?>{
@@ -22,6 +23,18 @@ void main() {
       expect(page.threads, hasLength(1));
       expect(page.nextCursor, isNotEmpty);
       expect(page.hasNext, isTrue);
+    });
+
+    test('keeps the join code of the metadata channel', () {
+      final page = ThreadPage.fromJson(
+        threadMetadataBody('list')! as Map<String, Object?>,
+      );
+
+      expect(page.joinCode, '<join-code>');
+      expect(
+        ThreadPage.fromJson(const {'threads': <Object?>[]}).joinCode,
+        isNull,
+      );
     });
 
     test('has no next page without a cursor', () {

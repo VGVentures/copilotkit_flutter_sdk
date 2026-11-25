@@ -3,8 +3,9 @@ part of 'threads_bloc.dart';
 /// What a threads UI shows: the [threads] of an agent and what is going on
 /// with them.
 ///
-/// The threads change as the user's operations finish, not live: a thread
-/// another device changes shows after the next [ThreadsRequested].
+/// The threads change as the user's operations finish and, on a runtime with
+/// real-time thread metadata, live as any device changes them. Without it, a
+/// thread another device changes shows after the next [ThreadsRequested].
 final class const ThreadsState({
   /// The threads loaded so far, newest first.
   final List<ThreadRecord> threads = const [],

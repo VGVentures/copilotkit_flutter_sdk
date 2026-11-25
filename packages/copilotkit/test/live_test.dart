@@ -129,6 +129,31 @@ void main() {
         expect(_assistantText(replayed.messages), reply);
       });
 
+      test('a rename reaches the thread metadata channel', () async {
+        if (mode != RuntimeMode.intelligence) {
+          markTestSkipped('Only an Intelligence runtime has the channel');
+          return;
+        }
+        final page = await client.threads.list(agentId: _agentId, limit: 1);
+        final events = client.watchThreads(page.joinCode!);
+        final renamed = events.firstWhere(
+          (event) =>
+              event.threadId == threadId &&
+              event.thread?.name == 'live channel',
+        );
+        // Give the socket time to join before the change.
+        await Future<void>.delayed(const Duration(seconds: 2));
+
+        await client.threads.rename(
+          agentId: _agentId,
+          threadId: threadId,
+          name: 'live channel',
+        );
+
+        final event = await renamed.timeout(const Duration(seconds: 20));
+        expect(event.operation, ThreadMetadataOperation.renamed);
+      });
+
       test('a thread is renamed, archived and unarchived', () async {
         final threads = client.threads;
 

@@ -44,6 +44,7 @@ One thread serves the whole file: `setUpAll` opens it and runs one turn, and
 - a fresh client replays the thread to the same reply;
 - on an Intelligence runtime, a replay whose first socket closes after three
   frames reconnects and still ends with the same reply;
+- on an Intelligence runtime, a rename reaches the thread metadata channel;
 - the thread routes rename, archive and unarchive the thread.
 
 Point the URL at a runtime without a Learning container. Every run of the file
@@ -70,7 +71,7 @@ describes.
 
 - `copilotkit` gains two dev dependencies the workspace already resolves:
   `web_socket_channel` and `stream_channel`, for the socket that closes early.
-- The skipped tests show up in every run of the suite as four skips, which is
+- The skipped tests show up in every run of the suite as skips, which is
   the reminder that they exist.
 - The live tests don't count toward coverage: they never run on CI.
 - ARCHITECTURE.md and CONTRIBUTING.md describe the file in the same change.

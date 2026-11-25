@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'dart:async';
 
 import 'package:ack/ack.dart';
@@ -13,8 +14,13 @@ import '../../helpers/messages.dart';
 import '../../helpers/mock_agent_transport.dart';
 import '../../helpers/tool_runs.dart';
 
+class _MockThreadsClient extends Mock implements ThreadsClient;
+
 void main() {
-  setUpAll(MockAgentTransport.registerFallbacks);
+  setUpAll(() {
+    MockAgentTransport.registerFallbacks();
+    registerFallbackValue(Uri());
+  });
 
   group(CopilotKitClient, () {
     final runtimeUrl = Uri.parse('http://runtime.test/api/copilotkit');
@@ -491,6 +497,68 @@ void main() {
         await client.threadEndpoints();
 
         verify(() => transport.info()).called(1);
+      });
+    });
+
+    group('watchThreads', () {
+      void stubInfo(Map<String, Object?> json) =>
+          when(() => transport.info(headers: any(named: 'headers')))
+              .thenAnswer((_) async => RuntimeInfo.fromJson(json));
+
+      test('follows the channel on the runtime real-time socket', () async {
+        stubInfo(const {
+          'mode': 'intelligence',
+          'intelligence': {'wsUrl': 'wss://realtime.test/client'},
+        });
+        final threads = _MockThreadsClient();
+        final event = ThreadMetadataEvent(
+          operation: ThreadMetadataOperation.deleted,
+          threadId: 't1',
+          occurredAt: DateTime.utc(2026, 11, 25),
+        );
+        when(
+          () => threads.watch(
+            socketUrl: any(named: 'socketUrl'),
+            joinCode: any(named: 'joinCode'),
+          ),
+        ).thenAnswer((_) => Stream.value(event));
+        client = CopilotKitClient(
+          runtimeUrl: runtimeUrl,
+          headers: () async => {'Authorization': 'Bearer token'},
+          transport: transport,
+          threads: threads,
+        );
+
+        expect(await client.watchThreads('code-1').toList(), [event]);
+        verify(() => transport.info(headers: {'Authorization': 'Bearer token'}))
+            .called(1);
+        verify(
+          () => threads.watch(
+            socketUrl: Uri.parse('wss://realtime.test/client'),
+            joinCode: 'code-1',
+          ),
+        ).called(1);
+        expect(client.threads, same(threads));
+      });
+
+      test('fails when the runtime has no real-time service', () async {
+        for (final info in [
+          const {'mode': 'sse'},
+          const {'mode': 'intelligence', 'intelligence': <String, Object?>{}},
+        ]) {
+          stubInfo(info);
+
+          await expectLater(
+            client.watchThreads('code-1'),
+            emitsError(
+              isA<ThreadsException>().having(
+                (e) => e.code,
+                'code',
+                ThreadsErrorCode.realtimeUnavailable,
+              ),
+            ),
+          );
+        }
       });
     });
 

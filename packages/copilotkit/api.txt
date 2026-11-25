@@ -76,7 +76,7 @@ package:copilotkit/copilotkit.dart:
     toolCallUpdated (method: CopilotAgentState Function(String, ToolCallView Function(ToolCallView)), internal)
     toolCallsMarkedExecuting (method: CopilotAgentState Function(), internal)
   CopilotKitClient (class extends Object):
-    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, AgentTransport? transport}))
+    new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, ThreadsClient? threads, AgentTransport? transport}))
     agents (getter: Map<String, CopilotAgent>)
     context (getter: List<AgentContextEntry>)
     memories (getter: MemoriesClient)
@@ -95,6 +95,7 @@ package:copilotkit/copilotkit.dart:
     threadEndpoints (method: Future<ThreadEndpoints> Function())
     unregisterTool (method: void Function(ClientTool<Object?>))
     updateContext (method: void Function(String, Map<String, Object?>))
+    watchThreads (method: Stream<ThreadMetadataEvent> Function(String))
   DeveloperMessage (class extends Message@1, final):
     new (const constructor: DeveloperMessage Function({required String content, String? encryptedValue, required String id, String? name}))
     content (getter: String)
@@ -268,10 +269,27 @@ package:copilotkit/copilotkit.dart:
     message (getter: String?)
     props (getter: List<Object?>)
     toString (method: String Function())
+  ThreadMetadataEvent (class extends Equatable):
+    new (const constructor: ThreadMetadataEvent Function({required DateTime occurredAt, required ThreadMetadataOperation operation, ThreadRecord? thread, required String threadId}))
+    fromJson (constructor: ThreadMetadataEvent Function(Map<String, Object?>))
+    occurredAt (getter: DateTime)
+    operation (getter: ThreadMetadataOperation)
+    props (getter: List<Object?>)
+    thread (getter: ThreadRecord?)
+    threadId (getter: String)
+  ThreadMetadataOperation (enum):
+    archived (enum constant: ThreadMetadataOperation)
+    created (enum constant: ThreadMetadataOperation)
+    deleted (enum constant: ThreadMetadataOperation)
+    renamed (enum constant: ThreadMetadataOperation)
+    unarchived (enum constant: ThreadMetadataOperation)
+    updated (enum constant: ThreadMetadataOperation)
+    values (static const getter: List<ThreadMetadataOperation>)
   ThreadPage (class extends Equatable):
-    new (const constructor: ThreadPage Function({String? nextCursor, required List<ThreadRecord> threads}))
+    new (const constructor: ThreadPage Function({String? joinCode, String? nextCursor, required List<ThreadRecord> threads}))
     fromJson (constructor: ThreadPage Function(Map<String, Object?>))
     hasNext (getter: bool)
+    joinCode (getter: String?)
     nextCursor (getter: String?)
     props (getter: List<Object?>)
     threads (getter: List<ThreadRecord>)
@@ -287,17 +305,21 @@ package:copilotkit/copilotkit.dart:
     updatedAt (getter: DateTime)
     copyWith (method: ThreadRecord Function({bool? archived, String? name}))
   ThreadsClient (class extends Object):
-    new (constructor: ThreadsClient Function({Future<Map<String, String>> Function()? headers, Client? httpClient, required Uri runtimeUrl, Duration timeout}))
+    new (constructor: ThreadsClient Function({PhoenixChannelsClient Function(Uri, Map<String, String>)? channelFactory, Future<Map<String, String>> Function()? headers, Client? httpClient, required Uri runtimeUrl, Duration timeout}))
     archive (method: Future<void> Function({required String agentId, required String threadId}))
     close (method: void Function())
     delete (method: Future<void> Function({required String agentId, required String threadId}))
     list (method: Future<ThreadPage> Function({required String agentId, String? cursor, bool includeArchived, int? limit}))
     rename (method: Future<ThreadRecord> Function({required String agentId, required String name, required String threadId}))
+    subscribe (method: Future<String> Function())
     unarchive (method: Future<ThreadRecord> Function({required String agentId, required String threadId}))
+    watch (method: Stream<ThreadMetadataEvent> Function({required String joinCode, required Uri socketUrl}))
   ThreadsErrorCode (enum):
     listFailed (enum constant: ThreadsErrorCode)
     mutationFailed (enum constant: ThreadsErrorCode)
+    realtimeUnavailable (enum constant: ThreadsErrorCode)
     requestTimeout (enum constant: ThreadsErrorCode)
+    subscribeFailed (enum constant: ThreadsErrorCode)
     values (static const getter: List<ThreadsErrorCode>)
   ThreadsException (class extends Equatable implements Exception):
     new (const constructor: ThreadsException Function({required ThreadsErrorCode code, required String message, int? statusCode}))
@@ -398,3 +420,5 @@ package:http/src/client.dart:
   Client (referenced)
 package:json_utils/src/json_patcher.dart:
   JsonPatcher (referenced)
+package:phoenix_channels_client/src/phoenix_channels_client.dart:
+  PhoenixChannelsClient (referenced)
