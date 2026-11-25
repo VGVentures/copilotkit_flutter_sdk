@@ -84,14 +84,14 @@ class CopilotKitClient({
   ThreadsClient? _threads = threads;
 
   /// Captures trajectories for Automatic Learning; see [startTrajectory].
-  final TrajectorySession? _givenTrajectory = trajectory;
+  TrajectorySession? _trajectorySession = trajectory;
 
-  late final TrajectorySession _trajectory =
-      _givenTrajectory ??
-      TrajectorySession(
-        client: TrajectoryClient(runtimeUrl: _runtimeUrl, headers: _headers),
-        onError: (error) => _report(error, StackTrace.current),
-      );
+  /// The trajectory session, created on first use, so a client that never
+  /// captures has nothing to stop on [close].
+  TrajectorySession get _trajectory => _trajectorySession ??= TrajectorySession(
+    client: TrajectoryClient(runtimeUrl: _runtimeUrl, headers: _headers),
+    onError: (error) => _report(error, StackTrace.current),
+  );
   bool _closed = false;
 
   /// The client for the thread routes of this client's runtime.
@@ -355,7 +355,9 @@ class CopilotKitClient({
     // First: closing it is synchronous, and a failure below must not skip it.
     _threads?.close();
     _memories?.close();
-    await _trajectory.stop();
+    // No await without a session: close() must not gain an async gap for
+    // clients that never capture (widget tests close them in fake async).
+    if (_trajectorySession case final trajectory?) await trajectory.stop();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();
