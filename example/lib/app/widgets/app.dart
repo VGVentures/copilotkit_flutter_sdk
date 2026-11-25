@@ -16,6 +16,10 @@ class const App({
   /// `null` for none.
   final ThreadIdStore? _threadIdStore,
 
+  /// Whether to capture a trajectory for Automatic Learning, from
+  /// `--dart-define=LEARNING=true`.
+  final bool learning = false,
+
   /// Receives the SDK's errors.
   final ErrorLogger _logger = const ErrorLogger(),
   super.key,
@@ -27,6 +31,7 @@ class const App({
     final app = MaterialApp(
       title: 'CopilotKit',
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6766FC)),
+      navigatorObservers: [CopilotNavigatorObserver()],
       home: isValid
           ? WeatherDemo(
               child: BarChartDemo(
@@ -43,7 +48,12 @@ class const App({
           : const _MissingRuntimeScreen(),
     );
     if (!isValid) return app;
-    return CopilotKit(runtimeUrl: uri, onError: _logger.call, child: app);
+    return CopilotKit(
+      runtimeUrl: uri,
+      onError: _logger.call,
+      learning: learning ? const CopilotLearning() : null,
+      child: app,
+    );
   }
 }
 

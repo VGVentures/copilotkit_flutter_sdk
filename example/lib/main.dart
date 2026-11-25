@@ -13,6 +13,9 @@ Future<void> main() async {
       runtimeUrl: const String.fromEnvironment('RUNTIME_URL'),
       threadId: threadId,
       threadIdStore: store,
+      // Set with --dart-define=LEARNING=true; false otherwise.
+      // ignore: avoid_redundant_argument_values
+      learning: const bool.fromEnvironment('LEARNING'),
     ),
   );
 }

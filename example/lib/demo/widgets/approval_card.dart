@@ -32,14 +32,22 @@ class const ApprovalCard({
             if (respond != null)
               Row(
                 children: [
-                  FilledButton(
-                    onPressed: () => respond({'decision': 'approve'}),
-                    child: const Text('Approve'),
+                  // Taps on these are captured for Automatic Learning when
+                  // the app runs with LEARNING=true.
+                  CopilotAction(
+                    name: 'approve',
+                    child: FilledButton(
+                      onPressed: () => respond({'decision': 'approve'}),
+                      child: const Text('Approve'),
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton(
-                    onPressed: () => respond({'decision': 'reject'}),
-                    child: const Text('Reject'),
+                  CopilotAction(
+                    name: 'reject',
+                    child: OutlinedButton(
+                      onPressed: () => respond({'decision': 'reject'}),
+                      child: const Text('Reject'),
+                    ),
                   ),
                 ],
               )

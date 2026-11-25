@@ -247,6 +247,17 @@ into its shared state.
 - Edit a word in the document, then ask "Add one sentence at the end". The
   new version keeps your edit.
 
+### Learning capture
+
+Run the app with `--dart-define=LEARNING=true` against an Intelligence
+runtime whose project has trajectories. The app then captures a trajectory:
+screen changes, and taps on **Approve** and **Reject** in approval cards.
+
+- Open the memories and come back, then approve an action. In the
+  Intelligence dashboard, the trajectory has `navigation` events and a
+  `click` with the approval call's thread and tool.
+- Without the define, nothing is captured.
+
 ### Human in the loop
 
 These checks cover the `confirmAction` approval tool.

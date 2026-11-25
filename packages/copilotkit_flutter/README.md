@@ -117,6 +117,35 @@ CopilotComponent<BarChartArgs>(
 The call's result is `''`. The agent runs again after it, unless `followUp`
 is `false`.
 
+## Learning from what the user does
+
+Set `learning` on `CopilotKit` to capture a trajectory for Automatic
+Learning while it is mounted, then say what to capture:
+
+```dart
+CopilotKit(
+  runtimeUrl: runtimeUrl,
+  learning: const CopilotLearning(),
+  child: MaterialApp(
+    navigatorObservers: [CopilotNavigatorObserver()],
+    home: const ChatPage(),
+  ),
+)
+
+// In a tool card: the tap is captured with the call's thread and tool.
+CopilotAction(
+  name: 'approve',
+  child: FilledButton(onPressed: approve, child: const Text('Approve')),
+)
+```
+
+`CopilotNavigatorObserver` records `navigation` events from route names,
+and `CopilotAction` records a `click` for a tap on its child without taking
+the tap from it. Record outcomes with
+`CopilotKit.of(context).emitTrajectoryEvent('deal.approved', {...})`.
+Capture is opt-in and records no text the user types; ask for the user's
+consent first. Nothing is captured without `learning`.
+
 ---
 
 ## Continuous Integration 🤖

@@ -17,8 +17,8 @@ class const ClientCall(
   List<Object?> get props => [method, arguments];
 }
 
-/// A [CopilotKitClient] that records the tool and context calls made on it,
-/// in order.
+/// A [CopilotKitClient] that records the tool, context and trajectory calls
+/// made on it, in order.
 class RecordingClient extends Fake implements CopilotKitClient {
   /// The calls made so far.
   final List<ClientCall> calls = [];
@@ -45,6 +45,25 @@ class RecordingClient extends Fake implements CopilotKitClient {
 
   @override
   void removeContext(String id) => calls.add(ClientCall('removeContext', [id]));
+
+  @override
+  Future<String?> startTrajectory({String? trajectoryId}) async {
+    calls.add(ClientCall('startTrajectory', [trajectoryId]));
+    return trajectoryId;
+  }
+
+  @override
+  Future<void> stopTrajectory() async =>
+      calls.add(const ClientCall('stopTrajectory', []));
+
+  @override
+  void recordTrajectoryEvent(
+    TrajectoryBuiltInEvent event,
+    Map<String, Object?> value,
+  ) => calls.add(ClientCall('recordTrajectoryEvent', [event, value]));
+
+  @override
+  Future<void> close() async => calls.add(const ClientCall('close', []));
 
   /// The entries passed to [addContext], in order.
   List<AgentContextEntry> get addedEntries => [
