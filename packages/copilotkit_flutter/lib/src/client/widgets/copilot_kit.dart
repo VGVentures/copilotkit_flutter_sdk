@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:copilotkit/copilotkit.dart';
+import 'package:copilotkit_flutter/src/client/models/copilot_learning.dart';
 import 'package:flutter/widgets.dart';
 
 /// Provides a [CopilotKitClient] to the widget tree.
@@ -16,6 +17,7 @@ class CopilotKit extends StatefulWidget {
     this._headers,
     this._properties,
     this._onError,
+    this.learning,
     super.key,
   }) : _client = null;
 
@@ -24,6 +26,7 @@ class CopilotKit extends StatefulWidget {
   const new value({
     required CopilotKitClient this._client,
     required this.child,
+    this.learning,
     super.key,
   }) : _runtimeUrl = null,
        _headers = null,
@@ -38,6 +41,15 @@ class CopilotKit extends StatefulWidget {
 
   /// The subtree that can read the client.
   final Widget child;
+
+  /// Captures a trajectory for Automatic Learning while this widget is
+  /// mounted, or nothing when `null`.
+  ///
+  /// The capture starts when the widget mounts, or when this is set, and
+  /// stops when it is disposed or set to `null`. Add a
+  /// `CopilotNavigatorObserver` to the app's navigator and mark controls
+  /// with `CopilotAction` to capture what the user does.
+  final CopilotLearning? learning;
 
   /// Returns the client of the nearest [CopilotKit] ancestor.
   ///
@@ -58,6 +70,12 @@ class CopilotKit extends StatefulWidget {
   static CopilotKitClient? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_CopilotKitScope>()?.client;
 
+  /// Returns the client of the nearest [CopilotKit] ancestor, or `null`,
+  /// without rebuilding [context] when it changes: for code that runs
+  /// outside `build`, like a navigator observer.
+  static CopilotKitClient? maybeRead(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_CopilotKitScope>()?.client;
+
   @override
   State<CopilotKit> createState() => _CopilotKitState();
 }
@@ -75,9 +93,37 @@ class _CopilotKitState extends State<CopilotKit> {
       ));
 
   @override
+  void initState() {
+    super.initState();
+    _startLearning();
+  }
+
+  @override
+  void didUpdateWidget(CopilotKit oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.learning == oldWidget.learning) return;
+    if (widget.learning == null) {
+      unawaited(_client.stopTrajectory());
+    } else {
+      _startLearning();
+    }
+  }
+
+  void _startLearning() {
+    final learning = widget.learning;
+    if (learning == null) return;
+    unawaited(_client.startTrajectory(trajectoryId: learning.trajectoryId));
+  }
+
+  @override
   void dispose() {
     final client = _ownedClient;
-    if (client != null) unawaited(client.close());
+    if (client != null) {
+      // Closing the client stops the capture too.
+      unawaited(client.close());
+    } else if (widget.learning != null) {
+      unawaited(_client.stopTrajectory());
+    }
     super.dispose();
   }
 

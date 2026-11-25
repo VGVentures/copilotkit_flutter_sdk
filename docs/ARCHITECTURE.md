@@ -39,7 +39,8 @@ packages/copilotkit           pure Dart, no Flutter and no bloc
               between them (internal)
   client      CopilotKitClient: agents, tools, context and runs
 packages/copilotkit_flutter   Flutter, re-exports copilotkit
-  client      CopilotKit: provides the client to the widget tree
+  client      CopilotKit: provides the client to the widget tree, and
+              starts its trajectory when `learning` is set
   agent       CopilotAgentScope, AgentStateBuilder
   tools       CopilotTool, CopilotHumanInTheLoop, ToolRenderer,
               ToolCallWidget
@@ -50,6 +51,8 @@ packages/copilotkit_flutter   Flutter, re-exports copilotkit
               threads UI, kept live by the thread metadata channel
   memories    MemoriesBloc: a thin adapter from the memories client to
               a memories UI
+  learning    CopilotNavigatorObserver and CopilotAction: capture
+              navigation and taps for the client's trajectory
 ```
 
 The core holds all the logic in plain Dart classes. Flutter adds widgets and
@@ -164,6 +167,7 @@ barrel:
 | `copilotkit_flutter` | `client` | Presentation | the core |
 | | `agent`, `tools`, `context` | Presentation | `client`, the core |
 | | `chat` | Presentation | `client`, the core |
+| | `learning` | Presentation | `client`, `agent`, `tools`, the core |
 | | `threads` | Presentation | the core |
 | | `memories` | Presentation | the core |
 

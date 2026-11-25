@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
+import '../../../helpers/recording_client.dart';
+
 class _MockCopilotKitClient extends Mock implements CopilotKitClient;
 
 class const _ClientProbe(final void Function(CopilotKitClient client) onBuild)
@@ -137,6 +139,71 @@ void main() {
         );
 
         expect(client, isNull);
+      });
+    });
+
+    group('learning', () {
+      late RecordingClient client;
+
+      setUp(() => client = RecordingClient());
+
+      List<String> methods() => [for (final call in client.calls) call.method];
+
+      Widget kit({CopilotLearning? learning}) => CopilotKit.value(
+        client: client,
+        learning: learning,
+        child: const SizedBox(),
+      );
+
+      testWidgets('captures a trajectory while mounted', (tester) async {
+        await tester.pumpWidget(
+          kit(learning: const CopilotLearning(trajectoryId: 't1')),
+        );
+        expect(
+          client.calls.single,
+          const ClientCall('startTrajectory', ['t1']),
+        );
+
+        await tester.pumpWidget(const SizedBox());
+        expect(methods(), ['startTrajectory', 'stopTrajectory']);
+      });
+
+      testWidgets('starts and stops when learning is set and unset', (
+        tester,
+      ) async {
+        await tester.pumpWidget(kit());
+        await tester.pumpWidget(kit(learning: const CopilotLearning()));
+        await tester.pumpWidget(kit(learning: const CopilotLearning()));
+        await tester.pumpWidget(kit());
+        await tester.pumpWidget(const SizedBox());
+
+        expect(methods(), ['startTrajectory', 'stopTrajectory']);
+      });
+
+      testWidgets('captures nothing without learning', (tester) async {
+        await tester.pumpWidget(kit());
+        await tester.pumpWidget(const SizedBox());
+
+        expect(methods(), isEmpty);
+      });
+
+      testWidgets('maybeRead returns the client without depending on it', (
+        tester,
+      ) async {
+        CopilotKitClient? read;
+        await tester.pumpWidget(
+          CopilotKit.value(
+            client: client,
+            child: Builder(
+              builder: (context) {
+                read = CopilotKit.maybeRead(context);
+                return const SizedBox();
+              },
+            ),
+          ),
+        );
+
+        expect(read, same(client));
       });
     });
   });

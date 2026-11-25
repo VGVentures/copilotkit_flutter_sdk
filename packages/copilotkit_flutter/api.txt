@@ -59,6 +59,11 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     parameters (getter: ObjectSchema)
     accepts (method: bool Function(Map<String, Object?>), internal)
     tryDecode (method: T? Function(Map<String, Object?>))
+  CopilotAction (class extends StatefulWidget):
+    new (const constructor: CopilotAction Function({required Widget child, Key? key, required String name}))
+    child (getter: Widget)
+    name (getter: String)
+    createState (method: State<CopilotAction> Function())
   CopilotAgent (class extends Object):
     new (constructor: CopilotAgent Function({required String agentId, AgentEventMapper mapper, JsonPatcher patcher, String? threadId}), internal)
     isClosed (getter: bool)
@@ -150,10 +155,12 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     build (method: Widget Function(BuildContext))
   CopilotKit (class extends StatefulWidget):
     maybeOf (static method: CopilotKitClient? Function(BuildContext))
+    maybeRead (static method: CopilotKitClient? Function(BuildContext))
     of (static method: CopilotKitClient Function(BuildContext))
-    new (const constructor: CopilotKit Function({required Widget child, Future<Map<String, String>> Function()? headers, Key? key, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl}))
-    value (const constructor: CopilotKit Function({required Widget child, required CopilotKitClient client, Key? key}))
+    new (const constructor: CopilotKit Function({required Widget child, Future<Map<String, String>> Function()? headers, Key? key, CopilotLearning? learning, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl}))
+    value (const constructor: CopilotKit Function({required Widget child, required CopilotKitClient client, Key? key, CopilotLearning? learning}))
     child (getter: Widget)
+    learning (getter: CopilotLearning?)
     createState (method: State<CopilotKit> Function())
   CopilotKitClient (class extends Object):
     new (constructor: CopilotKitClient Function({Future<Map<String, String>> Function()? headers, void Function(Object, StackTrace)? onError, Map<String, Object?>? properties, required Uri runtimeUrl, ThreadsClient? threads, TrajectorySession? trajectory, AgentTransport? transport}))
@@ -181,6 +188,15 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     unregisterTool (method: void Function(ClientTool<Object?>))
     updateContext (method: void Function(String, Map<String, Object?>))
     watchThreads (method: Stream<ThreadMetadataEvent> Function(String))
+  CopilotLearning (class extends Equatable):
+    new (const constructor: CopilotLearning Function({String? trajectoryId}))
+    props (getter: List<Object?>)
+    trajectoryId (getter: String?)
+  CopilotNavigatorObserver (class extends NavigatorObserver):
+    new (constructor: CopilotNavigatorObserver Function({CopilotKitClient? client}))
+    didPop (method: void Function(Route<dynamic>, Route<dynamic>?))
+    didPush (method: void Function(Route<dynamic>, Route<dynamic>?))
+    didReplace (method: void Function({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}))
   CopilotTool (class<T> extends StatelessWidget):
     new (const constructor: CopilotTool<T> Function({Widget Function(BuildContext, ToolCallView, T?)? builder, required Widget child, Key? key, required FrontendTool<T> tool}))
     builder (getter: Widget Function(BuildContext, ToolCallView, T?)?)
@@ -565,6 +581,7 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     markedAwaiting (method: ToolCallView Function(), internal)
     markedExecuting (method: ToolCallView Function(), internal)
   ToolCallWidget (class extends StatefulWidget):
+    maybeCallOf (static method: ToolCallView? Function(BuildContext))
     new (constructor: ToolCallWidget Function({required ToolCallView call}))
     call (getter: ToolCallView)
     createState (method: State<ToolCallWidget> Function())
@@ -670,6 +687,9 @@ package:flutter/src/widgets/framework.dart:
   StatefulWidget (referenced)
   StatelessWidget (referenced)
   Widget (referenced)
+package:flutter/src/widgets/navigator.dart:
+  NavigatorObserver (referenced)
+  Route (referenced)
 package:http/src/client.dart:
   Client (referenced)
 package:json_utils/src/json_patcher.dart:

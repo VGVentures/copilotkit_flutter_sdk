@@ -9,6 +9,7 @@ export 'src/agent/agent.dart';
 export 'src/chat/chat.dart';
 export 'src/client/client.dart';
 export 'src/context/context.dart';
+export 'src/learning/learning.dart';
 export 'src/memories/memories.dart';
 export 'src/threads/threads.dart';
 export 'src/tools/tools.dart';

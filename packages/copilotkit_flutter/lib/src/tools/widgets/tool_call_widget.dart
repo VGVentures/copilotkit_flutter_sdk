@@ -14,6 +14,12 @@ class ToolCallWidget extends StatefulWidget {
   /// The call to render.
   final ToolCallView call;
 
+  /// Returns the call rendered by the nearest [ToolCallWidget] ancestor, or
+  /// `null` outside one, e.g. for a widget that reports which call it is
+  /// part of. Doesn't rebuild [context] when the call changes.
+  static ToolCallView? maybeCallOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_ToolCallScope>()?.call;
+
   @override
   State<ToolCallWidget> createState() => _ToolCallWidgetState();
 }
@@ -29,6 +35,20 @@ class _ToolCallWidgetState extends State<ToolCallWidget>
     final builders = ToolRenderer.maybeOf(context);
     final builder =
         builders?[widget.call.name] ?? builders?[ToolRenderer.nameFallback];
-    return builder?.call(context, widget.call) ?? const SizedBox.shrink();
+    return _ToolCallScope(
+      call: widget.call,
+      child: Builder(
+        builder: (context) =>
+            builder?.call(context, widget.call) ?? const SizedBox.shrink(),
+      ),
+    );
   }
+}
+
+class const _ToolCallScope({
+  required final ToolCallView call,
+  required super.child,
+}) extends InheritedWidget {
+  @override
+  bool updateShouldNotify(_ToolCallScope oldWidget) => call != oldWidget.call;
 }
