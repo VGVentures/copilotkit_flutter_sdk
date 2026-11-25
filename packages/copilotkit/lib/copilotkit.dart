@@ -18,5 +18,7 @@ export 'src/tools/tools.dart'
         ToolCallOutcome,
         ToolRegistry,
         ToolResponses;
+export 'src/trajectory/trajectory.dart'
+    show TrajectoryBuiltInEvent, TrajectoryException;
 export 'src/transport/transport.dart'
     show ThreadEndpoints, ThreadLockedException;

@@ -10,6 +10,7 @@ import 'package:copilotkit/src/messages/messages.dart';
 import 'package:copilotkit/src/run/run.dart';
 import 'package:copilotkit/src/threads/threads.dart';
 import 'package:copilotkit/src/tools/tools.dart';
+import 'package:copilotkit/src/trajectory/trajectory.dart';
 import 'package:copilotkit/src/transport/transport.dart';
 import 'package:meta/meta.dart';
 
@@ -28,6 +29,7 @@ class CopilotKitClient({
   final CopilotErrorHandler? _onError,
   @visibleForTesting AgentTransport? transport,
   @visibleForTesting ThreadsClient? threads,
+  @visibleForTesting TrajectorySession? trajectory,
 }) {
   /// Creates a client for the runtime at [runtimeUrl], e.g.
   /// `https://host/api/copilotkit`.
@@ -37,7 +39,8 @@ class CopilotKitClient({
   /// model's `toJson()`.
   /// `onError` is called with errors instead of throwing them; without it
   /// they are logged. [transport] replaces the transport to
-  /// [runtimeUrl] in tests, and [threads] the client of its thread routes.
+  /// [runtimeUrl] in tests, [threads] the client of its thread routes, and
+  /// [trajectory] the capture of trajectories.
   this;
 
   final Uri _runtimeUrl = runtimeUrl;
@@ -79,6 +82,16 @@ class CopilotKitClient({
   );
 
   ThreadsClient? _threads = threads;
+
+  /// Captures trajectories for Automatic Learning; see [startTrajectory].
+  final TrajectorySession? _givenTrajectory = trajectory;
+
+  late final TrajectorySession _trajectory =
+      _givenTrajectory ??
+      TrajectorySession(
+        client: TrajectoryClient(runtimeUrl: _runtimeUrl, headers: _headers),
+        onError: (error) => _report(error, StackTrace.current),
+      );
   bool _closed = false;
 
   /// The client for the thread routes of this client's runtime.
@@ -287,8 +300,46 @@ class CopilotKitClient({
   /// Completes with `false` at once when nothing ran because the agent is
   /// already running; [message] was not appended then, so the caller still
   /// owns it.
-  Future<bool> runAgent(String agentId, {Message? message}) =>
-      _runner.run(agent(agentId), message: message);
+  Future<bool> runAgent(String agentId, {Message? message}) {
+    final agent = this.agent(agentId);
+    // A capture links each thread it sees run, once.
+    _trajectory.linkThread(agent.state.threadId);
+    return _runner.run(agent, message: message);
+  }
+
+  /// Starts capturing what the user does as the trajectory [trajectoryId], a
+  /// UUID, or a new one, for Automatic Learning.
+  ///
+  /// Completes with the id once capturing, or with `null` when it couldn't
+  /// start; the reason, a [TrajectoryException], goes to `onError`. The
+  /// runtime needs Intelligence and the project needs trajectories. Starting
+  /// the same trajectory again changes nothing; starting another stops this
+  /// one. Each thread an agent runs on while capturing is linked to the
+  /// trajectory.
+  Future<String?> startTrajectory({String? trajectoryId}) =>
+      _trajectory.start(trajectoryId: trajectoryId);
+
+  /// Captures the developer event [name] with [value], e.g. an outcome like
+  /// `deal.approved` with `{'dealId': 'd-1'}`.
+  ///
+  /// [value] must be JSON. Names of [TrajectoryBuiltInEvent]s, empty names
+  /// and names over 200 characters are refused with `INVALID_EVENT`. Does
+  /// nothing while no trajectory is being captured.
+  void emitTrajectoryEvent(String name, Object? value) =>
+      _trajectory.emit(name, value);
+
+  /// Captures the built-in [event] with [value], as the Flutter collectors
+  /// (navigation, taps) do.
+  void recordTrajectoryEvent(
+    TrajectoryBuiltInEvent event,
+    Map<String, Object?> value,
+  ) => _trajectory.record(event, value);
+
+  /// Sends what is left of the trajectory being captured and stops.
+  Future<void> stopTrajectory() => _trajectory.stop();
+
+  /// The trajectory being captured or started, or `null`.
+  String? get trajectoryId => _trajectory.trajectoryId;
 
   /// Stops the turn of the agent [agentId], if it is running.
   Future<void> stopAgent(String agentId) async {
@@ -304,6 +355,7 @@ class CopilotKitClient({
     // First: closing it is synchronous, and a failure below must not skip it.
     _threads?.close();
     _memories?.close();
+    await _trajectory.stop();
     await _runner.close();
     for (final agent in _agents.values) {
       await agent.close();

@@ -196,6 +196,29 @@ void main() {
         );
       });
 
+      test('a trajectory starts and takes an event', () async {
+        final errors = <TrajectoryException>[];
+        final capture = CopilotKitClient(
+          runtimeUrl: url,
+          onError: (error, _) {
+            if (error is TrajectoryException) errors.add(error);
+          },
+        );
+        addTearDown(capture.close);
+
+        final id = await capture.startTrajectory();
+        if (id == null) {
+          markTestSkipped(
+            'The project captures no trajectories: ${errors.single.code}',
+          );
+          return;
+        }
+        capture.emitTrajectoryEvent('live.check', const {'ok': true});
+        await capture.stopTrajectory();
+
+        expect(errors, isEmpty);
+      });
+
       test('a thread is renamed, archived and unarchived', () async {
         final threads = client.threads;
 
