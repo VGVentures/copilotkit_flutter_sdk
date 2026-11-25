@@ -125,6 +125,17 @@ package:copilotkit_flutter/copilotkit_flutter.dart:
     isRunning (getter: bool)
     props (getter: List<Object?>)
     rows (getter: List<ChatRow>)
+  CopilotComponent (class<T> extends StatelessWidget):
+    descriptionPrefix (static method: String Function(String))
+    new (const constructor: CopilotComponent<T> Function({required Widget Function(BuildContext, ToolCallView, T?) builder, required Widget child, required T Function(Map<String, Object?>) decode, required String description, bool followUp, Key? key, required String name, required ObjectSchema parameters}))
+    builder (getter: Widget Function(BuildContext, ToolCallView, T?))
+    child (getter: Widget)
+    decode (getter: T Function(Map<String, Object?>))
+    description (getter: String)
+    followUp (getter: bool)
+    name (getter: String)
+    parameters (getter: ObjectSchema)
+    build (method: Widget Function(BuildContext))
   CopilotContext (class extends StatefulWidget):
     new (const constructor: CopilotContext Function({required Widget child, required String description, Key? key, required Map<String, Object?> value}))
     child (getter: Widget)

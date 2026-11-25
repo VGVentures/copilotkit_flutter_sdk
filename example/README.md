@@ -186,7 +186,8 @@ curl -N -X POST http://localhost:8200/api/copilotkit/agent/default/run \
 Use this checklist to check the app end to end against a running runtime. The
 demo in `lib/demo/widgets/weather_demo.dart` registers a `showWeather`
 frontend tool and a `confirmAction` human-in-the-loop tool
-(`lib/demo/widgets/approval_demo.dart`),
+(`lib/demo/widgets/approval_demo.dart`), a `showBarChart` component
+(`lib/demo/widgets/bar_chart_demo.dart`),
 shows a todo list kept in the agent's shared state
 (`lib/demo/widgets/todo_panel.dart`), and shares a current user
 (`{name: Ada, homeCity: Lima}`) as context.
@@ -224,6 +225,14 @@ These checks cover the tool call lifecycle and the weather card.
   forecast. This confirms that the tool result went back to the runtime.
 - Ask "What's the weather at home?" The agent uses the context and picks Lima.
 - Ask for two cities in one message. Two cards appear.
+
+### Component
+
+This check covers `CopilotComponent` (`lib/demo/widgets/bar_chart_demo.dart`).
+
+- Ask "Show a bar chart of quarterly sales: Q1 5, Q2 10, Q3 7." A card titled
+  with the chart's name fills in bar by bar while the arguments stream, and
+  Q2 is the longest bar.
 
 ### Human in the loop
 

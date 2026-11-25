@@ -29,12 +29,14 @@ class const App({
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6766FC)),
       home: isValid
           ? WeatherDemo(
-              child: CopilotAgentScope(
-                agentId: ChatPage.agentId,
-                threadId: threadId,
-                child: ChatPage(
-                  header: const TodoPanel(),
-                  onThreadSelected: _threadIdStore?.save,
+              child: BarChartDemo(
+                child: CopilotAgentScope(
+                  agentId: ChatPage.agentId,
+                  threadId: threadId,
+                  child: ChatPage(
+                    header: const TodoPanel(),
+                    onThreadSelected: _threadIdStore?.save,
+                  ),
                 ),
               ),
             )
