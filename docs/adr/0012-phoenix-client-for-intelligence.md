@@ -2,7 +2,7 @@
 
 <!-- cspell:ignore realtime -->
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
