@@ -91,6 +91,32 @@ registered one, and unmounting the widget while a call waits answers the call
 as cancelled. The agent's `isRunning` stays `true` while a call waits; read
 `CopilotAgentState.awaitingResponseIds` to know the agent waits for the user.
 
+## Showing a component
+
+`CopilotComponent` is the Flutter version of `useComponent`: it lets the
+agent show a widget in the chat, with nothing to run in the app. It registers
+a tool without a handler while it is mounted, and renders each call with the
+arguments decoded by `decode`, partial while they stream in. The tool's
+description starts with the same text as upstream's, so the agent knows the
+tool only displays something.
+
+```dart
+CopilotComponent<BarChartArgs>(
+  name: 'showBarChart',
+  description: 'Shows a horizontal bar chart of labelled values.',
+  parameters: Ack.object({
+    'title': Ack.string(),
+    'bars': Ack.list(Ack.object({'label': Ack.string(), 'value': Ack.double()})),
+  }),
+  decode: BarChartArgs.fromJson,
+  builder: (context, call, args) => BarChartCard(call: call, args: args),
+  child: const ChatPage(),
+)
+```
+
+The call's result is `''`. The agent runs again after it, unless `followUp`
+is `false`.
+
 ---
 
 ## Continuous Integration 🤖
