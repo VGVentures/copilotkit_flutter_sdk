@@ -154,6 +154,48 @@ void main() {
         expect(event.operation, ThreadMetadataOperation.renamed);
       });
 
+      test('a saved and retired memory reach the memory channel', () async {
+        final memories = client.memories;
+        try {
+          await memories.list();
+        } on MemoryUnavailableException {
+          markTestSkipped('The runtime has no memory');
+          return;
+        }
+        final joined = Completer<void>();
+        final events = <MemoryMetadataEvent>[];
+        final subscription = memories
+            .watch(onConnected: joined.complete)
+            .listen(events.add);
+        addTearDown(subscription.cancel);
+        await joined.future.timeout(const Duration(seconds: 20));
+
+        final saved = await memories.save(
+          const NewMemory(
+            content: 'Live test: the user checks the Flutter SDK.',
+            kind: MemoryKind.topical,
+          ),
+        );
+        final id = saved.memory.id;
+        await memories.retire(id);
+
+        await Future.doWhile(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return !events.any(
+            (event) =>
+                event.memoryId == id &&
+                event.operation == MemoryMetadataOperation.invalidated,
+          );
+        }).timeout(const Duration(seconds: 20));
+        expect(
+          events.where((event) => event.memoryId == id).map((e) => e.operation),
+          containsAll([
+            MemoryMetadataOperation.created,
+            MemoryMetadataOperation.invalidated,
+          ]),
+        );
+      });
+
       test('a thread is renamed, archived and unarchived', () async {
         final threads = client.threads;
 

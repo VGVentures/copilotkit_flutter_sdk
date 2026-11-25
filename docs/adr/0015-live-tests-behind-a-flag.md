@@ -45,6 +45,8 @@ One thread serves the whole file: `setUpAll` opens it and runs one turn, and
 - on an Intelligence runtime, a replay whose first socket closes after three
   frames reconnects and still ends with the same reply;
 - on an Intelligence runtime, a rename reaches the thread metadata channel;
+- on a runtime with memory, a memory saved and retired reaches the memory
+  channel; the memory is retired by the test itself;
 - the thread routes rename, archive and unarchive the thread.
 
 Point the URL at a runtime without a Learning container. Every run of the file

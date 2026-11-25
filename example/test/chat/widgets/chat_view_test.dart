@@ -152,6 +152,8 @@ void main() {
       testWidgets('opens the memories', (tester) async {
         final memories = _MockMemoriesClient();
         when(() => client.memories).thenReturn(memories);
+        when(() => memories.watch(onConnected: any(named: 'onConnected')))
+            .thenAnswer((_) => const Stream.empty());
         when(
           () => memories.list(
             includeInvalidated: any(named: 'includeInvalidated'),

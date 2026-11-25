@@ -1,16 +1,21 @@
+// cspell:ignore realtime
 import 'dart:async';
 import 'dart:convert';
 
 import 'package:copilotkit/copilotkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
+import 'package:phoenix_channels_client/phoenix_channels_client.dart';
 import 'package:test/test.dart';
 
 import '../../helpers/memory_fixtures.dart';
+import '../../helpers/memory_metadata_fixture.dart';
 
 class _MockHttpClient extends Mock implements http.Client;
 
 class _FakeBaseRequest extends Fake implements http.BaseRequest;
+
+class _MockChannel extends Mock implements PhoenixChannelsClient;
 
 const _newMemory = NewMemory(content: 'Likes tea.', kind: MemoryKind.topical);
 
@@ -457,6 +462,167 @@ void main() {
         expect(
           client.retire('mem_1'),
           throwsA(const MemoryUnavailableException(403)),
+        );
+      });
+    });
+
+    group('subscribe', () {
+      test('asks for the credentials of the memory channels', () async {
+        stubResponse(jsonEncode(memoryChannelBody('subscribe')));
+
+        final credentials = await client.subscribe();
+
+        final request = sent();
+        expect(request.method, 'POST');
+        expect(
+          request.url,
+          Uri.parse('http://runtime.test/api/copilotkit/memories/subscribe'),
+        );
+        expect(request.body, '{}');
+        expect(credentials.userTopic, 'user_meta:memories:<join-code>');
+      });
+
+      test('fails when the runtime grants no channel', () {
+        stubResponse('{"joinCode": "c"}');
+
+        expect(
+          client.subscribe(),
+          throwsA(
+            isA<MemoryException>()
+                .having(
+                  (e) => e.code,
+                  'code',
+                  MemoryErrorCode.credentialsFailed,
+                )
+                .having((e) => e.statusCode, 'statusCode', 200),
+          ),
+        );
+      });
+
+      test('is unavailable on 404', () {
+        stubResponse('', status: 404);
+
+        expect(
+          client.subscribe(),
+          throwsA(const MemoryUnavailableException(404)),
+        );
+      });
+    });
+
+    group('watch', () {
+      late Map<String, http.Response> answers;
+
+      setUp(() {
+        answers = {
+          '/api/copilotkit/info': http.Response(
+            jsonEncode({
+              'mode': 'intelligence',
+              'intelligence': {'wsUrl': 'wss://realtime.test/client'},
+            }),
+            200,
+          ),
+          '/api/copilotkit/memories/subscribe': http.Response(
+            jsonEncode({'joinToken': 't1', 'joinCode': 'c1'}),
+            200,
+          ),
+        };
+        when(() => httpClient.send(any())).thenAnswer((invocation) async {
+          final request = invocation.positionalArguments.single as http.Request;
+          final answer = answers[request.url.path]!;
+          return http.StreamedResponse(
+            Stream.value(answer.bodyBytes),
+            answer.statusCode,
+          );
+        });
+      });
+
+      test('follows the channel on the runtime real-time socket', () async {
+        final channel = _MockChannel();
+        final frames = StreamController<PhoenixEvent>.broadcast();
+        when(() => channel.events).thenAnswer((_) => frames.stream);
+        when(channel.open).thenAnswer((_) async {});
+        when(() => channel.join(any(), any())).thenAnswer((_) async => null);
+        when(channel.close).thenAnswer((_) => frames.close());
+        late Uri socketUrl;
+        client = MemoriesClient(
+          runtimeUrl: Uri.parse('http://runtime.test/api/copilotkit/'),
+          headers: () async => {'Authorization': 'Bearer token'},
+          httpClient: httpClient,
+          channelFactory: (url, params) {
+            socketUrl = url;
+            expect(params, {'join_token': 't1'});
+            return channel;
+          },
+        );
+        var connected = 0;
+        final events = <MemoryMetadataEvent>[];
+
+        final subscription = client
+            .watch(onConnected: () => connected++)
+            .listen(events.add);
+        await pumpEventQueue();
+        frames.add(
+          PhoenixEvent(
+            topic: 'user_meta:memories:c1',
+            event: 'memory_metadata',
+            payload: memoryMetadataPayload('created'),
+          ),
+        );
+        await pumpEventQueue();
+
+        expect(socketUrl, Uri.parse('wss://realtime.test/client'));
+        verify(() => channel.join('user_meta:memories:c1', {})).called(1);
+        expect(connected, 1);
+        expect(events.single.operation, MemoryMetadataOperation.created);
+        final requests = verify(() => httpClient.send(captureAny())).captured
+            .cast<http.Request>();
+        expect(
+          requests.map((request) => request.headers['Authorization']),
+          everyElement('Bearer token'),
+        );
+        await subscription.cancel();
+      });
+
+      test('fails when the runtime has no real-time service', () async {
+        for (final info in [
+          {'mode': 'sse'},
+          {
+            'mode': 'intelligence',
+            'intelligence': {'wsUrl': ''},
+          },
+        ]) {
+          answers['/api/copilotkit/info'] = http.Response(
+            jsonEncode(info),
+            200,
+          );
+
+          await expectLater(
+            client.watch(),
+            emitsError(
+              isA<MemoryException>().having(
+                (e) => e.code,
+                'code',
+                MemoryErrorCode.realtimeUnavailable,
+              ),
+            ),
+          );
+        }
+      });
+
+      test('fails when the runtime info cannot be read', () async {
+        answers['/api/copilotkit/info'] = http.Response('', 404);
+
+        await expectLater(
+          client.watch(),
+          emitsError(
+            isA<MemoryException>()
+                .having(
+                  (e) => e.code,
+                  'code',
+                  MemoryErrorCode.realtimeUnavailable,
+                )
+                .having((e) => e.statusCode, 'statusCode', 404),
+          ),
         );
       });
     });

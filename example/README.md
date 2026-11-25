@@ -303,17 +303,21 @@ Needs a runtime in Intelligence mode (`CPK_INTELLIGENCE_*` set), which keeps thr
 - [ ] Tap another thread: its messages replace the chat's. Restart the app: it opens on that thread.
 - [ ] Tap "+": the chat is empty, and your next message starts a new thread.
 - [ ] Archive a thread from its menu: it leaves the list. Delete another: it leaves the list at once.
+- [ ] With the list open, rename a thread on another device: the new name shows without a refresh.
 - [ ] On a runtime without Intelligence the list says it keeps no conversations.
 
 ### Memories
 
-Needs a runtime with memory (Intelligence mode).
+Needs a runtime with memory: Intelligence mode, with `memory.access` set, as
+the local runtime in `tool/runtime/server.ts` does.
 
 - [ ] Tap the memories icon in the app bar: the screen lists what is remembered, or says nothing is yet.
 - [ ] Type a fact under "Remember something" and tap add: it appears at the top of the list.
 - [ ] Add the same fact again: a notice says it was already remembered.
 - [ ] Search for a word of a memory: the matches show under "Search results".
 - [ ] Tap the bin on a memory: it leaves the list.
+- [ ] With the screen open, save a memory from another device or with
+  `curl -X POST <runtime>/memories`: it appears without a refresh.
 - [ ] On a runtime without memory the screen says it keeps none.
 
 ### Errors and recovery

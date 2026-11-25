@@ -1,10 +1,12 @@
+// cspell:ignore realtime
 part of 'memories_bloc.dart';
 
 /// What a memories UI shows: the [memories] of the user and what is going on
 /// with them.
 ///
-/// The memories change as the user's operations finish, not live: a memory
-/// another device saves shows after the next [MemoriesRequested].
+/// The memories change as the user's operations finish and, while
+/// [realtimeStatus] is [MemoryRealtimeStatus.connected], live as any device
+/// or agent run changes them.
 final class const MemoriesState({
   /// The memories of the user, newest first.
   final List<Memory> memories = const [],
@@ -30,6 +32,14 @@ final class const MemoriesState({
   /// no access, which is not an error: show that memory isn't available. It
   /// is `true` until the runtime says otherwise.
   final bool isAvailable = true,
+
+  /// Whether [memories] follows changes live.
+  ///
+  /// It is [MemoryRealtimeStatus.connecting] until the channel of the last
+  /// [MemoriesRequested] joins, and [MemoryRealtimeStatus.unavailable] when
+  /// the runtime has no memory or no real-time service, or the channel failed
+  /// for good. Don't show a live indicator then: the list is a snapshot.
+  final MemoryRealtimeStatus realtimeStatus = MemoryRealtimeStatus.connecting,
 
   /// The failure of the last operation, or `null`.
   ///
@@ -63,6 +73,7 @@ final class const MemoriesState({
     bool? isRecalling,
     bool? includeInvalidated,
     bool? isAvailable,
+    MemoryRealtimeStatus? realtimeStatus,
     Object? Function()? error,
     int? inFlightMutationCount,
     MemoryMutationOutcome? Function()? lastOutcome,
@@ -73,6 +84,7 @@ final class const MemoriesState({
     isRecalling: isRecalling ?? this.isRecalling,
     includeInvalidated: includeInvalidated ?? this.includeInvalidated,
     isAvailable: isAvailable ?? this.isAvailable,
+    realtimeStatus: realtimeStatus ?? this.realtimeStatus,
     error: error == null ? this.error : error(),
     inFlightMutationCount: inFlightMutationCount ?? this.inFlightMutationCount,
     lastOutcome: lastOutcome == null ? this.lastOutcome : lastOutcome(),
@@ -86,6 +98,7 @@ final class const MemoriesState({
     isRecalling,
     includeInvalidated,
     isAvailable,
+    realtimeStatus,
     error,
     inFlightMutationCount,
     lastOutcome,

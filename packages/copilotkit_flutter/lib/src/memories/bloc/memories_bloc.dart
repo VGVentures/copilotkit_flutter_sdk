@@ -1,3 +1,4 @@
+// cspell:ignore realtime
 import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:copilotkit/copilotkit.dart';
@@ -14,6 +15,11 @@ part 'memories_state.dart';
 /// A runtime without memory sets [MemoriesState.isAvailable] to `false`
 /// instead of an error.
 ///
+/// Each [MemoriesRequested] that loads the list then follows it live with
+/// [MemoriesClient.watch] until the next one or [close], and reports how in
+/// [MemoriesState.realtimeStatus]: memories saved, replaced or retired by
+/// any device or agent run show up without a refresh.
+///
 /// Pass `CopilotKitClient.memories` as the client, so memory requests carry
 /// the same headers as the runs.
 class MemoriesBloc({required final MemoriesClient _client})
@@ -27,6 +33,12 @@ class MemoriesBloc({required final MemoriesClient _client})
     on<MemoryRetired>(_onRetired, transformer: concurrent());
   }
 
+  /// The ids of the memories known to be retired. The service repeats
+  /// events, so a stale `created` may arrive after a memory's `invalidated`
+  /// and must not bring it back. A retired id never comes back: a
+  /// replacement gets a new one.
+  final _retiredIds = <String>{};
+
   Future<void> _onRequested(
     MemoriesRequested event,
     Emitter<MemoriesState> emit,
@@ -35,6 +47,7 @@ class MemoriesBloc({required final MemoriesClient _client})
       state.copyWith(
         isLoading: true,
         includeInvalidated: event.includeInvalidated,
+        realtimeStatus: MemoryRealtimeStatus.connecting,
         error: () => null,
       ),
     );
@@ -51,10 +64,48 @@ class MemoriesBloc({required final MemoriesClient _client})
         ),
       );
     } on MemoryUnavailableException {
-      emit(_unavailable());
+      return emit(_unavailable());
     } on Object catch (error) {
-      emit(state.copyWith(isLoading: false, error: () => error));
+      return emit(
+        state.copyWith(
+          isLoading: false,
+          realtimeStatus: MemoryRealtimeStatus.unavailable,
+          error: () => error,
+        ),
+      );
     }
+    // Runs until the next MemoriesRequested restarts this handler, which
+    // cancels it, so events of an older list never reach a newer one.
+    await emit.forEach(
+      _client.watch(
+        // The handler is still running while the channel is followed. Once
+        // the next MemoriesRequested or close ends it, emit is done, so the
+        // join of an older list changes nothing.
+        onConnected: () {
+          if (emit.isDone) return;
+          emit(state.copyWith(realtimeStatus: MemoryRealtimeStatus.connected));
+        },
+      ),
+      onData: _applied,
+      onError: (_, _) =>
+          state.copyWith(realtimeStatus: MemoryRealtimeStatus.unavailable),
+    );
+  }
+
+  /// The state after the live [event]: a created or updated memory is put
+  /// in place or added first, an invalidated one leaves the list (or is
+  /// marked retired when retired memories are listed) and the recall.
+  MemoriesState _applied(MemoryMetadataEvent event) {
+    final memory = event.memory;
+    if (event.operation == MemoryMetadataOperation.invalidated) {
+      _retiredIds.add(event.memoryId);
+      return state.copyWith(
+        memories: _retired(state.memories, event.memoryId),
+        recalled: _without(state.recalled, event.memoryId),
+      );
+    }
+    if (memory == null || _retiredIds.contains(memory.id)) return state;
+    return state.copyWith(memories: _withMemory(memory));
   }
 
   Future<void> _onRecalled(
@@ -124,6 +175,7 @@ class MemoriesBloc({required final MemoriesClient _client})
       final outcome = await mutation();
       // A supersede retires a memory too, so it leaves the recall as well.
       final retiredId = onRetired ?? outcome?.retiredId;
+      if (retiredId != null) _retiredIds.add(retiredId);
       emit(
         state.copyWith(
           memories: outcome == null
@@ -164,6 +216,7 @@ class MemoriesBloc({required final MemoriesClient _client})
     isLoading: false,
     isRecalling: false,
     isAvailable: false,
+    realtimeStatus: MemoryRealtimeStatus.unavailable,
     error: () => null,
     lastOutcome: () => null,
   );

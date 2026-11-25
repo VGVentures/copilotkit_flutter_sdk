@@ -10,6 +10,8 @@ void main() {
   group(MemoriesPage, () {
     testWidgets('loads the memories and shows them', (tester) async {
       final client = _MockMemoriesClient();
+      when(() => client.watch(onConnected: any(named: 'onConnected')))
+          .thenAnswer((_) => const Stream.empty());
       when(
         () => client.list(includeInvalidated: any(named: 'includeInvalidated')),
       ).thenAnswer(
