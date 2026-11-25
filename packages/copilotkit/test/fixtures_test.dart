@@ -13,6 +13,7 @@ void main() {
       'unknown_events',
       'dropped_connection',
       'connect_replay',
+      'document_state_stream',
     ];
 
     for (final name in names) {
@@ -53,6 +54,22 @@ void main() {
       expect(fixture.undecodable, isEmpty);
       expect(fixture.events.whereType<RunStartedEvent>(), hasLength(2));
       expect(fixture.events.whereType<RunFinishedEvent>(), hasLength(2));
+    });
+
+    test('document_state_stream grows the document snapshot by snapshot', () {
+      final fixture = loadFixture('document_state_stream');
+      final documents = [
+        for (final event in fixture.events.whereType<StateSnapshotEvent>())
+          (event.snapshot as Map<String, Object?>)['document']! as String,
+      ];
+
+      expect(fixture.isSynthetic, isFalse);
+      expect(fixture.undecodable, isEmpty);
+      expect(documents.length, greaterThan(1));
+      for (final (index, document) in documents.indexed.skip(1)) {
+        expect(document, startsWith(documents[index - 1]));
+      }
+      expect(fixture.events.last, isA<RunFinishedEvent>());
     });
 
     test('dropped_connection ends without a terminal event', () {

@@ -9,6 +9,7 @@ import {
 } from "@copilotkit/runtime/v2";
 import { createCopilotNodeListener } from "@copilotkit/runtime/v2/node";
 import { defaultUser, resolveLearningContainerId } from "./config.ts";
+import { documentAgent } from "./document_agent.ts";
 
 const basePath = "/api/copilotkit";
 const port = Number(process.env.PORT ?? 8200);
@@ -24,6 +25,9 @@ const agents = {
       "asks to add, finish or remove a todo, edit that list with the state " +
       "tools and keep the other items as they are.",
   }),
+  // Writes a document into the shared state while it streams; the app's
+  // Document screen renders it token by token.
+  document: documentAgent(model),
 };
 
 // With CPK_INTELLIGENCE_API_KEY the runtime records threads in Intelligence

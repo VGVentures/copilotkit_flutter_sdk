@@ -3,6 +3,7 @@ import 'package:copilotkit_flutter/copilotkit_flutter.dart';
 import 'package:example/chat/widgets/chat_view.dart';
 import 'package:example/chat/widgets/composer.dart';
 import 'package:example/chat/widgets/message_list.dart';
+import 'package:example/document/widgets/document_view.dart';
 import 'package:example/memories/widgets/memories_view.dart';
 import 'package:example/threads/widgets/threads_view.dart';
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ class _MockClient extends Mock implements CopilotKitClient;
 class _MockThreadsClient extends Mock implements ThreadsClient;
 
 class _MockMemoriesClient extends Mock implements MemoriesClient;
+
+class _MockCopilotAgent extends Mock implements CopilotAgent;
 
 class _MockCopilotChatBloc extends MockBloc<CopilotChatEvent, CopilotChatState>
     implements CopilotChatBloc;
@@ -147,6 +150,21 @@ void main() {
 
         verify(() => client.switchAgentThread('default', 'thread-2')).called(1);
         expect(selected, ['thread-2']);
+      });
+
+      testWidgets('opens the document', (tester) async {
+        final agent = _MockCopilotAgent();
+        when(() => client.agent('document')).thenReturn(agent);
+        when(() => agent.state).thenReturn(
+          const CopilotAgentState(agentId: 'document', threadId: 't'),
+        );
+        when(() => agent.stream).thenAnswer((_) => const Stream.empty());
+        await pumpWith(tester);
+
+        await tester.tap(find.byKey(const Key('open_document')));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DocumentView), findsOneWidget);
       });
 
       testWidgets('opens the memories', (tester) async {
