@@ -1,4 +1,4 @@
-# 0011. `runAgent` during a turn
+# 0014. `runAgent` during a turn
 
 **Status:** Proposed
 
@@ -86,7 +86,7 @@ Applies when this record is accepted:
 - The sentence "`runAgent` does nothing until the turn ends" gains "and
   returns `false`", in the doc comment of `CopilotAgentState.isRunning` and
   in `packages/copilotkit/README.md`.
-- ADR 0009 gets a line under its status, "Amended by ADR 0011: `runAgent`
+- ADR 0009 gets a line under its status, "Amended by ADR 0014: `runAgent`
   reports a dropped call through its return value", and its alternative
   about `isRunning` is unchanged.
 
